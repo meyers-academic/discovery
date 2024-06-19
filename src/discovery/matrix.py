@@ -796,35 +796,43 @@ class ShermanMorrisonKernel_varNP(VariableKernel):
 
     # probably correct, but not needed yet
     #
-    # def make_kernelsolve(self, y, T):
-    #     Nmy, _ = self.N.solve_1d(y) if y.ndim == 1 else self.N.solve_2d(y)
-    #     TtNmy  = T.T @ Nmy
+    def make_kernelsolve(self, y, T):
+        # Nmy, _ = self.N.solve_1d(y) if y.ndim == 1 else self.N.solve_2d(y)
+        N_solve_1d = self.N.make_solve_1d()
+        N_solve_2d = self.N.make_solve_2d()
+        # TtNmy  = T.T @ Nmy
 
-    #     NmT, _ = self.N.solve_2d(T)
-    #     TtNmT  = T.T @ NmT
+        # NmT, _ = self.N.solve_2d(T)
+        # TtNmT  = T.T @ NmT
 
-    #     TtNmy, TtNmT = jnparray(TtNmy), jnparray(TtNmT)
-    #     F_var, N_solve_2d = self.F_var, self.N.make_solve_2d()
-    #     P_var_inv = self.P_var.make_inv()
+        # TtNmy, TtNmT = jnparray(TtNmy), jnparray(TtNmT)
+        # F_var, N_solve_2d = self.F_var, self.N.make_solve_2d()
+        P_var_inv = self.P_var.make_inv()
+        F = self.F
 
-    #     def kernelsolve(params):
-    #         F = F_var(params)
-    #         FtNmy  = F.T @ Nmy
-    #         FtNmT  = F.T @ NmT
+        def kernelsolve(params):
+            Nmy, _ = N_solve_1d(params, y)
+            TtNmy = T.T @ Nmy
+            NmT, _ = N_solve_2d(params, T)
+            TtNmT = T.T @ NmT
+            TtNmy, TtNmT = jnparray(TtNmy), jnparray(TtNmT)
 
-    #         NmF, _ = N_solve_2d(F)
-    #         FtNmF = F.T @ NmF
-    #         TtNmF = T.T @ NmF
+            FtNmy  = F.T @ Nmy
+            FtNmT  = F.T @ NmT
 
-    #         Pinv, _ = P_var_inv(params)
-    #         cf = jsp.linalg.cho_factor(Pinv + FtNmF)
+            NmF, _ = N_solve_2d(F)
+            FtNmF = F.T @ NmF
+            TtNmF = T.T @ NmF
 
-    #         TtSy = TtNmy - TtNmF @ jsp.linalg.cho_solve(cf, FtNmy)
-    #         TtST = TtNmT - TtNmF @ jsp.linalg.cho_solve(cf, FtNmT)
+            Pinv, _ = P_var_inv(params)
+            cf = jsp.linalg.cho_factor(Pinv + FtNmF)
 
-    #         return TtSy, TtST
+            TtSy = TtNmy - TtNmF @ jsp.linalg.cho_solve(cf, FtNmy)
+            TtST = TtNmT - TtNmF @ jsp.linalg.cho_solve(cf, FtNmT)
 
-    #     kernelsolve.params = F_var.params + P_var_inv.params
+            return TtSy, TtST
+
+        kernelsolve.params = self.N.params + P_var_inv.params
 
     #     return kernelsolve
 

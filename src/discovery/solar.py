@@ -31,9 +31,9 @@ def make_solardm(psr):
     theta, r_earth, _, _ = theta_impact(psr)
     shape = matrix.jnparray(AU_light_sec * AU_pc / r_earth / np.sinc(1 - theta/np.pi) * 4.148808e3 / psr.freqs**2)
 
-    def solardm(n_earth):
-        return n_earth * shape
-
+    def solardm(params):
+        return params['n_earth'] * shape
+    solardm.params = ['n_earth']
     return solardm
 
 def make_chromaticdecay(psr):

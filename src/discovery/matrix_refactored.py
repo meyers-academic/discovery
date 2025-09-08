@@ -50,322 +50,6 @@ class ArrayConverter:
         return [ArrayConverter.to_jax_if_needed(arr) for arr in arrays]
 
 
-# class WoodburyKernelBase:
-#     """
-#     Base class containing unified Woodbury kernel logic.
-
-#     Subclasses just need to set class variables:
-#     - N_IS_VARIABLE: bool
-#     - P_IS_VARIABLE: bool
-#     - F_IS_VARIABLE: bool (if applicable)
-
-#     This eliminates the ~500 lines of nearly identical code across variants.
-#     """
-
-#     # Subclasses override these
-#     N_IS_VARIABLE = False
-#     P_IS_VARIABLE = False
-#     F_IS_VARIABLE = False
-
-#     def __init__(self, N, F, P):
-#         self.N = N
-#         self.F = F
-#         self.P = P
-
-#         # Set params for VariableKernel interface
-#         self._setup_parameters()
-#         self.get_NmF = self.make_NmF()
-#         self.get_FtNmF = self.make_FtNmF()
-#         self.get_Pinv = self.make_Pinv()
-#         self.get_woodbury_inverse = self.make_woodbury_inverse()
-
-#     def make_Pinv(self):
-#         """Compute the inverse of the prior covariance P."""
-#         if self.P_IS_VARIABLE:
-#             return self.P.make_inv()
-#         else:
-
-#             return lambda params: self.P.inv()
-
-#     def _setup_parameters(self):
-#         """Set up parameter list based on which components are variable."""
-#         params = set()
-
-#         if self.N_IS_VARIABLE:
-#             params.update(self.N.params)
-#         if self.P_IS_VARIABLE:
-#             params.update(self.P.params)
-#         if self.F_IS_VARIABLE and hasattr(self.F, 'params'):
-#             params.update(self.F.params)
-
-#         self.params = sorted(params)
-
-#     def make_NmF(self):
-#         """Compute N^-1 F for the current parameters."""
-#         if self.F_IS_VARIABLE:
-#             if self.N_IS_VARIABLE:
-#                 N_solve_2d = self.N.make_solve_2d()
-
-#                 def NmF(params):
-#                     F_val = self.F(params)
-#                     return N_solve_2d(params, F_val)
-#                 return NmF
-#             else:
-#                 N = self.N
-#                 def NmF(params):
-#                     F_val = self.F(params)
-#                     return N.solve_2d(F_val)
-#                 return NmF
-
-#         elif self.N_IS_VARIABLE:
-#             F = self.F
-#             N_solve_2d = self.N.make_solve_2d()
-#             def NmF(params):
-#                 return N_solve_2d(params, F)
-#             return NmF
-#         else:
-#             F = self.F
-#             NmF_tmp, ldN = self.N.solve_2d(F)
-#             def NmF(params):
-#                 return NmF_tmp, ldN
-#             return NmF
-
-#     def make_FtNmF(self):
-#         if self.F_IS_VARIABLE:
-#             F_var = self.F
-#             def FtNmF(params):
-#                 NmF_val, ldN = self.get_NmF(params)
-#                 return F_var(params).T @ NmF_val, ldN
-#             return FtNmF
-#         else:
-#             NmF_val = self.get_NmF
-#             F = self.F
-#             def FtNmF(params):
-#                 # will work whether N is variable or not
-#                 NmF, ldN = NmF_val(params)
-#                 return F.T @ NmF, ldN
-#             return FtNmF
-
-#     # def make_solve_woodbury(self):
-#     #     """Create a function that solves the Woodbury system."""
-#     #     # if T is not callable, precompute matrix values with T
-#     #     def solve_woodbury(params, T):
-#     #         NmF, ldN = self.get_NmF(params)
-#     #         FtNmT = (T.T @ NmF).T
-#     #         cf, ldTot = self.get_woodbury_inverse(params)
-#     #         return self.N.solve_2d(T)[0] - NmF @ matrix_solve(cf, FtNmT), ldTot
-
-#     #     return solve_woodbury
-
-#     def make_woodbury_inverse(self):
-#         """Compute the Woodbury inverse components."""
-#         get_FtNmF = self.get_FtNmF
-#         get_P_inv = self.get_Pinv
-#         if not self.F_IS_VARIABLE and not self.N_IS_VARIABLE and not self.P_IS_VARIABLE:
-#             # If all matrices are constant, we can precompute
-#             FtNmF, ldN = get_FtNmF({})
-#             Pinv, ldP = get_P_inv({})
-#             FtNmF = jnp.array(FtNmF)
-#             Pinv = jnp.array(Pinv)
-#             cf = matrix_factor(FtNmF + Pinv)
-#             dets = ldN + ldP + matrix_norm * jnp.logdet(jnp.diag(cf[0]))
-#             return lambda params: (cf, dets)
-#         elif not self.F_IS_VARIABLE and not self.N_IS_VARIABLE:
-#             FtNmF, ldN = get_FtNmF({})
-#             FtNmF = jnp.array(FtNmF)
-
-#             def woodbury_inverse(params):
-#                 Pinv, ldP = get_P_inv(params)
-#                 cf = matrix_factor(FtNmF + Pinv)
-#                 return cf, ldN + ldP + matrix_norm * jnp.logdet(jnp.diag(cf[0]))
-#             return woodbury_inverse
-#         else:
-#             def woodbury_inverse(params):
-#                 FtNmF, ldN = get_FtNmF(params)
-#                 Pinv, ldP = get_P_inv(params)
-#                 cf = matrix_factor(FtNmF + Pinv)
-#                 logdet = matrix_norm * jnp.logdet(jnp.diag(cf[0]))
-#                 return cf, ldN + ldP + logdet
-
-#             return woodbury_inverse
-
-#     def make_FtNmy(self, y):
-#         """Compute F^T N^-1 y for the current parameters."""
-#         NmF_val = self.get_NmF
-#         if self.F_IS_VARIABLE:
-#             if self.N_IS_VARIABLE:
-#                 def FtNmy(params):
-#                     NmF, ldN = NmF_val(params)
-#                     return (y @ NmF).T, ldN
-#                 return FtNmy
-#             else:
-#                 # Nmy will be precomputed
-#                 get_Nmy = self.make_Nmy(y)
-#                 F_var = self.F
-#                 def FtNmy(params):
-#                     F = F_var(params)
-#                     Nmy, ldN = get_Nmy(params)
-#                     return F.T @ Nmy, ldN
-#                 return FtNmy
-#         elif self.N_IS_VARIABLE:
-#             # Nmy will be precomputed
-#             get_Nmy = self.make_Nmy(y)
-#             F = jnp.array(self.F)
-#             def FtNmy(params):
-#                 Nmy, ldN = get_Nmy(params)
-#                 return F.T @ Nmy, ldN
-#             return FtNmy
-#         else:
-#             # Nmy will be precomputed
-#             get_Nmy = self.make_Nmy(y)
-#             NmF, ldN = NmF_val({})
-#             FtNmy_tmp = jnp.array((y @ NmF).T)
-#             def FtNmy(params):
-#                 return FtNmy_tmp, ldN
-#             return FtNmy
-
-#     def make_Nmy(self, y):
-#         """Compute N^-1 y for the current parameters."""
-#         if self.N_IS_VARIABLE:
-#             N_solve_1d = self.N.make_solve_1d()
-#             def Nmy(params):
-#                 return N_solve_1d(params, y)
-#             return Nmy
-#         else:
-#             Nmy_tmp, ldN = self.N.solve_1d(y)
-#             Nmy_tmp = jnp.array(Nmy_tmp)
-#             def Nmy(params):
-#                 return Nmy_tmp, ldN
-#             return Nmy
-
-
-#     def make_solve_1d(self):
-#         """Create a function that solves the Woodbury system for 1D data."""
-
-#         # if T is not callable, precompute matrix values with T
-#         if isinstance(self, ConstantKernel):
-#             # If all matrices are constant, we can precompute
-#             NmF, ldN = self.get_NmF({})
-#             cf, ldTot = self.get_woodbury_inverse({})
-#             NmFSmFtNm = jnp.array(NmF @ matrix_solve(cf, (NmF).T))
-#             def solve_1d(params, y):
-#                 return self.N.solve_1d(y)[0] - NmFSmFtNm @ y, ldTot
-#             return solve_1d
-
-#         elif isinstance(self, VariableKernel):
-#             if self.N_IS_VARIABLE or self.F_IS_VARIABLE:
-#                 print('hi')
-#                 def solve_1d(params, y):
-#                     NmF, ldN = self.get_NmF(params)
-#                     FtNmy = (y @ NmF).T
-#                     if self.N_IS_VARIABLE:
-#                         Nmy, _ = self.N.make_solve_1d()(params, y)
-#                     else:
-#                         Nmy, _ = self.N.solve_1d(y)
-#                     cf, ldTot = self.get_woodbury_inverse(params)
-#                     return Nmy - NmF @ matrix_solve(cf, FtNmy), ldTot
-
-#                 return solve_1d
-#             else: # case P variable N and F are not
-#                 print('hi')
-#                 NmF, ldN = self.get_NmF({})
-#                 NmF = jnp.array(NmF)
-#                 def solve_1d(params, y):
-#                     FtNmy = (y @ NmF).T
-#                     cf, ldTot = self.get_woodbury_inverse(params)
-#                     Nmy, _ = self.N.solve_1d(y)
-#                     return Nmy - NmF @ matrix_solve(cf, FtNmy), ldTot
-#                 return solve_1d
-
-#     def make_solve_2d(self):
-#         """Create a function that solves the Woodbury system for 2D data."""
-
-#         # if T is not callable, precompute matrix values with T
-#         def solve_2d(params, T):
-#             NmF, ldN = self.get_NmF(params)
-#             FtNmT = (T.T @ NmF).T
-#             cf, ldTot = self.get_woodbury_inverse(params)
-#             return self.N.solve_2d(T)[0] - NmF @ matrix_solve(cf, FtNmT), ldTot
-
-#         return solve_2d
-
-#     def solve_2d(self, T):
-#         """
-#         Solve the Woodbury system for 2D data.
-
-#         Args:
-#             T: Design matrix (numpy array)
-
-#         Returns:
-#             Solution to the Woodbury system.
-#         """
-#         solve_2d = self.make_solve_2d()
-#         return solve_2d({}, T)
-
-#     def solve_1d(self, y):
-#         """
-#         Solve the Woodbury system for 1D data.
-
-#         Args:
-#             y: Observation vector (numpy array)
-
-#         Returns:
-#             Solution to the Woodbury system.
-#         """
-#         solve_1d = self.make_solve_1d()
-#         return solve_1d({}, y)
-
-
-#     def prep_solve_1d_y(self, y):
-#         """Solve (N + F P F^T)^-1 @ y"""
-
-
-#         # precomputes if you can
-#         get_Nmy = self.make_Nmy(y)
-#         get_FtNmy = self.make_FtNmy(y)
-#         if self.N_IS_VARIABLE or self.F_IS_VARIABLE or self.P_IS_VARIABLE:
-#             def solve_1d(params):
-#                 Nmy, _ = get_Nmy(params)
-#                 NmF, ldN = self.get_NmF(params)
-#                 cf, ldTot = self.get_woodbury_inverse(params)
-#                 FtNmy, _ = get_FtNmy(params)
-#                 tmp = NmF @ matrix_solve(cf, FtNmy)
-#                 return Nmy - tmp, ldTot
-#             return solve_1d
-#         else:
-#             # Completely constant case - compute everything once
-#             NmF, ldN = self.get_NmF({})
-#             cf, ldTot = self.get_woodbury_inverse({})
-
-#             # Precompute all JAX operations once
-#             NmF = jnp.array(NmF)
-#             FtNmy = jnp.array((y @ NmF).T)
-#             Nmy, _ = self.N.solve_1d(y)
-#             correction = NmF @ matrix_solve(cf, FtNmy)
-#             result = Nmy - correction
-
-#             return lambda params: (result, ldTot)
-
-
-#     def make_kernelproduct(self, y):
-#         """Create a function that computes kernel products y^T K^-1 y."""
-
-#         # if y is not callable, precompute matrix vlaues with y
-#         solve_1d = self.prep_solve_1d_y(y)
-#         if self.N_IS_VARIABLE or self.F_IS_VARIABLE or self.P_IS_VARIABLE:
-#             def kernelproduct(params):
-#                 solution, logdet = solve_1d(params)
-#                 return -0.5 * (y @ solution + logdet)
-#         else:
-#             solution, logdet = solve_1d({})
-#             y = jnp.array(y)
-#             res = -0.5 * (y @ solution + logdet)
-#             def kernelproduct(params):
-#                 return res
-
-#         kernelproduct.params = self.params
-#         return kernelproduct
-
 class Components:
     """
     Encapsulates all the computational components for Woodbury matrix operations.
@@ -388,12 +72,21 @@ class Components:
 
     def _build_components(self):
         """Build all computational functions based on variability flags."""
+        # call these with
+        # self.get_NmF(params)
         self.get_NmF = self._make_NmF()
         self.get_FtNmF = self._make_FtNmF()
         self.get_Pinv = self._make_Pinv()
         self.get_woodbury_inverse = self._make_woodbury_inverse()
-        self.get_Nmy = self._make_Nmy_factory()
-        self.get_FtNmy = self._make_FtNmy_factory()
+
+        # these return functions!
+        # get_Nmy = self.make_get_Nmy(y)
+        # Nmy = get_Nmy(params)
+        self.make_get_Nmy = self._make_Nmy_factory()
+        self.make_get_xNmy = self._make_xNmy_factory()
+        self.make_get_FtNmy = self._make_FtNmy_factory()
+        self.make_get_NmT = self._make_NmT_factory()
+        self.make_get_TNmT = self._make_TNmT_factory()
 
     def _make_NmF(self):
         """Create N^-1 F computation function."""
@@ -446,7 +139,9 @@ class Components:
             return lambda params: (Pinv_val, ldP)
 
     def _make_woodbury_inverse(self):
-        """Create Woodbury inverse computation function."""
+        """Create Woodbury inverse computation function.
+        TODO: I think this can be boiled down to one case now because of how
+        FtNmF is handled."""
         if not any([self.F_is_variable, self.N_is_variable, self.P_is_variable]):
             # All constant - precompute everything
             FtNmF, ldN = self.get_FtNmF({})
@@ -479,6 +174,11 @@ class Components:
                 return cf, ldN + ldP + logdet
             return woodbury_inverse
 
+    def _make_y_factory(self):
+        """create a function that will either return the residuals
+        or call a function with parameters that returns the mean-subtracted residuals"""
+        pass
+
     def _make_Nmy_factory(self):
         """Create factory for N^-1 y computation functions."""
         def make_Nmy(y):
@@ -496,6 +196,80 @@ class Components:
                 return Nmy
         return make_Nmy
 
+    def _make_xNmy_factory(self):
+        def make_xNmy(x, y):
+            if self.N_is_variable:
+                get_Nmy = self.make_get_Nmy(y)
+                def xNmy(params):
+                    Nmy, ldN = get_Nmy(params)
+                    return x @ Nmy, ldN
+
+                return xNmy
+            else:
+                # not variable, fully precompute
+                get_Nmy = self.make_get_Nmy(y)
+                Nmy, ldN = get_Nmy({})
+                xNmy = x @ Nmy
+                return lambda params: (xNmy, ldN)
+
+        return make_xNmy
+
+    def _make_NmT_factory(self):
+        if self.N_is_variable:
+            Nsolve_2d = self.N.make_solve_2d()
+            def make_NmT(T):
+                if callable(T):
+                    def NmT(params):
+                        T_tmp = T(params)
+                        return Nsolve_2d(params, T_tmp)
+                else:
+                    def NmT(params):
+                        return Nsolve_2d(params, T)
+                    return NmT
+            return make_NmT
+        else:
+            def make_NmT(T):
+                if callable(T):
+                    def NmT(params):
+                        Ttmp = T(params)
+                        return self.N.solve_2d(Ttmp)
+                    return NmT
+                else:
+                    NmT, ldN = self.N.solve_2d(T)
+                    return lambda params: (NmT, ldN)
+
+    def _make_TNmT_factory(self):
+        def make_TNmT(T):
+            get_NmT = self.make_get_NmT(T)
+            if callable(T):
+                def TNmT(params):
+                    NmT, ldN = get_NmT(params)
+                    return T(params) @ NmT, ldN
+                return TNmT
+            else:
+                def TNmT(params):
+                    NmT, ldN = get_NmT(params)
+                    return T @ NmT, ldN
+        return make_TNmT
+
+    def _make_FNmT_factory(self):
+        # some optimization here to figure out
+        # what is is varying and what is not.
+        if callable(T) and self.F_is_variable:
+            def make_FNmT(T):
+                get_NmT = self.make_get_NmT(T)
+                F_var = self.F
+                def FNmT(params):
+                    NmT, ldN = get_NmT(params)
+                    return F_var(params) @ NmT, ldN
+                return FNmT
+            return make_FNmT
+        elif callable(T) and not self.F_is_variable:
+            pass
+        elif not callable(T) and self.F_is_variable:
+            pass
+
+
     def _make_FtNmy_factory(self):
         """Create factory for F^T N^-1 y computation functions."""
         def make_FtNmy(y):
@@ -506,7 +280,7 @@ class Components:
                         return (y @ NmF).T, ldN
                     return FtNmy
                 else:
-                    get_Nmy = self.get_Nmy(y)
+                    get_Nmy = self.make_get_Nmy(y)
                     F_var = self.F
                     def FtNmy(params):
                         F = F_var(params)
@@ -514,7 +288,8 @@ class Components:
                         return F.T @ Nmy, ldN
                     return FtNmy
             elif self.N_is_variable:
-                get_Nmy = self.get_Nmy(y)
+                get_Nmy = self.make_get_Nmy(y)
+                print(self.F)
                 F = jnp.array(self.F)
                 def FtNmy(params):
                     Nmy, ldN = get_Nmy(params)
@@ -540,19 +315,19 @@ class WoodburyKernelBase:
     # Subclasses override these
     N_IS_VARIABLE = False
     P_IS_VARIABLE = False
-    F_IS_VARIABLE = False
 
     def __init__(self, N, F, P):
         self.N = N
         self.F = F
         self.P = P
 
+        self.F_IS_VARIABLE = callable(F)
         # Initialize components
         self.components = Components(
             N, F, P,
             N_is_variable=self.N_IS_VARIABLE,
             P_is_variable=self.P_IS_VARIABLE,
-            F_is_variable=self.F_IS_VARIABLE
+            F_is_variable=callable(F)
         )
 
         # Set up parameter list for VariableKernel interface
@@ -588,7 +363,7 @@ class WoodburyKernelBase:
             return solve_1d
 
         elif isinstance(self, VariableKernel):
-            if self.N_IS_VARIABLE or self.F_IS_VARIABLE:
+            if self.N_IS_VARIABLE or self.components.F_is_variable:
                 def solve_1d(params, y):
                     NmF, ldN = self.components.get_NmF(params)
                     FtNmy = (y @ NmF).T
@@ -612,13 +387,23 @@ class WoodburyKernelBase:
 
     def _make_solve_2d(self):
         """Create 2D solver function."""
-        def solve_2d(params, T):
-            NmF, ldN = self.components.get_NmF(params)
-            FtNmT = (T.T @ NmF).T
-            cf, ldTot = self.components.get_woodbury_inverse(params)
-            NmT, _ = self.N.solve_2d(T)
-            return NmT - NmF @ matrix_solve(cf, FtNmT), ldTot
-        return solve_2d
+        if self.N_IS_VARIABLE:
+            Nsolve_2d = self.N.make_solve_2d()
+            def solve_2d(params, T):
+                NmF, ldN = self.components.get_NmF(params)
+                FtNmT = (T.T @ NmF).T
+                cf, ldTot = self.components.get_woodbury_inverse(params)
+                NmT, _ = Nsolve_2d(params, T)
+                return NmT - NmF @ matrix_solve(cf, FtNmT), ldTot
+            return solve_2d
+        else:
+            def solve_2d(params, T):
+                NmF, ldN = self.components.get_NmF(params)
+                FtNmT = (T.T @ NmF).T
+                cf, ldTot = self.components.get_woodbury_inverse(params)
+                NmT, _ = self.N.solve_2d(T)
+                return NmT - NmF @ matrix_solve(cf, FtNmT), ldTot
+            return solve_2d
 
     def solve_1d(self, y):
         """Solve the Woodbury system for 1D data."""
@@ -638,143 +423,128 @@ class WoodburyKernelBase:
 
     def make_kernelproduct(self, y):
         """Create kernel product function y^T K^-1 y with optimized cases."""
-        y = jnp.array(y)
+        # y = jnp.array(y)
+        get_ytNmy = self.components.make_get_xNmy(y, y)
+        get_FtNmy = self.components.make_get_FtNmy(y)
+        get_FtNmF = self.components.get_FtNmF
+        kmean = getattr(self, 'mean', None)
+        get_Pinv = self.components.get_Pinv
 
-        # Case 1: N or F variable - general runtime computation
-        if self.N_IS_VARIABLE and self.F_IS_VARIABLE:
-            get_Nmy = self.components.get_Nmy(y)
-            get_FtNmy = self.components.get_FtNmy(y)
+        def kernelproduct(params):
+            ytNmy, _ = get_ytNmy(params)
+            FtNmy, _ = get_FtNmy(params)
+            # don't use the get_woodbury_inverse for now because we may need FtNmF and cf later
+            # at a later stage. So we'll live with the repeated code.
+            # cf, ldTot = self.components.get_woodbury_inverse(params)
+            FtNmF, ldN = get_FtNmF(params)
+            Pinv, ldP = get_Pinv(params)
+            cf = matrix_factor(FtNmF + Pinv)
+            logdet = matrix_norm * jnp.logdet(jnp.diag(cf[0]))
+            ldTot = ldN + ldP + logdet
+            solution = ytNmy - FtNmy.T @ matrix_solve(cf, FtNmy)
+            logp = -0.5 * (solution + ldTot)
 
-            def kernelproduct(params):
-                Nmy, _ = get_Nmy(params)
-                NmF, ldN = self.components.get_NmF(params)
-                cf, ldTot = self.components.get_woodbury_inverse(params)
-                FtNmy, _ = get_FtNmy(params)
-                tmp = NmF @ matrix_solve(cf, FtNmy)
-                solution = Nmy - tmp
-                return -0.5 * (y @ solution + ldTot)
-            kernelproduct.params = self.params
-            return kernelproduct
-        # Case 2: N is not variable F is variable
-        elif self.F_IS_VARIABLE and not self.N_IS_VARIABLE:
-            get_Nmy = self.components.get_Nmy(y)
-            get_FtNmy = self.components.get_FtNmy(y)
-            Nmy, _ = get_Nmy({})
-            Nmy = jnp.array(Nmy)
+            # mirroring old matrix.py example
+            if kmean is not None:
+                a0 = kmean(params)
+                FtNmFa0 = FtNmF @ a0
+                logp = logp - (0.5 * FtNmFa0.T - FtNmy.T) @ (a0 - matrix_solve(cf, FtNmFa0))
+            return logp
 
-            def kernelproduct(params):
-                NmF, ldN = self.components.get_NmF(params)
-                cf, ldTot = self.components.get_woodbury_inverse(params)
-                FtNmy, _ = get_FtNmy(params)
-                tmp = NmF @ matrix_solve(cf, FtNmy)
-                solution = Nmy - tmp
-                return -0.5 * (y @ solution + ldTot)
-            kernelproduct.params = self.params
-            return kernelproduct
+        return kernelproduct
 
-        # Case 2: Only P variable (varP case) - precompute N and F terms
-        elif self.P_IS_VARIABLE:
-            get_Nmy = self.components.get_Nmy(y)
-            get_FtNmy = self.components.get_FtNmy(y)
+    def make_kernelproduct_gpcomponent(self, y):
+        raise NotImplementedError
 
-            # Precompute N and F dependent terms
-            Nmy, ldN = get_Nmy({})
-            NmF, _ = self.components.get_NmF({})
-            FtNmy, _ = get_FtNmy({})
-            Nmy = jnp.array(Nmy)
-            NmF = jnp.array(NmF)
-            ldN = jnp.array(ldN)
-            FtNmy = jnp.array(FtNmy)
+    def make_kernelsolve(self, y, T):
+        raise NotImplementedError
 
-            def kernelproduct(params):
-                Pinv, ldP = self.components.get_Pinv(params)
-                cf = matrix_factor(FtNmy + Pinv)
-                # cf, ldTot = self.components.get_woodbury_inverse(params)
-                tmp = NmF @ matrix_solve(cf, FtNmy)
-                solution = Nmy - tmp
-                ldTot = matrix_norm * jnp.logdet(jnp.diag(cf[0])) + ldP + ldN
-                return -0.5 * (y @ solution + ldTot)
-            kernelproduct.params = self.params
-            return kernelproduct
+    def make_kernelterms(self, y, T):
+        raise NotImplementedError
 
-        # Case 3: Everything constant - maximum precomputation
-        else:
-            # Precompute everything once
-            NmF, ldN = self.components.get_NmF({})
-            cf, ldTot = self.components.get_woodbury_inverse({})
 
-            NmF = jnp.array(NmF)
-            FtNmy = jnp.array((y @ NmF).T)
-            Nmy, _ = self.N.solve_1d(y)
-            correction = NmF @ matrix_solve(cf, FtNmy)
-            solution = Nmy - correction
 
-            # Final result computed once
-            result = -0.5 * (y @ solution + ldTot)
+        # # Case 1: N or F variable - general runtime computation
+        # if self.N_IS_VARIABLE: #  and self.F_IS_VARIABLE:
+        #     get_xNmy = self.components.get_Nmy(y, y)
+        #     get_FtNmy = self.components.get_FtNmy(y)
 
-            def kernelproduct(params):
-                return result
-            kernelproduct.params = self.params
-            return kernelproduct
-    # def prep_solve_1d_y(self, y):
-    #     """Prepare optimized 1D solver for specific y vector."""
-    #     get_Nmy = self.components.get_Nmy(y)
-    #     get_FtNmy = self.components.get_FtNmy(y)
+        #     def kernelproduct(params):
+        #         ytNmy, _ = get_xNmy(params)
+        #         FtNmy, _ = get_FtNmy(params)
 
-    #     if self.N_IS_VARIABLE or self.F_IS_VARIABLE:
-    #         def solve_1d(params):
-    #             Nmy, _ = get_Nmy(params)
-    #             NmF, ldN = self.components.get_NmF(params)
-    #             cf, ldTot = self.components.get_woodbury_inverse(params)
-    #             FtNmy, _ = get_FtNmy(params)
-    #             tmp = NmF @ matrix_solve(cf, FtNmy)
-    #             return Nmy - tmp, ldTot
-    #         return solve_1d
-    #     # varP case:
-    #     elif self.P_IS_VARIABLE:
-    #         print('Warning: P is variable but N and F are not. This is a special case.')
-    #         Nmy, _ = get_Nmy({})
-    #         NmF, _ = self.components.get_NmF({})
-    #         FtNmy, _ = get_FtNmy({})
-    #         Nmy = jnp.array(Nmy)
-    #         NmF = jnp.array(NmF)
-    #         FtNmy = jnp.array(FtNmy)
+        #         cf, ldTot = self.components.get_woodbury_inverse(params)
+        #         # standard
+        #         tmp = FtNmy.T @ matrix_solve(cf, FtNmy)
+        #         solution = ytNmy - tmp
+        #         return -0.5 * (solution + ldTot)
+        #     kernelproduct.params = self.params
+        #     return kernelproduct
+        # # Case 2: N is not variable F is variable
+        # elif self.F_IS_VARIABLE and not self.N_IS_VARIABLE:
+        #     get_Nmy = self.components.get_Nmy(y)
+        #     get_FtNmy = self.components.get_FtNmy(y)
+        #     Nmy, _ = get_Nmy({})
+        #     Nmy = jnp.array(Nmy)
+        #     ytNmy = y @ Nmy
 
-    #         def solve_1d(params):
-    #             cf, ldTot = self.components.get_woodbury_inverse(params)
-    #             tmp = NmF @ matrix_solve(cf, FtNmy)
-    #             return Nmy - tmp, ldTot
-    #         return solve_1d
-    #     else:
-    #         # Completely constant case
-    #         NmF, ldN = self.components.get_NmF({})
-    #         cf, ldTot = self.components.get_woodbury_inverse({})
+        #     def kernelproduct(params):
+        #         NmF, ldN = self.components.get_NmF(params)
+        #         cf, ldTot = self.components.get_woodbury_inverse(params)
+        #         FtNmy, _ = get_FtNmy(params)
 
-    #         NmF = jnp.array(NmF)
-    #         FtNmy = jnp.array((y @ NmF).T)
-    #         Nmy, _ = self.N.solve_1d(y)
-    #         correction = NmF @ matrix_solve(cf, FtNmy)
-    #         result = Nmy - correction
+        #         # standard
+        #         tmp = FtNmy.T @ matrix_solve(cf, FtNmy)
+        #         solution = ytNmy - tmp
+        #         return -0.5 * (solution + ldTot)
+        #     kernelproduct.params = self.params
+        #     return kernelproduct
 
-    #         return lambda params: (result, ldTot)
+        # # Case 2: Only P variable (varP case) - precompute N and F terms
+        # elif self.P_IS_VARIABLE:
+        #     get_Nmy = self.components.get_Nmy(y)
+        #     get_FtNmy = self.components.get_FtNmy(y)
 
-    # def make_kernelproduct(self, y):
-    #     """Create kernel product function y^T K^-1 y."""
-    #     solve_1d = self.prep_solve_1d_y(y)
+        #     # Precompute N and F dependent terms
+        #     Nmy, ldN = get_Nmy({})
+        #     NmF, _ = self.components.get_NmF({})
+        #     FtNmy, _ = get_FtNmy({})
+        #     Nmy = jnp.array(Nmy)
+        #     NmF = jnp.array(NmF)
+        #     ldN = jnp.array(ldN)
+        #     FtNmy = jnp.array(FtNmy)
+        #     FtNmF, _ = self.components.get_FtNmF({})
+        #     ytNmy = jnp.array(y @ Nmy)
 
-    #     if any([self.N_IS_VARIABLE, self.F_IS_VARIABLE, self.P_IS_VARIABLE]):
-    #         def kernelproduct(params):
-    #             solution, logdet = solve_1d(params)
-    #             return -0.5 * (y @ solution + logdet)
-    #     else:
-    #         solution, logdet = solve_1d({})
-    #         y = jnp.array(y)
-    #         res = -0.5 * (y @ solution + logdet)
-    #         def kernelproduct(params):
-    #             return res
+        #     def kernelproduct(params):
+        #         cf, ldTot = self.components.get_woodbury_inverse(params)
 
-    #     kernelproduct.params = self.params
-    #     return kernelproduct
+        #         # standard
+        #         tmp = FtNmy.T @ matrix_solve(cf, FtNmy)
+        #         solution = ytNmy - tmp
+        #         return -0.5 * (solution + ldTot)
+        #     kernelproduct.params = self.params
+        #     return kernelproduct
+
+        # # Case 3: Everything constant - maximum precomputation
+        # else:
+        #     # Precompute everything once
+        #     NmF, ldN = self.components.get_NmF({})
+        #     cf, ldTot = self.components.get_woodbury_inverse({})
+
+        #     NmF = jnp.array(NmF)
+        #     FtNmy = jnp.array((y @ NmF).T)
+        #     Nmy, _ = self.N.solve_1d(y)
+        #     correction = NmF @ matrix_solve(cf, FtNmy)
+        #     solution = Nmy - correction
+
+        #     # Final result computed once
+        #     result = -0.5 * (y @ solution + ldTot)
+
+        #     def kernelproduct(params):
+        #         return result
+        #     kernelproduct.params = self.params
+        #     return kernelproduct
 
 # # Factory function for easy migration - this should replace WoodburyKernel calls
 def create_woodbury_kernel(N, F, P, variant='auto'):

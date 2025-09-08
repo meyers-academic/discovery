@@ -1119,7 +1119,10 @@ class WoodburyKernel_varNP(VariableKernel):
 
             return -0.5 * (ytNmy - ytXy) - 0.5 * (ldN + ldP + matrix_norm * jnp.logdet(jnp.diag(cf[0])))
 
-        kernelproduct.params = sorted(self.N.params + P_var_inv.params)
+        if callable(self.F):
+            kernelproduct.params = sorted(self.N.params + P_var_inv.params + Ffunc.params)
+        else:
+            kernelproduct.params = sorted(self.N.params + P_var_inv.params)
 
         return kernelproduct
 

@@ -583,49 +583,87 @@ class WoodburyGraph:
     # ========================================================================
 
     # Factorizations (compute once, reuse multiple times)
+    # Only create factor nodes for actual matrices, not nested structures
     @property
     def N_factor(self):
-        """Cholesky factorization of N (reused for Nmy, NmF, logdetN)"""
+        """Cholesky factorization of N (only if N is a matrix, not nested)"""
+        # Don't factor nested structures - they have their own solve() method
+        if hasattr(self.N, 'solve'):
+            return None
         return self._get_or_create('N_factor',
             lambda: CholeskyFactorOp(self.N, name='N_factor'))
 
     @property
     def P_factor(self):
-        """Cholesky factorization of P (reused for Pinv, logdetP)"""
+        """Cholesky factorization of P (only if P is a matrix, not nested)"""
+        # Don't factor nested structures
+        if hasattr(self.P, 'solve'):
+            return None
         return self._get_or_create('P_factor',
             lambda: CholeskyFactorOp(self.P, name='P_factor'))
 
-    # Operations using N factorization
+    # Operations using N - conditional on whether N is nested
     @property
     def Nmy(self):
-        """N^{-1} y using factored N"""
-        return self._get_or_create('Nmy',
-            lambda: SolveWithFactorOp(self.N_factor, self.y, name='Nmy'))
+        """N^{-1} y - uses factorization for matrices, SolveOp for nested"""
+        if hasattr(self.N, 'solve'):
+            # Nested case - use SolveOp which calls N.solve()
+            return self._get_or_create('Nmy',
+                lambda: SolveOp(self.N, self.y, name='Nmy'))
+        else:
+            # Matrix case - use factorization
+            return self._get_or_create('Nmy',
+                lambda: SolveWithFactorOp(self.N_factor, self.y, name='Nmy'))
 
     @property
     def NmF(self):
-        """N^{-1} F using factored N"""
-        return self._get_or_create('NmF',
-            lambda: SolveWithFactorOp(self.N_factor, self.F, name='NmF'))
+        """N^{-1} F - uses factorization for matrices, SolveOp for nested"""
+        if hasattr(self.N, 'solve'):
+            # Nested case - use SolveOp which calls N.solve()
+            return self._get_or_create('NmF',
+                lambda: SolveOp(self.N, self.F, name='NmF'))
+        else:
+            # Matrix case - use factorization
+            return self._get_or_create('NmF',
+                lambda: SolveWithFactorOp(self.N_factor, self.F, name='NmF'))
 
     @property
     def logdetN(self):
-        """log|N| using factored N"""
-        return self._get_or_create('logdetN',
-            lambda: LogDetFromFactorOp(self.N_factor, name='logdetN'))
+        """log|N| - uses factorization for matrices, LogDetOp for nested"""
+        if hasattr(self.N, 'compute_logdet'):
+            # Nested case - use LogDetOp which calls N.compute_logdet()
+            return self._get_or_create('logdetN',
+                lambda: LogDetOp(self.N, name='logdetN'))
+        else:
+            # Matrix case - use factorization
+            return self._get_or_create('logdetN',
+                lambda: LogDetFromFactorOp(self.N_factor, name='logdetN'))
 
-    # Operations using P factorization
+    # Operations using P - conditional on whether P is nested
     @property
     def Pinv(self):
-        """P^{-1} using factored P"""
-        return self._get_or_create('Pinv',
-            lambda: InvertFromFactorOp(self.P_factor, name='Pinv'))
+        """P^{-1} - uses factorization for matrices, InvertOp for nested"""
+        if hasattr(self.P, 'solve'):
+            # Nested case - can't efficiently invert nested structure
+            # Use old InvertOp which will try to materialize (not ideal but rare)
+            return self._get_or_create('Pinv',
+                lambda: InvertOp(self.P, name='Pinv'))
+        else:
+            # Matrix case - use factorization
+            return self._get_or_create('Pinv',
+                lambda: InvertFromFactorOp(self.P_factor, name='Pinv'))
 
     @property
     def logdetP(self):
-        """log|P| using factored P"""
-        return self._get_or_create('logdetP',
-            lambda: LogDetFromFactorOp(self.P_factor, name='logdetP'))
+        """log|P| - uses factorization for matrices, LogDetOp for nested"""
+        if hasattr(self.P, 'compute_logdet'):
+            # Nested case - use LogDetOp which calls P.compute_logdet()
+            return self._get_or_create('logdetP',
+                lambda: LogDetOp(self.P, name='logdetP'))
+        else:
+            # Matrix case - use factorization
+            return self._get_or_create('logdetP',
+                lambda: LogDetFromFactorOp(self.P_factor, name='logdetP'))
 
     # Intermediate computations
     @property
@@ -954,10 +992,11 @@ if __name__ == "__main__":
     print("  ✓ Automatic constant detection and caching")
     print()
     print("Performance optimizations:")
-    print("  ✓ N factored once, reused for Nmy, NmF, logdetN")
-    print("  ✓ P factored once, reused for Pinv, logdetP")
+    print("  ✓ N factored once (if matrix), reused for Nmy, NmF, logdetN")
+    print("  ✓ P factored once (if matrix), reused for Pinv, logdetP")
     print("  ✓ S factored once, computes SmFtNmy AND logdetS together")
-    print("  ✓ Reduction: 7 factorizations → 3 (57% fewer!)")
+    print("  ✓ For nested structures: uses SolveOp/LogDetOp (already optimized)")
+    print("  ✓ Reduction: up to 7 factorizations → 3 (57% fewer!)")
     print()
     print("This version is ready to implement in matrix.py!")
     print("=" * 70)

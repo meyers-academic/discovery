@@ -18,7 +18,7 @@ from typing import Set, Callable, Optional
 import inspect
 
 # Import core graph library
-from woodbury_graph import (
+from .woodbury_graph import (
     Leaf,
     DataLeaf,
     ParameterLeaf,

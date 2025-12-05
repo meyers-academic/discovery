@@ -68,7 +68,13 @@ ll = loglike_new({})  # Automatically detects all constant
 **Old Approach**:
 ```python
 N_old = NoiseMatrix1D_novar(N_diag)
-P_old = NoiseMatrix1D_var(...)  # Custom class with params attribute
+
+# Define P function with .params attribute
+def P_func(params):
+    return jnp.ones(n_basis) * params['amplitude']**2
+P_func.params = ['amplitude']
+
+P_old = NoiseMatrix1D_var(P_func)
 kernel_old = WoodburyKernel_varP(N_old, F_matrix, P_old)
 loglike_old = kernel_old.make_kernelproduct(y_data)
 ll = loglike_old({'amplitude': 1.5})
@@ -76,7 +82,11 @@ ll = loglike_old({'amplitude': 1.5})
 
 **New Approach**:
 ```python
-P_func = lambda params: jnp.ones(n_basis) * params['amplitude']**2
+# Same P function works directly
+def P_func(params):
+    return jnp.ones(n_basis) * params['amplitude']**2
+P_func.params = ['amplitude']
+
 kernel_new = WoodburyKernel(N_diag, F_matrix, P_func)
 loglike_new = kernel_new.make_kernelproduct(y_data)
 ll = loglike_new({'amplitude': 1.5})  # Automatically detects parameter
@@ -155,8 +165,13 @@ loglike_new = outer_new.make_kernelproduct(y_data)
 # Build constant inner
 inner_old = WoodburyKernel_novar(N_base_old, F_inner, P_inner_old)
 
+# Define P_outer function with .params attribute
+def P_outer_func(params):
+    return jnp.ones(n_outer) * params['outer_amp']**2
+P_outer_func.params = ['outer_amp']
+
 # Use as N with variable P
-P_outer_var = NoiseMatrix1D_var(...)  # Custom class
+P_outer_var = NoiseMatrix1D_var(P_outer_func)
 outer_old = WoodburyKernel_varP(inner_old, F_outer, P_outer_var)
 ```
 
@@ -165,8 +180,11 @@ outer_old = WoodburyKernel_varP(inner_old, F_outer, P_outer_var)
 # Create inner
 inner_new = WoodburyKernel(N_base, F_inner, P_inner)
 
-# Nest with variable P
-P_outer_func = lambda params: jnp.ones(n) * params['outer_amp']**2
+# Same P_outer function works directly
+def P_outer_func(params):
+    return jnp.ones(n_outer) * params['outer_amp']**2
+P_outer_func.params = ['outer_amp']
+
 outer_new = WoodburyKernel(inner_new, F_outer, P_outer_func)
 ```
 

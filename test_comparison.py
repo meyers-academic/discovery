@@ -149,22 +149,20 @@ def test_variable_p_case():
     print(f"\n  Creating OLD implementation (WoodburyKernel_varP)...")
     N_old = NoiseMatrix1D_novar(N_diag)
 
-    # P_var uses the old API pattern
-    class P_old_var(NoiseMatrix1D_var):
-        def __init__(self, n_basis):
-            self.n_basis = n_basis
-            self.params = ['amplitude']
+    # P function with .params attribute (works with both old and new)
+    def P_func(params):
+        return jnp.ones(n_basis) * params['amplitude']**2
+    P_func.params = ['amplitude']
 
-    P_old = P_old_var(n_basis)
+    P_old = NoiseMatrix1D_var(P_func)
     kernel_old = WoodburyKernel_varP(N_old, F_matrix, P_old)
     loglike_old = kernel_old.make_kernelproduct(y_data)
 
     # NEW IMPLEMENTATION
     print(f"  Creating NEW implementation (WoodburyKernel)...")
 
-    # P_new uses lambda function
-    P_new_func = lambda params: jnp.ones(n_basis) * params['amplitude']**2
-    kernel_new = WoodburyKernel(N_diag, F_matrix, P_new_func)
+    # Same P function works directly
+    kernel_new = WoodburyKernel(N_diag, F_matrix, P_func)
     loglike_new = kernel_new.make_kernelproduct(y_data)
 
     # COMPARE multiple parameter values
@@ -326,12 +324,12 @@ def test_nested_variable_case():
 
     print(f"    Step 2: Use inner as N, create variable P outer")
 
-    class P_outer_var(NoiseMatrix1D_var):
-        def __init__(self, n_basis):
-            self.n_basis = n_basis
-            self.params = ['outer_amp']
+    # P_outer function with .params attribute (works with both old and new)
+    def P_outer_func(params):
+        return jnp.ones(n_outer) * params['outer_amp']**2
+    P_outer_func.params = ['outer_amp']
 
-    P_outer_old = P_outer_var(n_outer)
+    P_outer_old = NoiseMatrix1D_var(P_outer_func)
     outer_old = WoodburyKernel_varP(inner_old, F_outer, P_outer_old)
     loglike_old = outer_old.make_kernelproduct(y_data)
 
@@ -345,7 +343,7 @@ def test_nested_variable_case():
     )
 
     print(f"    Step 2: Create outer with variable P_outer")
-    P_outer_func = lambda params: jnp.ones(n_outer) * params['outer_amp']**2
+    # Same P_outer function works directly
     outer_new = WoodburyKernel(
         inner_new,  # Nest the inner kernel
         F_outer,

@@ -13,6 +13,7 @@ STRUCTURE:
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from typing import Set, Callable, Optional
 import inspect
 
@@ -333,8 +334,8 @@ class WoodburyKernel:
         - Old NoiseMatrix -> OldNoiseMatrixWrapper
         - Callables -> FunctionLeaf
         """
-        # 1. Constant array
-        if isinstance(spec, (jax.Array, jnp.ndarray)):
+        # 1. Constant array (numpy or jax)
+        if isinstance(spec, (jax.Array, jnp.ndarray, np.ndarray)):
             return DataLeaf(spec, name=name)
 
         # 2. Another WoodburyKernel (for nesting)

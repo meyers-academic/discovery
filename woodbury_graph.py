@@ -324,6 +324,149 @@ class ScalarOp(OpNode):
 
 
 # ============================================================================
+# Factorization Operations (for efficient reuse)
+# ============================================================================
+
+
+class CholeskyFactorOp(OpNode):
+    """
+    Compute and cache Cholesky factorization for reuse in multiple operations.
+
+    Returns a tuple ('diag', data) or ('cholesky', factor) so consumers
+    can handle both diagonal and dense cases.
+    """
+
+    def compute(self, A_val):
+        if A_val.ndim == 1:
+            # Diagonal matrix - return as-is (no factorization needed)
+            return ('diag', A_val)
+        else:
+            # Dense matrix - compute Cholesky factorization
+            factor = jsp.linalg.cho_factor(A_val)
+            return ('cholesky', factor)
+
+
+class SolveWithFactorOp(OpNode):
+    """
+    Solve A^{-1} b using pre-computed Cholesky factorization.
+
+    First input should be a CholeskyFactorOp node.
+    """
+
+    def __init__(self, factor_node, b, name=None):
+        super().__init__(factor_node, b, name=name)
+        self.factor_node = factor_node
+        self.b = b
+
+    def compute(self, factor_val, b_val):
+        factor_type, factor_data = factor_val
+
+        if factor_type == 'diag':
+            # Diagonal solve
+            if b_val.ndim == 1:
+                return b_val / factor_data
+            else:
+                return b_val / factor_data[:, None]
+        else:
+            # Dense solve using Cholesky factorization
+            return jsp.linalg.cho_solve(factor_data, b_val)
+
+
+class LogDetFromFactorOp(OpNode):
+    """
+    Compute log|A| from pre-computed Cholesky factorization.
+
+    Input should be a CholeskyFactorOp node.
+    """
+
+    def compute(self, factor_val):
+        factor_type, factor_data = factor_val
+
+        if factor_type == 'diag':
+            return jnp.sum(jnp.log(factor_data))
+        else:
+            # Log determinant from Cholesky: log|A| = 2 * sum(log(diag(L)))
+            return 2.0 * jnp.sum(jnp.log(jnp.diag(factor_data[0])))
+
+
+class InvertFromFactorOp(OpNode):
+    """
+    Compute A^{-1} from pre-computed Cholesky factorization.
+
+    Input should be a CholeskyFactorOp node.
+    """
+
+    def compute(self, factor_val):
+        factor_type, factor_data = factor_val
+
+        if factor_type == 'diag':
+            return 1.0 / factor_data
+        else:
+            # Compute full inverse by solving A x = I
+            n = factor_data[0].shape[0]
+            return jsp.linalg.cho_solve(factor_data, jnp.eye(n))
+
+
+class SolveAndLogDetOp(OpNode):
+    """
+    Compute both A^{-1}b and log|A| using a single Cholesky factorization.
+
+    Returns a tuple (solution, logdet) for extraction via IndexOp.
+    This is more efficient than computing them separately when both are needed.
+    """
+
+    def __init__(self, A, b, name=None):
+        super().__init__(A, b, name=name)
+        self.A = A
+        self.b = b
+
+    def compute(self, A_val, b_val):
+        if A_val.ndim == 1:
+            # Diagonal case
+            solution = b_val / A_val
+            logdet = jnp.sum(jnp.log(A_val))
+        else:
+            # Dense case - factor once, use twice
+            factor = jsp.linalg.cho_factor(A_val)
+            solution = jsp.linalg.cho_solve(factor, b_val)
+            logdet = 2.0 * jnp.sum(jnp.log(jnp.diag(factor[0])))
+
+        return (solution, logdet)
+
+
+class IndexOp(OpNode):
+    """
+    Extract element from a tuple-valued node.
+
+    IMPORTANT: Does NOT cache the extracted value to avoid duplication.
+    Only the parent node caches the full tuple.
+    """
+
+    def __init__(self, tuple_node, index, name=None):
+        super().__init__(tuple_node, name=name)
+        self.index = index
+
+    def eval(self, params=None):
+        """
+        Override eval to NOT cache - just extract from parent's cached tuple.
+        This avoids storing the same data twice (once in tuple, once extracted).
+        """
+        # Get the cached tuple from parent (parent handles caching)
+        tuple_val = self.inputs[0].eval(params)
+        # Extract and return (O(1), no additional storage)
+        return tuple_val[self.index]
+
+    @property
+    def is_constant(self):
+        """Inherit constantness from parent."""
+        return self.inputs[0].is_constant
+
+    def compute(self, tuple_val):
+        """Fallback (not used since we override eval)."""
+        return tuple_val[self.index]
+
+
+# ============================================================================
 # Woodbury Graph with Recursion Support
 # ============================================================================
 
@@ -439,16 +582,52 @@ class WoodburyGraph:
     # Core operation nodes (lazy)
     # ========================================================================
 
+    # Factorizations (compute once, reuse multiple times)
+    @property
+    def N_factor(self):
+        """Cholesky factorization of N (reused for Nmy, NmF, logdetN)"""
+        return self._get_or_create('N_factor',
+            lambda: CholeskyFactorOp(self.N, name='N_factor'))
+
+    @property
+    def P_factor(self):
+        """Cholesky factorization of P (reused for Pinv, logdetP)"""
+        return self._get_or_create('P_factor',
+            lambda: CholeskyFactorOp(self.P, name='P_factor'))
+
+    # Operations using N factorization
     @property
     def Nmy(self):
+        """N^{-1} y using factored N"""
         return self._get_or_create('Nmy',
-            lambda: SolveOp(self.N, self.y, name='Nmy'))
+            lambda: SolveWithFactorOp(self.N_factor, self.y, name='Nmy'))
 
     @property
     def NmF(self):
+        """N^{-1} F using factored N"""
         return self._get_or_create('NmF',
-            lambda: SolveOp(self.N, self.F, name='NmF'))
+            lambda: SolveWithFactorOp(self.N_factor, self.F, name='NmF'))
 
+    @property
+    def logdetN(self):
+        """log|N| using factored N"""
+        return self._get_or_create('logdetN',
+            lambda: LogDetFromFactorOp(self.N_factor, name='logdetN'))
+
+    # Operations using P factorization
+    @property
+    def Pinv(self):
+        """P^{-1} using factored P"""
+        return self._get_or_create('Pinv',
+            lambda: InvertFromFactorOp(self.P_factor, name='Pinv'))
+
+    @property
+    def logdetP(self):
+        """log|P| using factored P"""
+        return self._get_or_create('logdetP',
+            lambda: LogDetFromFactorOp(self.P_factor, name='logdetP'))
+
+    # Intermediate computations
     @property
     def FtNmy(self):
         return self._get_or_create('FtNmy',
@@ -465,35 +644,32 @@ class WoodburyGraph:
             lambda: DotProductOp(self.y, self.Nmy, name='ytNmy'))
 
     @property
-    def Pinv(self):
-        return self._get_or_create('Pinv',
-            lambda: InvertOp(self.P, name='Pinv'))
-
-    @property
     def S(self):
         """Schur complement: P^{-1} + F^T N^{-1} F"""
         return self._get_or_create('S',
             lambda: AddOp(self.Pinv, self.FtNmF, name='S'))
 
+    # Operations on S (combined solve and logdet)
+    @property
+    def SmFtNmy_and_logdetS(self):
+        """
+        Combined operation: compute both S^{-1}(F^T N^{-1} y) and log|S|
+        using a single Cholesky factorization.
+        """
+        return self._get_or_create('SmFtNmy_and_logdetS',
+            lambda: SolveAndLogDetOp(self.S, self.FtNmy, name='SmFtNmy_and_logdetS'))
+
     @property
     def SmFtNmy(self):
+        """S^{-1}(F^T N^{-1} y) - extracted from combined op (no additional storage)"""
         return self._get_or_create('SmFtNmy',
-            lambda: SolveOp(self.S, self.FtNmy, name='SmFtNmy'))
-
-    @property
-    def logdetN(self):
-        return self._get_or_create('logdetN',
-            lambda: LogDetOp(self.N, name='logdetN'))
-
-    @property
-    def logdetP(self):
-        return self._get_or_create('logdetP',
-            lambda: LogDetOp(self.P, name='logdetP'))
+            lambda: IndexOp(self.SmFtNmy_and_logdetS, 0, name='SmFtNmy'))
 
     @property
     def logdetS(self):
+        """log|S| - extracted from combined op (no additional storage)"""
         return self._get_or_create('logdetS',
-            lambda: LogDetOp(self.S, name='logdetS'))
+            lambda: IndexOp(self.SmFtNmy_and_logdetS, 1, name='logdetS'))
 
     # ========================================================================
     # Nodes for kernel product (lazy)
@@ -764,7 +940,7 @@ if __name__ == "__main__":
     example_memory_efficiency()
 
     print("\n\n" + "=" * 70)
-    print("SUMMARY: CORRECTED VERSION")
+    print("SUMMARY: OPTIMIZED VERSION")
     print("=" * 70)
     print("Key fixes:")
     print("  1. SolveOp.eval() checks for solve() BEFORE calling A.eval()")
@@ -776,6 +952,12 @@ if __name__ == "__main__":
     print("  ✓ Lazy node creation (memory efficient)")
     print("  ✓ Zero code duplication")
     print("  ✓ Automatic constant detection and caching")
+    print()
+    print("Performance optimizations:")
+    print("  ✓ N factored once, reused for Nmy, NmF, logdetN")
+    print("  ✓ P factored once, reused for Pinv, logdetP")
+    print("  ✓ S factored once, computes SmFtNmy AND logdetS together")
+    print("  ✓ Reduction: 7 factorizations → 3 (57% fewer!)")
     print()
     print("This version is ready to implement in matrix.py!")
     print("=" * 70)

@@ -460,11 +460,11 @@ class WoodburyGraph:
 
     @property
     def logdet(self):
-        """log|N + F^T P F| = log|N| - log|P| + log|S|"""
+        """log|N + F^T P F| = log|N| + log|P| + log|S| where S = P^{-1} + F^T N^{-1} F"""
         return self._get_or_create('logdet',
-            lambda: SubtractOp(
-                AddOp(self.logdetN, self.logdetS, name='logdetN+logdetS'),
-                self.logdetP,
+            lambda: AddOp(
+                AddOp(self.logdetN, self.logdetP, name='logdetN+logdetP'),
+                self.logdetS,
                 name='logdet'))
 
     @property

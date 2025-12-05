@@ -325,10 +325,11 @@ class WoodburyGraph:
 
     @property
     def logdet(self):
+        """log|N + F^T P F| = log|N| + log|P| + log|S| where S = P^{-1} + F^T N^{-1} F"""
         return self._get_or_create('logdet',
-            lambda: SubtractOp(
-                AddOp(self.logdetN, self.logdetS, name='logdetN+logdetS'),
-                self.logdetP,
+            lambda: AddOp(
+                AddOp(self.logdetN, self.logdetP, name='logdetN+logdetP'),
+                self.logdetS,
                 name='logdet'))
 
     @property
@@ -401,12 +402,62 @@ class WoodburyKernel:
         self.N_spec = N
         self.F_spec = F
         self.P_spec = P
+        self._graph = None  # Cache the graph
+        self.name = "WoodburyKernel"
+
+    @property
+    def is_constant(self):
+        """Constant if all components are constant."""
+        N_leaf = self._make_leaf(self.N_spec, "N")
+        F_leaf = self._make_leaf(self.F_spec, "F")
+        P_leaf = self._make_leaf(self.P_spec, "P")
+        return N_leaf.is_constant and F_leaf.is_constant and P_leaf.is_constant
+
+    @property
+    def params(self):
+        """All parameters needed."""
+        N_leaf = self._make_leaf(self.N_spec, "N")
+        F_leaf = self._make_leaf(self.F_spec, "F")
+        P_leaf = self._make_leaf(self.P_spec, "P")
+        return N_leaf.params | F_leaf.params | P_leaf.params
+
+    def solve(self, b, params):
+        """
+        Solve (N + F^T P F)^{-1} b using Woodbury identity.
+
+        This makes WoodburyKernel act like a Leaf for nesting.
+
+        Args:
+            b: RHS vector or matrix
+            params: Parameter dictionary
+
+        Returns:
+            Solution to (N + F^T P F)^{-1} b
+        """
+        # Create a temporary graph with b as y
+        N_leaf = self._make_leaf(self.N_spec, "N")
+        F_leaf = self._make_leaf(self.F_spec, "F")
+        P_leaf = self._make_leaf(self.P_spec, "P")
+        b_leaf = DataLeaf(b, name="b")
+
+        graph = WoodburyGraph(N_leaf, F_leaf, P_leaf, b_leaf)
+        return graph.solve(b, params)
 
     def _make_leaf(self, spec, name):
         """Convert specification to a Leaf."""
         if isinstance(spec, (jax.Array, jnp.ndarray)):
             # Constant array
             return DataLeaf(spec, name=name)
+        elif isinstance(spec, WoodburyKernel):
+            # Another WoodburyKernel - acts as a leaf for nesting
+            # Check this BEFORE callable to avoid issues
+            return spec
+        elif hasattr(spec, 'solve'):
+            # WoodburyGraph or similar - acts as a leaf
+            return spec
+        elif hasattr(spec, 'solve_1d'):
+            # Old-style NoiseMatrix - wrap it
+            return OldNoiseMatrixWrapper(spec, name=name)
         elif callable(spec):
             # Could be a parameter function or a NoiseMatrix
             if hasattr(spec, 'params'):
@@ -423,12 +474,6 @@ class WoodburyKernel:
                     return FunctionLeaf(spec, [], name=name)
                 else:
                     return FunctionLeaf(spec, param_names, name=name)
-        elif hasattr(spec, 'solve'):
-            # It's a WoodburyKernel or WoodburyGraph - acts as a leaf
-            return spec
-        elif hasattr(spec, 'solve_1d'):
-            # Old-style NoiseMatrix - wrap it
-            return OldNoiseMatrixWrapper(spec, name=name)
         else:
             raise TypeError(f"Unknown specification type: {type(spec)}")
 

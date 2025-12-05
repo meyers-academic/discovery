@@ -170,6 +170,21 @@ class WoodburyKernel:
         P_leaf = self._make_leaf(self.P_spec, "P")
         return N_leaf.params | F_leaf.params | P_leaf.params
 
+    def eval(self, params=None):
+        """
+        Evaluate to get the matrix N + F^T P F.
+
+        NOTE: This should rarely be called! For nested structures, we use solve()
+        and compute_logdet() instead to avoid forming the full matrix.
+
+        This is only here for completeness of the Leaf interface.
+        """
+        raise NotImplementedError(
+            "WoodburyKernel.eval() should not be called! "
+            "For nested structures, use solve() or compute_logdet() methods instead. "
+            "We never want to materialize the full matrix N + F^T P F."
+        )
+
     def solve(self, b, params):
         """
         Solve (N + F^T P F)^{-1} b using Woodbury identity.
@@ -192,6 +207,32 @@ class WoodburyKernel:
         # Build graph and solve
         graph = WoodburyGraph(N_leaf, F_leaf, P_leaf, b_leaf)
         return graph.solve(b, params)
+
+    def compute_logdet(self, params):
+        """
+        Compute log|N + F^T P F| using Woodbury determinant identity.
+
+        This makes WoodburyKernel work correctly in nested structures.
+
+        Args:
+            params: Parameter dictionary
+
+        Returns:
+            log|N + F^T P F| = log|N| + log|P| + log|S|
+        """
+        # Create leaves (need a dummy y for graph creation)
+        N_leaf = self._make_leaf(self.N_spec, "N")
+        F_leaf = self._make_leaf(self.F_spec, "F")
+        P_leaf = self._make_leaf(self.P_spec, "P")
+
+        # Create dummy y (won't be used for logdet calculation)
+        y_dummy = DataLeaf(jnp.zeros(1), name="y_dummy")
+
+        # Build graph
+        graph = WoodburyGraph(N_leaf, F_leaf, P_leaf, y_dummy)
+
+        # Use the graph's compute_logdet method
+        return graph.compute_logdet(params)
 
     # ========================================================================
     # Main API Methods

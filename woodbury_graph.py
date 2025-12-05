@@ -261,17 +261,54 @@ class MatmulOp(OpNode):
 
 
 class LogDetOp(OpNode):
-    """log|A|"""
+    """
+    log|A| - properly handles both matrix and WoodburyGraph/WoodburyKernel inputs.
+
+    Similar to SolveOp, checks for custom logdet() method BEFORE calling eval().
+    """
 
     def __init__(self, A, name=None):
         super().__init__(A, name=name or f"log|{A.name}|")
+        self.A = A
 
-    def compute(self, A_val):
+    def eval(self, params=None):
+        """
+        Override eval to handle WoodburyGraph/WoodburyKernel recursion.
+
+        Key: Check for compute_logdet() method BEFORE calling A.eval()!
+        """
+        # Check cache first
+        if self.is_constant and self._is_evaluated:
+            return self._cached_value
+
+        # Check if A has custom logdet method (e.g., WoodburyGraph, WoodburyKernel)
+        if hasattr(self.A, 'compute_logdet'):
+            # Recursive case: A is WoodburyGraph or WoodburyKernel
+            # Call its compute_logdet() method directly - don't eval()!
+            result = self.A.compute_logdet(params)
+        else:
+            # Base case: A is a matrix
+            A_val = self.A.eval(params)
+            result = self._compute_logdet(A_val)
+
+        # Cache if constant
+        if self.is_constant:
+            self._cached_value = result
+            self._is_evaluated = True
+
+        return result
+
+    def _compute_logdet(self, A_val):
+        """Compute log-determinant of a standard matrix."""
         if A_val.ndim == 1:
             return jnp.sum(jnp.log(A_val))
         else:
             A_factor = jsp.linalg.cho_factor(A_val)
             return 2.0 * jnp.sum(jnp.log(jnp.diag(A_factor[0])))
+
+    def compute(self, A_val):
+        """Fallback for standard eval path (not used for WoodburyGraph/Kernel)."""
+        return self._compute_logdet(A_val)
 
 
 class ScalarOp(OpNode):
@@ -381,6 +418,22 @@ class WoodburyGraph:
 
         # Evaluate and return
         return solution_temp.eval(params)
+
+    def compute_logdet(self, params):
+        """
+        Compute log|N + F^T P F| using Woodbury determinant identity.
+
+        This is the KEY METHOD for nested log-determinant calculations!
+        When LogDetOp(WoodburyGraph) is created, it calls this method.
+
+        Args:
+            params: Parameter dictionary
+
+        Returns:
+            log|N + F^T P F| = log|N| + log|P| + log|S|
+        """
+        # Use the logdet property (which creates the LogDetOp node)
+        return self.logdet.eval(params)
 
     # ========================================================================
     # Core operation nodes (lazy)

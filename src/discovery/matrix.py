@@ -524,9 +524,395 @@ def SM_12d_indexed(y, T, N, Uind, P):
     return c[0,:], c[1:,:], jnp.sum(jnp.log(N)) + jnp.sum(vsmdp_ind(Np, P, Uind))
 
 
-class NoiseMatrixSM_novar(NoiseMatrix, ConstantKernel):
-    def __init__(self, N, F, P):
+# ===================================================================
+# Fused whitening (parallel to SM_1d_fused / SM_2d_fused)
+# ===================================================================
+
+def SM_whiten_1d_fused(y, N, F, P):
+    """Fused N_wn^{-1/2} y. Parallel to SM_1d_fused.
+
+    Parameters
+    ----------
+    y : (d,)   — input vector
+    N : (d,)   — diagonal noise variances
+    F : (d, k) — ECORR indicator matrix (0/1)
+    P : (k,)   — ECORR variances (Jvec)
+    """
+    sqrt_N = jnp.sqrt(N)
+    Amb = y / N                                          # (d,)
+
+    vtAmb = P * jnp.einsum("ij,i->j", F, Amb)           # (k,)  P * sum(F*y/N)
+    vtAmu = P * jnp.einsum("ij,ij->j", F, F / N[:, None])  # (k,)  P * sum(1/d)
+
+    alpha = jnp.where(
+        vtAmu > 1e-14,
+        (1.0 / jnp.sqrt(1.0 + vtAmu) - 1.0) / vtAmu,
+        -0.5,
+    )
+
+    scale = alpha * vtAmb                                # (k,)
+    delta = jnp.einsum("ij,j->i", F / sqrt_N[:, None], scale)  # (d,)
+
+    logdet = jnp.sum(jnp.log(N)) + jnp.sum(jnp.log1p(vtAmu))
+    return y / sqrt_N + delta, logdet
+
+
+def SM_whiten_2d_fused(Y, N, F, P):
+    """Fused N_wn^{-1/2} Y. Parallel to SM_2d_fused.
+
+    Parameters
+    ----------
+    Y : (B, d) — batch of row vectors (note: transposed convention)
+    N : (d,)   — diagonal noise variances
+    F : (d, k) — ECORR indicator matrix
+    P : (k,)   — ECORR variances
+    """
+    sqrt_N = jnp.sqrt(N)
+    AmB = Y / N[None, :]                                 # (B, d)
+
+    vtAmB = P[None, :] * jnp.einsum("dk,bd->bk", F, AmB)           # (B, k)
+    vtAmu = P[None, :] * jnp.einsum("dk,dk->k", F, F / N[:, None])[None, :]  # (1, k)
+
+    alpha = jnp.where(
+        vtAmu > 1e-14,
+        (1.0 / jnp.sqrt(1.0 + vtAmu) - 1.0) / vtAmu,
+        -0.5,
+    )
+
+    scale = alpha * vtAmB                                            # (B, k)
+    delta = jnp.einsum("dk,bk->bd", F / sqrt_N[:, None], scale)     # (B, d)
+
+    logdet = jnp.sum(jnp.log(N)) + jnp.sum(jnp.log1p(vtAmu.squeeze()))
+    return Y / sqrt_N[None, :] + delta, logdet
+
+
+# ===================================================================
+# Indexed whitening (parallel to SM_1d_indexed / SM_2d_indexed)
+# ===================================================================
+
+def smdp_ind(A, l, ind):
+    Amu = 1.0 / A[ind]
+    vtAmu = l * jnp.sum(Amu)
+    return jnp.log1p(vtAmu)
+
+
+vsmdp_ind = jax.vmap(smdp_ind, in_axes=(None, 0, 0))
+
+
+def smwhiten_ind(A, l, xdivA, ind):
+    """Whitening correction for one block."""
+    inv_d = 1.0 / A[ind]
+    inv_sqrt_d = 1.0 / jnp.sqrt(A[ind])
+
+    vtAmu = l * jnp.sum(inv_d)
+    vtAmb = l * jnp.sum(xdivA[ind])
+
+    alpha = jnp.where(
+        vtAmu > 1e-14,
+        (1.0 / jnp.sqrt(1.0 + vtAmu) - 1.0) / vtAmu,
+        -0.5,
+    )
+
+    return inv_sqrt_d * (alpha * vtAmb)
+
+
+vsmwhiten_ind = jax.vmap(smwhiten_ind, in_axes=(None, 0, None, 0))
+
+
+def smwhiten_ind_correct(xp, Np, Uind, P):
+    corrections = vsmwhiten_ind(Np, P, xp / Np, Uind)
+    return (xp / jnp.sqrt(Np)).at[Uind.reshape(-1)].add(corrections.reshape(-1))[1:]
+
+
+vsmwhiten_ind_correct = jax.vmap(smwhiten_ind_correct, in_axes=(0, None, None, None))
+
+
+def SM_whiten_1d_indexed(y, N, Uind, P):
+    yp = jnp.pad(y, ((1, 0),), constant_values=0.0)
+    Np = jnp.pad(N, ((1, 0),), constant_values=jnp.inf)
+
+    whitened = smwhiten_ind_correct(yp, Np, Uind, P)
+    logdet = jnp.sum(jnp.log(N)) + jnp.sum(vsmdp_ind(Np, P, Uind))
+
+    return whitened, logdet
+
+
+def SM_whiten_2d_indexed(T, N, Uind, P):
+    """T is (B, d) — same transposed convention as SM_2d_indexed."""
+    Tp = jnp.pad(T, ((0, 0), (1, 0)), constant_values=0.0)
+    Np = jnp.pad(N, ((1, 0),), constant_values=jnp.inf)
+
+    whitened = vsmwhiten_ind_correct(Tp, Np, Uind, P)
+    logdet = jnp.sum(jnp.log(N)) + jnp.sum(vsmdp_ind(Np, P, Uind))
+
+    return whitened, logdet
+
+
+def SM_whiten_12d_indexed(y, T, N, Uind, P):
+    """Fused 1d + 2d whitening. T is (B, d)."""
+    yp = jnp.pad(y, ((1, 0),), constant_values=0.0)
+    Tp = jnp.pad(T, ((1, 0), (1, 0)), constant_values=0.0).at[0, :].set(yp)
+    Np = jnp.pad(N, ((1, 0),), constant_values=jnp.inf)
+
+    c = vsmwhiten_ind_correct(Tp, Np, Uind, P)
+    logdet = jnp.sum(jnp.log(N)) + jnp.sum(vsmdp_ind(Np, P, Uind))
+
+    return c[0, :], c[1:, :], logdet
+
+
+# ===================================================================
+# Mixins
+# ===================================================================
+
+def _projection_products(y_w, B_w, A_w, logdet_Nwn, use_qr=False, logdet_correction=0.0):
+    """Shared projection logic. All inputs already whitened.
+
+    Parameters
+    ----------
+    y_w    : (n,)    — N_wn^{-1/2} y
+    B_w    : (n, nf) — N_wn^{-1/2} F_fourier
+    A_w    : (n, nm) — N_wn^{-1/2} M_timing  (or N_wn^{-1/2} U_m if using SVD)
+    logdet_Nwn : scalar
+    use_qr : bool — if True, use QR of the (n, nm) matrix (stabler).
+                     if False, use Cholesky of the (nm, nm) Gram matrix (faster).
+    logdet_correction : scalar — additional logdet term, e.g. 2*sum(log(S_m))
+                        when A_w is the whitened U_m rather than the full M.
+
+    Returns
+    -------
+    FtNmF  : (nf, nf) — PSD by construction
+    FtNmy  : (nf,)
+    ytNmy  : scalar    — non-negative by construction
+    ldN    : scalar    — log det(N)
+    """
+    if use_qr:
+        # QR of (n, nm): most stable, but O(n * nm^2) and not great for JIT
+        Q, R = jnp.linalg.qr(A_w)
+
+        Bp = B_w - Q @ (Q.T @ B_w)
+        rp = y_w - Q @ (Q.T @ y_w)
+
+        logdet_AtA = 2.0 * jnp.sum(jnp.log(jnp.abs(jnp.diag(R))))
+    else:
+        # Cholesky of (nm, nm): faster, still subtraction-free in the final product.
+        # The subtraction B - A @ coeffs is on n-vectors, not on the nf x nf product,
+        # so FtNmF = Bp^T Bp is still a Gram matrix, PSD by construction.
+        C = A_w.T @ A_w                                      # (nm, nm)
+        L_C = jnp.linalg.cholesky(C)                         # (nm, nm)
+
+        AtB = A_w.T @ B_w                                    # (nm, nf)
+        Atr = A_w.T @ y_w                                    # (nm,)
+
+        coeffB = jax.scipy.linalg.cho_solve((L_C, True), AtB)  # (nm, nf)
+        coeffr = jax.scipy.linalg.cho_solve((L_C, True), Atr)  # (nm,)
+
+        Bp = B_w - A_w @ coeffB                              # (n, nf)
+        rp = y_w - A_w @ coeffr                              # (n,)
+
+        logdet_AtA = 2.0 * jnp.sum(jnp.log(jnp.diag(L_C)))
+
+    FtNmF = Bp.T @ Bp
+    FtNmy = Bp.T @ rp
+    ytNmy = rp @ rp
+
+    ldN = logdet_Nwn + logdet_AtA + logdet_correction
+
+    return FtNmF, FtNmy, ytNmy, ldN
+
+
+class WhiteningMixin_novar:
+    """Mixin for NoiseMatrixSM_novar. Adds make_whiten_* and projection methods.
+
+    Expects self.N, self.F, self.P to exist.
+    Projection methods additionally require self.M_timing.
+    Uses SM_algorithm global to choose fused vs indexed.
+    """
+
+    def _get_timing_svd(self):
+        """Precompute and cache thin SVD of M_timing."""
+        if not hasattr(self, '_timing_Um'):
+            U, S, Vt = np.linalg.svd(self.M_timing, full_matrices=False)
+            self._timing_Um = U                              # (n, nm), orthonormal cols
+            self._timing_logdet_Sm = 2.0 * np.sum(np.log(S)) # 2*sum(log(S))
+        return self._timing_Um, self._timing_logdet_Sm
+
+    def make_whiten_1d(self):
+        if SM_algorithm == 'indexed':
+            Nmat, Uind, Pmat = jnp.array(self.N), jnp.array(make_uind(self.F)), jnp.array(self.P)
+
+            def whiten_1d(y):
+                return SM_whiten_1d_indexed(y, Nmat, Uind, Pmat)
+        else:
+            Nmat, Fmat, Pmat = jnp.array(self.N), jnp.array(self.F), jnp.array(self.P)
+
+            def whiten_1d(y):
+                return SM_whiten_1d_fused(y, Nmat, Fmat, Pmat)
+
+        return whiten_1d
+
+    def make_whiten_2d(self):
+        if SM_algorithm == 'indexed':
+            Nmat, Uind, Pmat = jnp.array(self.N), jnp.array(make_uind(self.F)), jnp.array(self.P)
+
+            def whiten_2d(T):
+                KwT, logK = SM_whiten_2d_indexed(T.T, Nmat, Uind, Pmat)
+                return KwT.T, logK
+        else:
+            Nmat, Fmat, Pmat = jnp.array(self.N), jnp.array(self.F), jnp.array(self.P)
+
+            def whiten_2d(T):
+                KwT, logK = SM_whiten_2d_fused(T.T, Nmat, Fmat, Pmat)
+                return KwT.T, logK
+
+        return whiten_2d
+
+    def projection_products(self, y, F_fourier, use_qr=False, svd=True):
+        """Compute FtNmF, FtNmy, ytNmy, ldN via projection.
+
+        Parameters
+        ----------
+        use_qr : bool — QR (stabler) vs Cholesky (faster) for the projector
+        svd    : bool — if True, whiten the SVD factor U_m instead of M
+                        (better conditioned, SVD precomputed and cached)
+
+        Requires self.M_timing to be set.
+        """
+        assert self.M_timing is not None, "Set M_timing for projection"
+        whiten_1d = self.make_whiten_1d()
+        whiten_2d = self.make_whiten_2d()
+
+        y_w, logdet_Nwn = whiten_1d(y)
+        B_w, _ = whiten_2d(F_fourier)
+
+        if svd:
+            Um, logdet_Sm = self._get_timing_svd()
+            A_w, _ = whiten_2d(Um)
+            logdet_correction = logdet_Sm
+            print('hi')
+        else:
+            A_w, _ = whiten_2d(self.M_timing)
+            logdet_correction = 0.0
+        print('y', y_w[:10])
+        print('B', B_w[:3, :3])
+        print('A', A_w[:3, :3])
+        return _projection_products(y_w, B_w, A_w, logdet_Nwn,
+                                    use_qr=use_qr, logdet_correction=logdet_correction)
+
+
+class WhiteningMixin_var:
+    """Mixin for NoiseMatrixSM_var. Adds make_whiten_* and projection methods.
+
+    Expects self.getN, self.F, self.getP, self.params to exist.
+    Projection methods additionally require self.M_timing.
+    Uses SM_algorithm global to choose fused vs indexed.
+    """
+
+    def _get_timing_svd(self):
+        """Precompute and cache thin SVD of M_timing."""
+        if not hasattr(self, '_timing_Um'):
+            U, S, Vt = np.linalg.svd(self.M_timing, full_matrices=False)
+            self._timing_Um = U
+            self._timing_logdet_Sm = 2.0 * np.sum(np.log(S))
+        return self._timing_Um, self._timing_logdet_Sm
+
+    def make_whiten_1d(self):
+        getN, getP = self.getN, self.getP
+
+        if SM_algorithm == 'indexed':
+            Uind = jnp.array(self.Uind if hasattr(self, 'Uind') else make_uind(self.F))
+
+            def whiten_1d(params, y):
+                return SM_whiten_1d_indexed(y, getN(params), Uind, getP(params))
+        else:
+            F = jnp.array(self.F)
+
+            def whiten_1d(params, y):
+                return SM_whiten_1d_fused(y, getN(params), F, getP(params))
+
+        whiten_1d.params = self.params
+        return whiten_1d
+
+    def make_whiten_2d(self):
+        getN, getP = self.getN, self.getP
+
+        if SM_algorithm == 'indexed':
+            Uind = jnp.array(self.Uind if hasattr(self, 'Uind') else make_uind(self.F))
+
+            def whiten_2d(params, T):
+                KwT, logK = SM_whiten_2d_indexed(T.T, getN(params), Uind, getP(params))
+                return KwT.T, logK
+        else:
+            F = jnp.array(self.F)
+
+            def whiten_2d(params, T):
+                KwT, logK = SM_whiten_2d_fused(T.T, getN(params), F, getP(params))
+                return KwT.T, logK
+
+        whiten_2d.params = self.params
+        return whiten_2d
+
+    def make_whiten_12d(self):
+        getN, getP = self.getN, self.getP
+
+        if SM_algorithm == 'indexed':
+            Uind = jnp.array(self.Uind if hasattr(self, 'Uind') else make_uind(self.F))
+
+            def whiten_12d(params, y, T):
+                Kwy, KwT, logK = SM_whiten_12d_indexed(y, T.T, getN(params), Uind, getP(params))
+                return Kwy, KwT.T, logK
+        else:
+            F = jnp.array(self.F)
+
+            def whiten_12d(params, y, T):
+                Kwy, logK = SM_whiten_1d_fused(y, getN(params), F, getP(params))
+                KwT, _ = SM_whiten_2d_fused(T.T, getN(params), F, getP(params))
+                return Kwy, KwT.T, logK
+
+        whiten_12d.params = self.params
+        return whiten_12d
+
+    def make_projection_products(self, use_qr=False, svd=True):
+        """Return a closure that computes all marginalized products via projection.
+
+        Parameters
+        ----------
+        use_qr : bool — QR (stabler) vs Cholesky (faster) for the projector
+        svd    : bool — if True, whiten the SVD factor U_m instead of M
+                        (better conditioned, SVD precomputed and cached)
+
+        Requires self.M_timing to be set.
+
+        Returns a function:
+            projection_products(params, y, F_fourier) -> (FtNmF, FtNmy, ytNmy, ldN)
+        """
+        assert self.M_timing is not None, "Set M_timing for projection"
+
+        whiten_1d = self.make_whiten_1d()
+        whiten_2d = self.make_whiten_2d()
+
+        if svd:
+            Um, logdet_Sm = self._get_timing_svd()
+            M_to_whiten = jnp.array(Um)
+            logdet_correction = logdet_Sm
+        else:
+            M_to_whiten = jnp.array(self.M_timing)
+            logdet_correction = 0.0
+
+        def projection_products(params, y, F_fourier):
+            y_w, logdet_Nwn = whiten_1d(params, y)
+            A_w, _ = whiten_2d(params, M_to_whiten)
+            B_w, _ = whiten_2d(params, F_fourier)
+            return _projection_products(y_w, B_w, A_w, logdet_Nwn,
+                                        use_qr=use_qr, logdet_correction=logdet_correction)
+
+        projection_products.params = self.params
+        return projection_products
+
+
+class NoiseMatrixSM_novar(NoiseMatrix, ConstantKernel, WhiteningMixin_novar):
+    def __init__(self, N, F, P, M_timing=None):
         self.N, self.F, self.P = N, F, P
+        self.M_timing = M_timing
 
     def solve_1d(self, y):
         Kmy, logK = SM_1d_fused(y, self.N, self.F, self.P)
@@ -554,10 +940,11 @@ class NoiseMatrixSM_novar(NoiseMatrix, ConstantKernel):
 
         return solve_2d
 
-class NoiseMatrixSM_var(NoiseMatrix, VariableKernel):
-    def __init__(self, getN, F, getP):
+class NoiseMatrixSM_var(NoiseMatrix, VariableKernel, WhiteningMixin_var):
+    def __init__(self, getN, F, getP, M_timing=None):
         self.getN, self.F, self.getP = getN, F, getP
         self.params = sorted(set(self.getN.params + self.getP.params))
+        self.M_timing = M_timing
 
         if SM_algorithm == 'indexed':
             self.Uind = make_uind(F)
@@ -1166,8 +1553,15 @@ class WoodburyKernel_varNP(VariableKernel):
 
         y = jnparray(y)
 
-        N_solve_1d = self.N_var.make_solve_1d()
-        N_solve_2d = self.N_var.make_solve_2d()
+        if hasattr(self.N_var, 'M_timing') and self.N_var.M_timing is not None:
+            # safe solve
+            make_proj = self.N_var.make_projection_products()
+            safe_solve=True
+            print('safe solve')
+        else:
+            safe_solve=False
+            N_solve_1d = self.N_var.make_solve_1d()
+            N_solve_2d = self.N_var.make_solve_2d()
 
         # avoid a separate WoodburyKernel_varNFP
         if callable(self.F):
@@ -1177,17 +1571,23 @@ class WoodburyKernel_varNP(VariableKernel):
             Ffunc = lambda params: Fmat
             Ffunc.params = []
 
+
         P_var_inv = self.P_var.make_inv()
 
         def kernelproduct(params):
             Fmat = Ffunc(params)
 
-            Nmy, ldN = N_solve_1d(params, y)
-            ytNmy = y @ Nmy
+            if safe_solve:
+                FtNmF, NmFty, ytNmy, ldN = make_proj(params, y, Fmat)
 
-            NmF, _ = N_solve_2d(params, Fmat)
-            FtNmF = Fmat.T @ NmF
-            NmFty = NmF.T @ y
+            else:
+                Nmy, ldN = N_solve_1d(params, y)
+                ytNmy = y @ Nmy
+
+                NmF, _ = N_solve_2d(params, Fmat)
+                FtNmF = Fmat.T @ NmF
+                NmFty = NmF.T @ y
+
 
             Pinv, ldP = P_var_inv(params)
             cf = matrix_factor(Pinv + FtNmF)
@@ -1549,15 +1949,29 @@ class WoodburyKernel_varP(VariableKernel):
     def make_kernelproduct(self, y):
         if callable(y):
             return self.make_kernelproduct_vary(y)
+        if isinstance(self.N, WhiteningMixin_novar) and self.N.M_timing is not None:
+            print("Using safe solve")
+            # FtNmFs, NmFtys, ytNmys, ldNs = zip(*[N.projection_products(y,F) for N, y, F in zip(self.Ns, ys, self.Fs)])
+            FtNmF, FtNmy, ytNmy, ldN = self.N.projection_products(y, self.F)
+            print('save ytNmy', ytNmy)
+            print('save ldN', ldN)
+            # cast
+            FtNmF = jnparray(FtNmF)
+            FtNmy = jnparray(FtNmy)
+            ytNmy = jnparray(ytNmy)
+            ldN = jnparray(ldN)
+        else:
+            NmF, ldN = self.N.solve_2d(self.F)
+            FtNmF = self.F.T @ NmF
 
-        NmF, ldN = self.N.solve_2d(self.F)
-        FtNmF = self.F.T @ NmF
+            Nmy, ldN = self.N.solve_1d(y)
+            ytNmy = y @ Nmy
+            print('normal ytNmy', ytNmy)
+            print('normal ldn', ldN)
+            FtNmy = NmF.T @ y
 
-        Nmy, ldN = self.N.solve_1d(y)
-        ytNmy = y @ Nmy
-        FtNmy = NmF.T @ y
+            FtNmF, FtNmy, ytNmy, ldN = jnparray(FtNmF), jnparray(FtNmy), jnparray(ytNmy), jnparray(ldN)
 
-        FtNmF, FtNmy, ytNmy, ldN = jnparray(FtNmF), jnparray(FtNmy), jnparray(ytNmy), jnparray(ldN)
         P_var_inv = self.P_var.make_inv()
 
         kmean = getattr(self, 'mean', None)
@@ -2032,24 +2446,34 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
         kmeans = getattr(self, 'means', None)
 
-        NmFs, ldNs = zip(*[N.solve_2d(F) for N, F in zip(self.Ns, self.Fs)])
+        # safe solves if timing model design matrix
+        # is included in the noise matrix here we know to use safe solve
+        if isinstance(self.Ns[0], WhiteningMixin_novar) and self.Ns[0].M_timing is not None:
+            print("Using safe solve")
+            FtNmFs, NmFtys, ytNmys, ldNs = zip(*[N.projection_products(y,F) for N, y, F in zip(self.Ns, ys, self.Fs)])
+            ytNmy = float(sum(ytNmys))
+            ldN = float(sum(ldNs))
 
-
-
-        FtNmFs = [F.T @ NmF for F, NmF in zip(self.Fs, NmFs)]
-        if regularize_FtNmF:
-            FtNmFs = [zero_out_negative_eigenvalues(0.5 * (FtNmF + FtNmF.T)) for FtNmF in FtNmFs]
+            # cast
+            FtNmF = jnparray(FtNmFs)
+            NmFty = jnparray(NmFtys)
         else:
-            FtNmFs = [0.5 * (FtNmF + FtNmF.T) for FtNmF in FtNmFs]
+            NmFs, ldNs = zip(*[N.solve_2d(F) for N, F in zip(self.Ns, self.Fs)])
+            FtNmFs = [F.T @ NmF for F, NmF in zip(self.Fs, NmFs)]
+            if regularize_FtNmF:
+                FtNmFs = [zero_out_negative_eigenvalues(0.5 * (FtNmF + FtNmF.T)) for FtNmF in FtNmFs]
+            else:
+                FtNmFs = [0.5 * (FtNmF + FtNmF.T) for FtNmF in FtNmFs]
 
-        NmFtys = [NmF.T @ y for NmF, y in zip(NmFs, ys)]
+            NmFtys = [NmF.T @ y for NmF, y in zip(NmFs, ys)]
 
-        Nmys, _  = zip(*[N.solve_1d(y) for N, y in zip(self.Ns, ys)])
-        ytNmys = [y @ Nmy for y, Nmy in zip(ys, Nmys)]
+            Nmys, _  = zip(*[N.solve_1d(y) for N, y in zip(self.Ns, ys)])
+            ytNmys = [y @ Nmy for y, Nmy in zip(ys, Nmys)]
+
+            FtNmF, NmFty = jnparray(FtNmFs), jnparray(NmFtys)
+            ytNmy, ldN = float(sum(ytNmys)), float(sum(ldNs))
 
         P_var_inv = self.P_var.make_inv()
-        FtNmF, NmFty = jnparray(FtNmFs), jnparray(NmFtys)
-        ytNmy, ldN = float(sum(ytNmys)), float(sum(ldNs))
 
         def kernelproduct(params):
             Pinv, ldP = P_var_inv(params)            # Pinv.shape = FtNmF.shape = [npsr, ngp, ngp]

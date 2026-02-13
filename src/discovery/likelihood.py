@@ -36,13 +36,20 @@ from . import signals
 #                            concat=True)
 
 class PulsarLikelihood:
-    def __init__(self, args, concat=True):
+    def __init__(self, args, concat=True, G=None):
         y     = [arg for arg in args if isinstance(arg, np.ndarray) or isinstance(arg, jax.Array)]
         delay = [arg for arg in args if callable(arg)]
         noise = [arg for arg in args if isinstance(arg, matrix.Kernel)]
         cgps  = [arg for arg in args if isinstance(arg, matrix.ConstantGP)]
         vgps  = [arg for arg in args if isinstance(arg, matrix.VariableGP)]
+        eparams =   [arg for arg in args if isinstance(arg, dict)]
         # pgps  = [arg for arg in args if isinstance(arg, matrix.ComponentGP)]
+        if len(eparams) > 1:
+            raise ValueError('one set of phi0 parameters per pulsar')
+        elif len(eparams) == 0:
+            self.phi0_params = None
+        else:
+            self.phi0_params = eparams[0]
 
         if len(y) == 0 and len(delay) == 0:
             raise ValueError("I need exactly one residual vector or one or more delay functions.")
@@ -55,6 +62,7 @@ class PulsarLikelihood:
             y = [0.0]
 
         noise, y = noise[0], y[0]
+        noise.G = G
 
         if cgps:
             if len(cgps) > 1 and concat:
@@ -177,7 +185,7 @@ class PulsarLikelihood:
 
     @functools.cached_property
     def logL(self):
-        return self.N.make_kernelproduct(self.y)
+        return self.N.make_kernelproduct(self.y, phi0_params=self.phi0_params)
 
     @functools.cached_property
     def sample(self):
@@ -492,12 +500,21 @@ class GlobalLikelihood:
 
 
 class ArrayLikelihood:
-    def __init__(self, psls, *, commongp=None, globalgp=None, transform=None):
+    def __init__(self, psls, *, commongp=None, globalgp=None, transform=None, phi0_params=None):
         self.psls = psls
         self.commongp = commongp
         self.globalgp = globalgp
         self.transform = transform
 
+        if self.psls[0].phi0_params is not None and phi0_params is None:
+            print('using estimated parameters to split likelihood')
+            dicts = [psl.phi0_params for psl in self.psls]
+            self.phi0_params = {k: v for d in dicts for k, v in d.items()}
+        elif phi0_params is not None:
+            # this overrides the individual pulsar dicts
+            self.phi0_params = phi0_params
+        else:
+            self.phi0_params = None
     # @functools.cached_property
     # def cloglast(self):
     #     commongp = matrix.VectorCompoundGP(self.commongp[:-1])
@@ -546,6 +563,7 @@ class ArrayLikelihood:
 
     @functools.cached_property
     def logL(self):
+
         if self.commongp is None:
             if self.globalgp is None:
                 def loglike(params):
@@ -564,10 +582,13 @@ class ArrayLikelihood:
         self.vsm.means = getattr(commongp, 'means', None)
 
         if self.globalgp is None:
-            loglike = self.vsm.make_kernelproduct(self.ys)
+            if self.phi0_params is not None:
+                loglike = self.vsm.make_kernelproduct(self.ys, phi0_params=self.phi0_params)
+            else:
+                loglike = self.vsm.make_kernelproduct(self.ys)
         else:
             P_var_inv = self.globalgp.Phi_inv or self.globalgp.Phi.make_inv()
-            kterms = self.vsm.make_kernelterms(self.ys, self.globalgp.Fs)
+            kterms = self.vsm.make_kernelterms(self.ys, self.globalgp.Fs, phi0_params=self.phi0_params)
 
             npsr = len(self.globalgp.Fs)
             ngp = self.globalgp.Fs[0].shape[1]

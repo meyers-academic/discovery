@@ -436,11 +436,21 @@ def makecommongp_fourier(psrs, prior, components, T, fourierbasis=fourierbasis, 
     if isinstance(components, dict):
         components = max(components.values())
 
-    fs, dfs, fmats = zip(*[fourierbasis(psr, components, T) for psr in psrs])
-    f, df = fs[0], dfs[0]
+    if isinstance(T, list):
+        fs, dfs, fmats = zip(*[fourierbasis(psr, components, ts) for ts, psr in zip(T, psrs)])
+        # f, df = fs[0], dfs[0]
+        f = matrix.jnparray(fs)
+        df = matrix.jnparray(dfs)
+    else:
+        fs, dfs, fmats = zip(*[fourierbasis(psr, components, T) for psr in psrs])
+        f, df = fs[0], dfs[0]
 
     if vector:
-        vprior = jax.vmap(prior, in_axes=[None, None] +
+        if isinstance(T, list):
+            in_axes_f_df = [0, 0]
+        else:
+            in_axes_f_df = [None, None]
+        vprior = jax.vmap(prior, in_axes=in_axes_f_df +
                                          [0 if f'({len(psrs)})' in arg else None for arg in argmap])
 
         def priorfunc(params):
@@ -449,7 +459,12 @@ def makecommongp_fourier(psrs, prior, components, T, fourierbasis=fourierbasis, 
         priorfunc.params = sorted(argmap)
         priorfunc.type = getattr(prior, 'type', None)
     else:
-        vprior = jax.vmap(prior, in_axes=[None, None] +
+        if isinstance(T, list):
+            in_axes_f_df = [0, 0]
+        else:
+            in_axes_f_df = [None, None]
+
+        vprior = jax.vmap(prior, in_axes=in_axes_f_df +
                                          [0 if isinstance(argmap, list) else None for argmap in argmaps])
 
         def priorfunc(params):
@@ -461,7 +476,8 @@ def makecommongp_fourier(psrs, prior, components, T, fourierbasis=fourierbasis, 
         priorfunc.type = getattr(prior, 'type', None)
 
     gp = matrix.VariableGP(matrix.VectorNoiseMatrix12D_var(priorfunc), fmats)
-    gp.index = {f'{psr.name}_{name}_coefficients({len(f)})': slice(len(f)*i,len(f)*(i+1))
+    nf = f.shape[-1] if isinstance(f, jnp.ndarray) and f.ndim > 1 else len(f)
+    gp.index = {f'{psr.name}_{name}_coefficients({nf})': slice(nf*i,nf*(i+1))
                 for i, psr in enumerate(psrs)}
 
     if means is not None:
@@ -476,9 +492,14 @@ def makecommongp_fourier(psrs, prior, components, T, fourierbasis=fourierbasis, 
         margmaps = [{arg: f'{meansname}_{arg}' if (f'{meansname}_{arg}' in common or arg in common) else f'{psr.name}_{meansname}_{arg}'
                      for arg in margs if not hasattr(psr, arg) and arg not in exclude} for psr in psrs]
 
-        def meanfunc(params):
-            return matrix.jnparray([means(f, df, *psrpar.values(), **{arg: params[argname] for arg, argname in margmap.items()})
-                                    for psrpar, margmap in zip(psrpars, margmaps)])
+        if isinstance(T, list):
+            def meanfunc(params):
+                return matrix.jnparray([means(f[i], df[i], *psrpar.values(), **{arg: params[argname] for arg, argname in margmap.items()})
+                                        for i, (psrpar, margmap) in enumerate(zip(psrpars, margmaps))])
+        else:
+            def meanfunc(params):
+                return matrix.jnparray([means(f, df, *psrpar.values(), **{arg: params[argname] for arg, argname in margmap.items()})
+                                        for psrpar, margmap in zip(psrpars, margmaps)])
         meanfunc.params = sorted(set.union(*[set(margmap.values()) for margmap in margmaps]))
 
         gp.means = meanfunc

@@ -659,145 +659,168 @@ def SM_whiten_12d_indexed(y, T, N, Uind, P):
 
     return c[0, :], c[1:, :], logdet
 
+def SM_1d_fused_np(y, N, F, P):
+    """Numpy fused N_wn^{-1} y. For novar precomputation."""
+    Amb = y / N
+    Amu = F / N[:, None]
+
+    vtAmb = P * np.einsum("ij,i->j", F, Amb)
+    vtAmu = P * np.einsum("ij,ij->j", F, Amu)
+
+    scale = vtAmb / (1.0 + vtAmu)
+    delta = np.einsum("ij,j->i", Amu, scale)
+
+    return Amb - delta, np.sum(np.log(N)) + np.sum(np.log1p(vtAmu))
+
+
+def SM_2d_fused_np(Y, N, F, P):
+    """Numpy fused N_wn^{-1} Y. For novar precomputation."""
+    AmB = Y / N[None, :]
+    Amu = F / N[:, None]
+
+    vtAmB = P[None, :] * np.einsum("dk,bd->bk", F, AmB)
+    vtAmu = P[None, :] * np.einsum("dk,dk->k", F, Amu)[None, :]
+
+    scale = vtAmB / (1.0 + vtAmu)
+    delta = np.einsum("dk,bk->bd", Amu, scale)
+
+    return AmB - delta, np.sum(np.log(N)) + np.sum(np.log1p(vtAmu))
+
+
+def SM_whiten_1d_fused_np(y, N, F, P):
+    """Numpy fused N_wn^{-1/2} y. For novar precomputation."""
+    sqrt_N = np.sqrt(N)
+    Amb = y / N
+
+    vtAmb = P * np.einsum("ij,i->j", F, Amb)
+    vtAmu = P * np.einsum("ij,ij->j", F, F / N[:, None])
+
+    alpha = np.where(
+        vtAmu > 1e-14,
+        (1.0 / np.sqrt(1.0 + vtAmu) - 1.0) / vtAmu,
+        -0.5,
+    )
+
+    scale = alpha * vtAmb
+    delta = np.einsum("ij,j->i", F / sqrt_N[:, None], scale)
+
+    logdet = np.sum(np.log(N)) + np.sum(np.log1p(vtAmu))
+    return y / sqrt_N + delta, logdet
+
+
+def SM_whiten_2d_fused_np(Y, N, F, P):
+    """Numpy fused N_wn^{-1/2} Y. For novar precomputation."""
+    sqrt_N = np.sqrt(N)
+    AmB = Y / N[None, :]
+
+    vtAmB = P[None, :] * np.einsum("dk,bd->bk", F, AmB)
+    vtAmu = P[None, :] * np.einsum("dk,dk->k", F, F / N[:, None])[None, :]
+
+    alpha = np.where(
+        vtAmu > 1e-14,
+        (1.0 / np.sqrt(1.0 + vtAmu) - 1.0) / vtAmu,
+        -0.5,
+    )
+
+    scale = alpha * vtAmB
+    delta = np.einsum("dk,bk->bd", F / sqrt_N[:, None], scale)
+
+    logdet = np.sum(np.log(N)) + np.sum(np.log1p(vtAmu.squeeze()))
+    return Y / sqrt_N[None, :] + delta, logdet
+
 
 # ===================================================================
 # Mixins
 # ===================================================================
 
-def _projection_products(y_w, B_w, A_w, logdet_Nwn, use_qr=False, logdet_correction=0.0):
-    """Shared projection logic. All inputs already whitened.
-
-    Parameters
-    ----------
-    y_w    : (n,)    — N_wn^{-1/2} y
-    B_w    : (n, nf) — N_wn^{-1/2} F_fourier
-    A_w    : (n, nm) — N_wn^{-1/2} M_timing  (or N_wn^{-1/2} U_m if using SVD)
-    logdet_Nwn : scalar
-    use_qr : bool — if True, use QR of the (n, nm) matrix (stabler).
-                     if False, use Cholesky of the (nm, nm) Gram matrix (faster).
-    logdet_correction : scalar — additional logdet term, e.g. 2*sum(log(S_m))
-                        when A_w is the whitened U_m rather than the full M.
-
-    Returns
-    -------
-    FtNmF  : (nf, nf) — PSD by construction
-    FtNmy  : (nf,)
-    ytNmy  : scalar    — non-negative by construction
-    ldN    : scalar    — log det(N)
-    """
+def _projection_products_np(y_w, B_w, A_w, logdet_Nwn, use_qr=False, logdet_correction=0.0):
+    """Numpy version for fixed (novar) noise matrices. Stays in float64."""
     if use_qr:
-        # QR of (n, nm): most stable, but O(n * nm^2) and not great for JIT
-        Q, R = jnp.linalg.qr(A_w)
-
+        Q, R = np.linalg.qr(A_w)
         Bp = B_w - Q @ (Q.T @ B_w)
         rp = y_w - Q @ (Q.T @ y_w)
-
-        logdet_AtA = 2.0 * jnp.sum(jnp.log(jnp.abs(jnp.diag(R))))
+        logdet_AtA = 2.0 * np.sum(np.log(np.abs(np.diag(R))))
     else:
-        # Cholesky of (nm, nm): faster, still subtraction-free in the final product.
-        # The subtraction B - A @ coeffs is on n-vectors, not on the nf x nf product,
-        # so FtNmF = Bp^T Bp is still a Gram matrix, PSD by construction.
-        C = A_w.T @ A_w                                      # (nm, nm)
-        L_C = jnp.linalg.cholesky(C)                         # (nm, nm)
-
-        AtB = A_w.T @ B_w                                    # (nm, nf)
-        Atr = A_w.T @ y_w                                    # (nm,)
-
-        coeffB = jax.scipy.linalg.cho_solve((L_C, True), AtB)  # (nm, nf)
-        coeffr = jax.scipy.linalg.cho_solve((L_C, True), Atr)  # (nm,)
-
-        Bp = B_w - A_w @ coeffB                              # (n, nf)
-        rp = y_w - A_w @ coeffr                              # (n,)
-
-        logdet_AtA = 2.0 * jnp.sum(jnp.log(jnp.diag(L_C)))
+        C = A_w.T @ A_w
+        L_C = np.linalg.cholesky(C)
+        AtB = A_w.T @ B_w
+        Atr = A_w.T @ y_w
+        coeffB = sp.linalg.cho_solve((L_C, True), AtB)
+        coeffr = sp.linalg.cho_solve((L_C, True), Atr)
+        Bp = B_w - A_w @ coeffB
+        rp = y_w - A_w @ coeffr
+        logdet_AtA = 2.0 * np.sum(np.log(np.diag(L_C)))
 
     FtNmF = Bp.T @ Bp
     FtNmy = Bp.T @ rp
     ytNmy = rp @ rp
-
     ldN = logdet_Nwn + logdet_AtA + logdet_correction
 
     return FtNmF, FtNmy, ytNmy, ldN
 
 
-class WhiteningMixin_novar:
-    """Mixin for NoiseMatrixSM_novar. Adds make_whiten_* and projection methods.
+def _projection_products_jax(y_w, B_w, A_w, logdet_Nwn, use_qr=False, logdet_correction=0.0):
+    """JAX version for variable noise matrices. Lives inside JIT."""
+    if use_qr:
+        Q, R = jnp.linalg.qr(A_w)
+        Bp = B_w - Q @ (Q.T @ B_w)
+        rp = y_w - Q @ (Q.T @ y_w)
+        logdet_AtA = 2.0 * jnp.sum(jnp.log(jnp.abs(jnp.diag(R))))
+    else:
+        C = A_w.T @ A_w
+        L_C = jnp.linalg.cholesky(C)
+        AtB = A_w.T @ B_w
+        Atr = A_w.T @ y_w
+        coeffB = jax.scipy.linalg.cho_solve((L_C, True), AtB)
+        coeffr = jax.scipy.linalg.cho_solve((L_C, True), Atr)
+        Bp = B_w - A_w @ coeffB
+        rp = y_w - A_w @ coeffr
+        logdet_AtA = 2.0 * jnp.sum(jnp.log(jnp.diag(L_C)))
 
+    FtNmF = Bp.T @ Bp
+    FtNmy = Bp.T @ rp
+    ytNmy = rp @ rp
+    ldN = logdet_Nwn + logdet_AtA + logdet_correction
+
+    return FtNmF, FtNmy, ytNmy, ldN
+class WhiteningMixin_novar:
+    """Mixin for NoiseMatrixSM_novar. Adds whiten_* and projection methods.
     Expects self.N, self.F, self.P to exist.
     Projection methods additionally require self.M_timing.
-    Uses SM_algorithm global to choose fused vs indexed.
+    Everything stays in numpy (no jax conversion).
     """
 
     def _get_timing_svd(self):
-        """Precompute and cache thin SVD of M_timing."""
         if not hasattr(self, '_timing_Um'):
             U, S, Vt = np.linalg.svd(self.M_timing, full_matrices=False)
-            self._timing_Um = U                              # (n, nm), orthonormal cols
-            self._timing_logdet_Sm = 2.0 * np.sum(np.log(S)) # 2*sum(log(S))
+            self._timing_Um = U
+            self._timing_logdet_Sm = 2.0 * np.sum(np.log(S))
         return self._timing_Um, self._timing_logdet_Sm
 
-    def make_whiten_1d(self):
-        if SM_algorithm == 'indexed':
-            Nmat, Uind, Pmat = jnp.array(self.N), jnp.array(make_uind(self.F)), jnp.array(self.P)
+    def whiten_1d(self, y):
+        return SM_whiten_1d_fused_np(y, self.N, self.F, self.P)
 
-            def whiten_1d(y):
-                return SM_whiten_1d_indexed(y, Nmat, Uind, Pmat)
-        else:
-            Nmat, Fmat, Pmat = jnp.array(self.N), jnp.array(self.F), jnp.array(self.P)
-
-            def whiten_1d(y):
-                return SM_whiten_1d_fused(y, Nmat, Fmat, Pmat)
-
-        return whiten_1d
-
-    def make_whiten_2d(self):
-        if SM_algorithm == 'indexed':
-            Nmat, Uind, Pmat = jnp.array(self.N), jnp.array(make_uind(self.F)), jnp.array(self.P)
-
-            def whiten_2d(T):
-                KwT, logK = SM_whiten_2d_indexed(T.T, Nmat, Uind, Pmat)
-                return KwT.T, logK
-        else:
-            Nmat, Fmat, Pmat = jnp.array(self.N), jnp.array(self.F), jnp.array(self.P)
-
-            def whiten_2d(T):
-                KwT, logK = SM_whiten_2d_fused(T.T, Nmat, Fmat, Pmat)
-                return KwT.T, logK
-
-        return whiten_2d
+    def whiten_2d(self, T):
+        # numpy version
+        KwT, logK = SM_whiten_2d_fused_np(T.T, self.N, self.F, self.P)
+        return KwT.T, logK
 
     def projection_products(self, y, F_fourier, use_qr=False, svd=True):
-        """Compute FtNmF, FtNmy, ytNmy, ldN via projection.
-
-        Parameters
-        ----------
-        use_qr : bool — QR (stabler) vs Cholesky (faster) for the projector
-        svd    : bool — if True, whiten the SVD factor U_m instead of M
-                        (better conditioned, SVD precomputed and cached)
-
-        Requires self.M_timing to be set.
-        """
         assert self.M_timing is not None, "Set M_timing for projection"
-        whiten_1d = self.make_whiten_1d()
-        whiten_2d = self.make_whiten_2d()
 
-        y_w, logdet_Nwn = whiten_1d(y)
-        B_w, _ = whiten_2d(F_fourier)
+        y_w, logdet_Nwn = self.whiten_1d(y)
+        B_w, _ = self.whiten_2d(F_fourier)
 
         if svd:
             Um, logdet_Sm = self._get_timing_svd()
-            A_w, _ = whiten_2d(Um)
+            A_w, _ = self.whiten_2d(Um)
             logdet_correction = logdet_Sm
-            print('hi')
         else:
-            A_w, _ = whiten_2d(self.M_timing)
+            A_w, _ = self.whiten_2d(self.M_timing)
             logdet_correction = 0.0
-        print('y', y_w[:10])
-        print('B', B_w[:3, :3])
-        print('A', A_w[:3, :3])
-        return _projection_products(y_w, B_w, A_w, logdet_Nwn,
-                                    use_qr=use_qr, logdet_correction=logdet_correction)
 
+        return _projection_products_np(y_w, B_w, A_w, logdet_Nwn,
+                                    use_qr=use_qr, logdet_correction=logdet_correction)
 
 class WhiteningMixin_var:
     """Mixin for NoiseMatrixSM_var. Adds make_whiten_* and projection methods.
@@ -902,7 +925,7 @@ class WhiteningMixin_var:
             y_w, logdet_Nwn = whiten_1d(params, y)
             A_w, _ = whiten_2d(params, M_to_whiten)
             B_w, _ = whiten_2d(params, F_fourier)
-            return _projection_products(y_w, B_w, A_w, logdet_Nwn,
+            return _projection_products_jax(y_w, B_w, A_w, logdet_Nwn,
                                         use_qr=use_qr, logdet_correction=logdet_correction)
 
         projection_products.params = self.params
@@ -915,11 +938,11 @@ class NoiseMatrixSM_novar(NoiseMatrix, ConstantKernel, WhiteningMixin_novar):
         self.M_timing = M_timing
 
     def solve_1d(self, y):
-        Kmy, logK = SM_1d_fused(y, self.N, self.F, self.P)
+        Kmy, logK = SM_1d_fused_np(y, self.N, self.F, self.P)
         return Kmy, logK
 
     def solve_2d(self, T):
-        KmT, logK = SM_2d_fused(T.T, self.N, self.F, self.P)
+        KmT, logK = SM_2d_fused_np(T.T, self.N, self.F, self.P)
         return KmT.T, logK
 
     def make_solve_1d(self):
@@ -1273,6 +1296,8 @@ class WoodburyKernel_novar(ConstantKernel):
 
         self.params = []
 
+
+
     def make_sample(self):
         N_sample = self.N.make_sample()
         P_sample = self.P.make_sample()
@@ -1301,9 +1326,9 @@ class WoodburyKernel_novar(ConstantKernel):
                 return -0.5 * yp @ Nmy - 0.5 * ld
             kernelproduct.params = sorted(set(y.params))
         else:
-            Nmy = self.N.solve_1d(y)[0] - self.NmF @ sp.linalg.cho_solve(self.cf, self.NmF.T @ y)
-            product = -0.5 * y @ Nmy - 0.5 * self.ld
-
+            y1 = self.N.make_whiten_1d()(y)[0]
+            yNmy = y1 @ y1 - y @ self.NmF @ sp.linalg.cho_solve(self.cf, self.NmF.T @ y)
+            product = -0.5 * yNmy - 0.5 * self.ld - 0.5 * y.size * jnp.log(2*jnp.pi)
             # closes on product
             def kernelproduct(params={}):
                 return product
@@ -1311,7 +1336,9 @@ class WoodburyKernel_novar(ConstantKernel):
 
         return kernelproduct
 
+
     def make_kernelterms(self, y, T):
+
         # Sigma = (N + F P Ft)
         # Sigma^-1 = Nm - Nm F (P^-1 + Ft Nm F)^-1 Ft Nm
         #
@@ -1400,6 +1427,8 @@ class WoodburyKernel_novar(ConstantKernel):
         return kernelsolve
 
     def solve_1d(self, y):
+        # put it in here.
+        # if isinstance(self.N, NoiseMatrix) and self.N.G is not None:
         return self.N.solve_1d(y)[0] - self.NmF @ sp.linalg.cho_solve(self.cf, self.NmF.T @ y), self.ld
 
     def make_solve_1d(self):
@@ -1725,6 +1754,7 @@ class WoodburyKernel_varNP(VariableKernel):
 
 
     def make_kernelterms(self, y, T):
+
         # Sigma = (N + F P Ft)
         # Sigma^-1 = Nm - Nm F (P^-1 + Ft Nm F)^-1 Ft Nm
         #
@@ -1946,52 +1976,72 @@ class WoodburyKernel_varP(VariableKernel):
 
         return kernel
 
-    def make_kernelproduct(self, y):
+
+    def make_kernelproduct(self, y, phi0_params=None):
         if callable(y):
             return self.make_kernelproduct_vary(y)
+
+
         if isinstance(self.N, WhiteningMixin_novar) and self.N.M_timing is not None:
             print("Using safe solve")
             # FtNmFs, NmFtys, ytNmys, ldNs = zip(*[N.projection_products(y,F) for N, y, F in zip(self.Ns, ys, self.Fs)])
             FtNmF, FtNmy, ytNmy, ldN = self.N.projection_products(y, self.F)
-            print('save ytNmy', ytNmy)
-            print('save ldN', ldN)
+
             # cast
             FtNmF = jnparray(FtNmF)
             FtNmy = jnparray(FtNmy)
             ytNmy = jnparray(ytNmy)
             ldN = jnparray(ldN)
+            # ldN = 0
+            print('save ytNmy', ytNmy)
+            print('save ldN', ldN)
+            print(self.N)
         else:
             NmF, ldN = self.N.solve_2d(self.F)
             FtNmF = self.F.T @ NmF
 
             Nmy, ldN = self.N.solve_1d(y)
             ytNmy = y @ Nmy
-            print('normal ytNmy', ytNmy)
-            print('normal ldn', ldN)
+
+            # ldN = 0
             FtNmy = NmF.T @ y
 
             FtNmF, FtNmy, ytNmy, ldN = jnparray(FtNmF), jnparray(FtNmy), jnparray(ytNmy), jnparray(ldN)
-
+            print('normal ytNmy', ytNmy)
+            print('normal ldn', ldN)
+            print(self.N)
         P_var_inv = self.P_var.make_inv()
+        print('phi0', phi0_params)
+
+        # for single precision analyses, mainly.
+        if phi0_params is not None:
+            print('Using phi0 parameters')
+            P0_inv, _ = P_var_inv(phi0_params)
+            Sigma0 = (P0_inv + FtNmF)
+            cf0 = matrix_factor(Sigma0)
+            SmFtNmy = matrix_solve(cf0, FtNmy)
+            extra_constant = FtNmy.T @ SmFtNmy
+            SmFtNmy = jnparray(SmFtNmy)
+            constants = -0.5 * (ldN + ytNmy + extra_constant)
 
         kmean = getattr(self, 'mean', None)
-
+        getP = self.P_var.getN
         # closes on P_var_inv, FtNmF, FtNmy, ytNmy, ldN
         def kernelproduct(params):
             Pinv, ldP = P_var_inv(params)
 
             cf = matrix_factor(Pinv + FtNmF)
-            ytXy = FtNmy.T @ matrix_solve(cf, FtNmy)
-
-            # direct inv
-            # ytXy = FtNmy.T @ jnp.linalg.inv(Pinv + FtNmF) @ FtNmy
-
-            # SVD solution
-            # U, S, VT = jnp.linalg.svd(Pinv + FtNmF)
-            # ytXy = FtNmy.T @ VT.T @ np.diag(1/S) @ U.T @ FtNmy
-            # matrix_norm, cf = 1.0, (np.diag(S), None)
-
-            logp = -0.5 * (ytNmy - ytXy) - 0.5 * (ldN + ldP + matrix_norm * jnp.logdet(jnp.diag(cf[0])))
+            if phi0_params is not None:
+                Pinv_diff = P0_inv - Pinv
+                ytXy = SmFtNmy.T @ (Pinv_diff @ matrix_solve(cf, FtNmy))
+                BX = jnp.linalg.solve(Pinv, FtNmF)
+                A = jnp.eye(BX.shape[0]) + BX
+                sign, ldP_new = jnp.linalg.slogdet(A)
+                logp = -0.5 * (-ytXy) - 0.5 * ldP_new # (ldP + matrix_norm * jnp.logdet(jnp.diag(cf[0])))
+            else:
+                # no whitening applied.
+                ytXy = FtNmy.T @ matrix_solve(cf, FtNmy)
+                logp = -0.5 * (ytNmy - ytXy) - 0.5 * (ldN + ldP + matrix_norm * jnp.logdet(jnp.diag(cf[0])))
 
             if kmean is not None:
                 # -0.5 a0t.FtNmF.a0 + 0.5 a0t.FtNmF.Sm.FtNmF.a0 + a0t.FtNmy - a0t.FtNmF.Sm.FtNmy
@@ -2005,6 +2055,10 @@ class WoodburyKernel_varP(VariableKernel):
             return logp
 
         kernelproduct.params = sorted(P_var_inv.params + (kmean.params if kmean is not None else []))
+
+        # store double precision constants
+        if phi0_params is not None:
+            kernelproduct.constants = constants
 
         return kernelproduct
 
@@ -2086,7 +2140,9 @@ class WoodburyKernel_varP(VariableKernel):
 
         return kernelterms
 
+
     def make_kernelterms(self, y, T):
+
         # Sigma = (N + F P Ft)
         # Sigma^-1 = Nm - Nm F (P^-1 + Ft Nm F)^-1 Ft Nm
         #
@@ -2437,7 +2493,7 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
         return kernelproduct
 
-    def make_kernelproduct(self, ys):
+    def make_kernelproduct(self, ys, phi0_params=None):
         if any(callable(y) for y in ys):
             return self.make_kernelproduct_vary(ys)
 
@@ -2475,19 +2531,58 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
         P_var_inv = self.P_var.make_inv()
 
+        # for single precision analyses, mainly.
+        if phi0_params is not None:
+            print('Using phi0 parameters')
+            P0_inv, _ = P_var_inv(phi0_params)
+            # Build Sigma0 = P0_inv + FtNmF per pulsar
+            if P0_inv.ndim == 2:
+                i1, i2 = jnp.diag_indices(P0_inv.shape[1], ndim=2)
+                Sigma0 = FtNmF.at[:, i1, i2].add(P0_inv)
+            else:
+                Sigma0 = FtNmF + P0_inv
+            cf0 = matrix_factor(Sigma0)
+            SmNmFty = matrix_solve(cf0, NmFty)
+            extra_constant = jnp.sum(NmFty * SmNmFty)
+            SmNmFty = jnparray(SmNmFty)
+            constants = -0.5 * (ldN + ytNmy + extra_constant)
+
+
         def kernelproduct(params):
             Pinv, ldP = P_var_inv(params)            # Pinv.shape = FtNmF.shape = [npsr, ngp, ngp]
-            i1, i2 = jnp.diag_indices(Pinv.shape[1], ndim=2)
             if Pinv.ndim == 2:
                 # Pinv is diagonal
                 i1, i2 = jnp.diag_indices(Pinv.shape[1], ndim=2)
                 cf = matrix_factor(FtNmF.at[:,i1,i2].add(Pinv))
             else:
                 cf = matrix_factor(FtNmF + Pinv)
-            ytXy = jnp.sum(NmFty * matrix_solve(cf, NmFty)) # was NmFty.T @ jsp.linalg.cho_solve(...)
 
-            i1, i2 = jnp.diag_indices(cf[0].shape[1], ndim=2) # it's hard to vectorize numpy.diag!
-            logp = -0.5 * (ytNmy - ytXy) - 0.5 * (ldN + jnp.sum(ldP) + matrix_norm * jnp.sum(jnp.log(jnp.abs(cf[0][:, i1, i2]))))
+            if phi0_params is not None:
+                Pinv_diff = P0_inv - Pinv
+                sol = matrix_solve(cf, NmFty)  # (npsr, m)
+                if Pinv_diff.ndim == 2:
+                    # diagonal: element-wise multiply
+                    ytXy = jnp.sum(SmNmFty * (Pinv_diff * sol))
+                else:
+                    Pdiff_sol = jax.vmap(jnp.matmul)(Pinv_diff, sol)
+                    ytXy = jnp.sum(SmNmFty * Pdiff_sol)
+
+                # ldP + log|Sigma| = log|I + P FtNmF| = slogdet(I + Pinv^{-1} FtNmF)
+                if Pinv.ndim == 2:
+                    # Pinv diagonal: P = 1/Pinv, BX = P * FtNmF (row scaling)
+                    BX = FtNmF / Pinv[:, :, None]
+                else:
+                    BX = jnp.linalg.solve(Pinv, FtNmF)
+                A = jnp.eye(BX.shape[1]) + BX
+                sign, ldP_new_per_psr = jnp.linalg.slogdet(A)
+                ldP_new = jnp.sum(ldP_new_per_psr)
+
+                logp = -0.5 * (-ytXy) - 0.5 * ldP_new
+
+            else:
+                ytXy = jnp.sum(NmFty * matrix_solve(cf, NmFty))
+                i1, i2 = jnp.diag_indices(cf[0].shape[1], ndim=2) # it's hard to vectorize numpy.diag!
+                logp = -0.5 * (ytNmy - ytXy) - 0.5 * (ldN + jnp.sum(ldP) + matrix_norm * jnp.sum(jnp.log(jnp.abs(cf[0][:, i1, i2]))))
 
             if kmeans is not None:
                 a0 = kmeans(params)   # (npsr, ngp)
@@ -2499,6 +2594,9 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
         params_kmeans = kmeans.params if kmeans is not None else []
         kernelproduct.params = sorted(P_var_inv.params + params_kmeans)
+
+        if phi0_params is not None:
+            kernelproduct.constants = constants
 
         return kernelproduct
 
@@ -2641,7 +2739,8 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
         return kernelterms
 
-    def make_kernelterms(self, ys, Ts):
+    def make_kernelterms(self, ys, Ts, phi0_params=None):
+
         # Sigma = (N + F P Ft)
         # Sigma^-1 = Nm - Nm F (P^-1 + Ft Nm F)^-1 Ft Nm
         #
@@ -2653,15 +2752,24 @@ class VectorWoodburyKernel_varP(VariableKernel):
             return self.make_kernelterms_vary(ys, Ts)
 
         Nmys, ldNs = zip(*[N.solve_1d(y) for N, y in zip(self.Ns, ys)])
+
+        NmFs, ldNs = zip(*[N.solve_2d(F) for N, F in zip(self.Ns, self.Fs)])
+        FtNmFs = [F.T @ NmF for F, NmF in zip(self.Fs, NmFs)]
+        FtNmFs = [0.5 * (FtNmF + FtNmF.T) for FtNmF in FtNmFs]
+
+        FtNmys = [NmF.T @ y for NmF, y in zip(NmFs, ys)]
+
+        Nmys, _  = zip(*[N.solve_1d(y) for N, y in zip(self.Ns, ys)])
         ytNmys = [y @ Nmy for y, Nmy in zip(ys, Nmys)]
-        FtNmys = [F.T @ Nmy for F, Nmy in zip(self.Fs, Nmys)]
+
+        FtNmF, FtNmy = jnparray(FtNmFs), jnparray(FtNmys)
+        ytNmy, ldN = float(sum(ytNmys)), float(sum(ldNs))
+
+
         TtNmys = [T.T @ Nmy for T, Nmy in zip(Ts, Nmys)]
 
         NmFs, _ = zip(*[N.solve_2d(F) for N, F in zip(self.Ns, self.Fs)])
-        if regularize_FtNmF:
-            FtNmFs = [zero_out_negative_eigenvalues(F.T @ NmF) for F, NmF in zip(self.Fs, NmFs)]
-        else:
-            FtNmFs = [F.T @ NmF for F, NmF in zip(self.Fs, NmFs)]
+        # FtNmFs = [F.T @ NmF for F, NmF in zip(self.Fs, NmFs)]
 
         TtNmFs = [T.T @ NmF for T, NmF in zip(Ts, NmFs)]
 
@@ -2674,6 +2782,24 @@ class VectorWoodburyKernel_varP(VariableKernel):
         FtNmF, FtNmy, FtNmT = jnparray(FtNmFs), jnparray(FtNmys), jnparray(FtNmTs)
         ldN, ytNmy = float(sum(ldNs)), float(sum(ytNmys))
         TtNmy, TtNmT, TtNmF = jnparray(TtNmys), jnparray(TtNmTs), jnparray(TtNmFs)
+
+        # for single precision analyses, mainly.
+        if phi0_params is not None:
+            print('Using phi0 parameters')
+            P0_inv, _ = P_var_inv(phi0_params)
+            # Build Sigma0 = P0_inv + FtNmF per pulsar
+            if P0_inv.ndim == 2:
+                i1, i2 = jnp.diag_indices(P0_inv.shape[1], ndim=2)
+                Sigma0 = FtNmF.at[:, i1, i2].add(P0_inv)
+            else:
+                Sigma0 = FtNmF + P0_inv
+            cf0 = matrix_factor(Sigma0)
+            SmFtNmy = matrix_solve(cf0, FtNmy)
+            extra_constant = jnp.sum(FtNmy * SmFtNmy)
+            SmFtNmy = jnparray(SmFtNmy)
+            P0_inv = jnparray(P0_inv)
+            constants = -0.5 * (ldN + ytNmy + extra_constant)
+
         def kernelterms(params):
             Pinv, ldP = P_var_inv(params)
 
@@ -2686,14 +2812,37 @@ class VectorWoodburyKernel_varP(VariableKernel):
             sol = matrix_solve(cf, FtNmy)
             sol2 = matrix_solve(cf, FtNmT)
 
-            i1, i2 = jnp.diag_indices(cf[0].shape[1], ndim=2)
-            a = -0.5 * (ytNmy - jnp.sum(FtNmy * sol)) - 0.5 * (ldN + jnp.sum(ldP) + matrix_norm * jnp.logdet(cf[0][:,i1,i2]))
+            if phi0_params is not None:
+                Pinv_diff = P0_inv - Pinv
+                if Pinv_diff.ndim == 2:
+                    ytXy = jnp.sum(SmFtNmy * (Pinv_diff * sol))
+                else:
+                    Pdiff_sol = jax.vmap(jnp.matmul)(Pinv_diff, sol)
+                    ytXy = jnp.sum(SmFtNmy * Pdiff_sol)
+
+                # ldP + log|Sigma| = log|I + P FtNmF| = slogdet(I + Pinv^{-1} FtNmF)
+                if Pinv.ndim == 2:
+                    BX = FtNmF / Pinv[:, :, None]
+                else:
+                    BX = jnp.linalg.solve(Pinv, FtNmF)
+                A = jnp.eye(BX.shape[1]) + BX
+                sign, ldP_new_per_psr = jnp.linalg.slogdet(A)
+                ldP_new = jnp.sum(ldP_new_per_psr)
+
+                a = -0.5 * (-ytXy) - 0.5 * ldP_new
+            else:
+                i1, i2 = jnp.diag_indices(cf[0].shape[1], ndim=2)
+                a = -0.5 * (ytNmy - jnp.sum(FtNmy * sol)) - 0.5 * (ldN + jnp.sum(ldP) + matrix_norm * jnp.logdet(cf[0][:,i1,i2]))
+
             b = TtNmy - jnp.sum(TtNmF * sol[:, jnp.newaxis, :], axis=2)
             c = TtNmT - TtNmF @ sol2 # fine as is!
 
             return a, b, c
 
         kernelterms.params = self.P_var.params
+
+        if phi0_params is not None:
+            kernelterms.constants = constants
 
         return kernelterms
 

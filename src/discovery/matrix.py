@@ -1539,7 +1539,7 @@ class WoodburyKernel_varNP(VariableKernel):
     def __init__(self, N_var, F, P_var):
         self.N_var, self.F, self.P_var = N_var, F, P_var
 
-    def make_kernelproduct_vary(self, y):
+    def make_kernelproduct_vary(self, y, phi0_params=None):
         y_var = y
 
         N_solve_1d = self.N_var.make_solve_1d()
@@ -1576,7 +1576,7 @@ class WoodburyKernel_varNP(VariableKernel):
 
         return kernelproduct
 
-    def make_kernelproduct(self, y):
+    def make_kernelproduct(self, y, phi0_params=None):
         if callable(y):
             return self.make_kernelproduct_vary(y)
 

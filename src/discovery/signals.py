@@ -1099,17 +1099,63 @@ def make_extsignal_fourier(psrs, coefffunc, components, T=None, common=[],
     name : str
         Parameter-name prefix and ExtSignal name.
     """
-    Fs, perpsr = [], []
+    # per-pulsar Fourier basis (f, df) and design matrix (fmat). f/df are
+    # stacked so the coefficient map can be vmap-ed over pulsars rather than
+    # Python-looped -- a Python loop builds npsr separate sub-graphs and makes
+    # the *gradient* npsr separate backward passes (the GP code vmaps for the
+    # same reason; see makecommongp_fourier).
+    fs, dfs, Fs = [], [], []
     for psr in psrs:
         f, df, fmat = fourierbasis(psr, components, T)
+        fs.append(np.asarray(f))
+        dfs.append(np.asarray(df))
         Fs.append(matrix.jnparray(fmat))
-        # bind f, df positionally so makedelay sees only psr-attrs + parameters
-        bound = functools.partial(coefffunc, matrix.jnparray(f),
-                                  matrix.jnparray(df))
-        perpsr.append(makedelay(psr, bound, common=common, name=name))
+    f_arr = matrix.jnparray(np.stack(fs))      # (npsr, 2*components)
+    df_arr = matrix.jnparray(np.stack(dfs))
+
+    # inspect coefffunc: arguments after the leading f, df
+    argspec = inspect.getfullargspec(coefffunc)
+    args = argspec.args + [a for a in argspec.kwonlyargs
+                           if a not in (argspec.kwonlydefaults or {})]
+    sig_args = [a for a in args if a not in ('f', 'df')]
+
+    # classify each remaining argument
+    is_attr = {a: hasattr(psrs[0], a) for a in sig_args}
+    is_common = {a: (not is_attr[a]) and (a in common or f'{name}_{a}' in common)
+                 for a in sig_args}
+
+    def pname(psr, a):                          # parameter name for arg `a`
+        if a in common:
+            return a
+        if f'{name}_{a}' in common:
+            return f'{name}_{a}'
+        return f'{psr.name}_{name}_{a}'
+
+    # stacked pulsar-attribute arrays (pos, mintoa, ...)
+    attr_arr = {a: matrix.jnparray(np.stack([np.asarray(getattr(p, a))
+                                             for p in psrs]))
+                for a in sig_args if is_attr[a]}
+
+    # vmap over pulsars: f/df and per-pulsar args map on axis 0, common -> None
+    in_axes = (0, 0) + tuple(None if is_common[a] else 0 for a in sig_args)
+    vfunc = jax.vmap(coefffunc, in_axes=in_axes)
+
+    params_list = sorted(set(
+        [pname(psrs[0], a) for a in sig_args if is_common[a]] +
+        [pname(p, a) for p in psrs for a in sig_args
+         if not is_attr[a] and not is_common[a]]))
 
     def coeffs(params):
-        return jnp.stack([d(params) for d in perpsr])
-    coeffs.params = sorted(set().union(*(set(d.params) for d in perpsr)))
+        callargs = [f_arr, df_arr]
+        for a in sig_args:
+            if is_attr[a]:
+                callargs.append(attr_arr[a])
+            elif is_common[a]:
+                callargs.append(params[pname(psrs[0], a)])
+            else:                               # per-pulsar parameter
+                callargs.append(matrix.jnparray(
+                    [params[pname(p, a)] for p in psrs]))
+        return vfunc(*callargs)                 # (npsr, 2*components)
+    coeffs.params = params_list
 
     return matrix.ExtSignal(Fs, coeffs, name=name)

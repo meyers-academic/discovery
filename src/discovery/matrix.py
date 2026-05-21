@@ -264,24 +264,40 @@ def VectorCompoundGP(gplist):
 
             multigp = VariableGP(VectorNoiseMatrix1D_var(Phi), F)
         elif all(isinstance(gp.Phi, (VectorNoiseMatrix1D_var, NoiseMatrix2D_var)) for gp in gplist):
-            cvarslist = [list(gp.index) for gp in gplist]
-            # pinvlist = [gp.Phi.make_inv() for gp in gplist]
-            psolvelist = [gp.Phi.make_solve_1d() for gp in gplist]
+            # Build one prior term -0.5 c.Phi^-1.c - 0.5 log|Phi| per GP.
+            # Prefer a structured inverse (gp.Phi_inv) when the GP provides
+            # one: makeglobalgp_fourier attaches a kron-structured invprior
+            # for HD, which avoids factoring the dense (npsr*ngp)^2 Phi.
+            # Otherwise fall back to a generic solve via Phi.make_solve_1d().
+            priorterms = []
+            for gp in gplist:
+                cvars = list(gp.index)
+                phi_inv = getattr(gp, 'Phi_inv', None)
+
+                if phi_inv is not None:
+                    def term(params, cvars=cvars, phi_inv=phi_inv):
+                        c = jnp.concatenate([params[cvar] for cvar in cvars])
+                        Pinv, ldP = phi_inv(params)
+                        return -0.5 * c @ (Pinv @ c) - 0.5 * ldP
+                    term.params = phi_inv.params
+                else:
+                    psolve = gp.Phi.make_solve_1d()
+                    if getattr(psolve, 'vector', False):
+                        def term(params, cvars=cvars, psolve=psolve):
+                            c = jnp.array([params[cvar] for cvar in cvars])
+                            Pmc, ldP = psolve(params, c)
+                            return -0.5 * jnp.sum(c * Pmc) - 0.5 * jnp.sum(ldP)
+                    else:
+                        def term(params, cvars=cvars, psolve=psolve):
+                            c = jnp.concatenate([params[cvar] for cvar in cvars])
+                            Pmc, ldP = psolve(params, c)
+                            return -0.5 * c @ Pmc - 0.5 * ldP
+                    term.params = gp.Phi.params
+                priorterms.append(term)
 
             def priorfunc(params):
-                ret = 0.0
-                for cvars, psolve in zip(cvarslist, psolvelist):
-                    if getattr(psolve, 'vector', False):
-                        c = jnp.array([params[cvar] for cvar in cvars])
-                        Pmc, ldP = psolve(params, c)
-                        ret = ret - 0.5 * jnp.sum(c * Pmc) - 0.5 * jnp.sum(ldP)
-                    else:
-                        c = jnp.concatenate([params[cvar] for cvar in cvars])
-                        Pmc, ldP = psolve(params, c)
-                        ret = ret - 0.5 * c @ Pmc - 0.5 * ldP
-
-                return ret
-            priorfunc.params = sorted(set.union(*[set(gp.Phi.params) for gp in gplist]))
+                return sum(term(params) for term in priorterms)
+            priorfunc.params = sorted(set.union(*[set(t.params) for t in priorterms]))
 
             multigp = VariableGP(None, F)
             multigp.prior = priorfunc

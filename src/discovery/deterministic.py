@@ -278,3 +278,113 @@ def makefourier_binary(pulsarterm=True):
         fourier_binary = functools.partial(fourier_binary, phi_psr=jnp.nan)
 
     return fourier_binary
+
+
+def makecw_additive(psrs, nbasis, slot, *, components=None, T=None,
+                    pulsarterm=True, common=None, name='cw'):
+    """Factory for a continuous-wave (CW) signal as an *additive* coefficient
+    transform: ``ArrayLikelihood(..., additives=[makecw_additive(...)])``.
+
+    An additive runs AFTER the GP prior barrier in
+    ``matrix.VectorWoodburyKernel_varP.make_kernelproduct_gpcomponent``: it is
+    called ``additive(params) -> (npsr, nbasis)`` and added to the GP
+    coefficients before the data quadratic form. The shift is independent of the
+    coefficients, so its Jacobian is 1 (no ``ldL``), and its parameters never
+    enter the GP prior -- the red-noise / HD prior cannot penalize the CW. Its
+    parameters do land in ``clogL.params``, so the normal ``logprior`` / sampler
+    stack supplies their priors.
+
+    Per-pulsar parameter binding is delegated to ``signals.makedelay`` (CW params
+    are named like every other discovery signal: ``cw_log10_h0`` ... and
+    per-pulsar ``{psr.name}_cw_phi_psr``). This stub uses the analytic
+    monochromatic projection ``makefourier_binary`` (Ellis 2012/2013) -- the
+    crude, band-limited route; swap in a time-domain-CW + FFT projection later,
+    only the ``(npsr, nbasis)`` contract matters.
+
+    Parameters
+    ----------
+    psrs : list of Pulsar
+        Same order as the ArrayLikelihood's pulsar list.
+    nbasis : int
+        Total per-pulsar coefficient dimension (the row width of ``fold``).
+    slot : slice
+        Columns of each per-pulsar row the CW occupies -- the Fourier-GP block
+        the CW projects onto. Width must equal ``2 * components``.
+    components, T :
+        Fourier basis for the projection. ``components`` defaults to half the
+        ``slot`` width; ``T`` defaults to per-pulsar span.
+    common : list of str, optional
+        Earth-term parameter names shared across pulsars; defaults to the seven
+        ``f'{name}_<par>'`` earth-term parameters.
+    name : str
+        Parameter-name prefix.
+    """
+    from .signals import fourierbasis, makedelay
+
+    components = components or (slot.stop - slot.start) // 2
+    if 2 * components != slot.stop - slot.start:
+        raise ValueError(f"slot width {slot.stop - slot.start} != 2*components")
+
+    fb = makefourier_binary(pulsarterm=pulsarterm)
+    if common is None:
+        common = [f'{name}_{p}' for p in ('log10_h0', 'log10_f0', 'ra',
+                  'sindec', 'cosinc', 'psi', 'phi_earth')]
+
+    # bind f, df, mintoa, pos positionally (the first four args of
+    # fourier_binary) so makedelay sees only the CW parameters.
+    perpsr = []
+    for psr in psrs:
+        f, df, _ = fourierbasis(psr, components, T)
+        bound = functools.partial(fb, matrix.jnparray(f), matrix.jnparray(df),
+                                  psr.mintoa, matrix.jnparray(psr.pos))
+        perpsr.append(makedelay(psr, bound, common=common, name=name))
+
+    def cw_additive(params):
+        return jnp.stack([jnp.zeros(nbasis).at[slot].set(d(params))
+                          for d in perpsr])
+
+    cw_additive.params = sorted(set().union(*(d.params for d in perpsr)))
+    return cw_additive
+
+
+def makecw_extsignal(psrs, components, T=None, *, pulsarterm=True, common=None,
+                     name='cw'):
+    """Continuous-wave (CW) signal on its OWN Fourier basis (Route A).
+
+    Returns a ``matrix.ExtSignal`` for ``ArrayLikelihood(extsignals=[...])``.
+    Unlike ``makecw_additive`` (which shares a GP block's basis), this gives the
+    CW its own basis with its own ``components`` -- typically more than the
+    red-noise / GWB GPs, so it reaches the higher frequencies a CW search needs.
+    The likelihood folds it in via GP-CW cross-terms; the CW parameters never
+    enter the GP prior.
+
+    Thin wrapper over ``signals.make_extsignal_fourier`` with the analytic
+    monochromatic projection ``makefourier_binary`` (Ellis 2012/2013) as the
+    coefficient map. That projection is the crude, band-limited route; for a
+    time-domain-CW + FFT projection, call ``make_extsignal_fourier`` directly
+    with a different ``coefffunc`` -- only the coefffunc contract changes.
+
+    Parameters
+    ----------
+    psrs : list of Pulsar
+        Same order as the ArrayLikelihood's pulsar list.
+    components : int
+        Number of frequency bins for the CW basis.
+    T : float, optional
+        Baseline for the Fourier basis (default: per-pulsar span).
+    pulsarterm : bool
+        Include the pulsar term (adds a per-pulsar ``phi_psr`` parameter).
+    common : list of str, optional
+        Earth-term parameter names shared across pulsars; defaults to the seven
+        ``f'{name}_<par>'`` earth-term parameters.
+    name : str
+        Parameter-name prefix and ExtSignal name.
+    """
+    from .signals import make_extsignal_fourier
+
+    if common is None:
+        common = [f'{name}_{p}' for p in ('log10_h0', 'log10_f0', 'ra',
+                  'sindec', 'cosinc', 'psi', 'phi_earth')]
+    coefffunc = makefourier_binary(pulsarterm=pulsarterm)
+    return make_extsignal_fourier(psrs, coefffunc, components, T=T,
+                                  common=common, name=name)

@@ -153,6 +153,39 @@ class GlobalVariableGP:
         self.Phi, self.Fs = Phi, Fs
         self.Phi_inv = None
 
+
+class ExtSignal:
+    """A deterministic signal carried on its own (non-GP) Fourier-style basis.
+
+    Used for signals -- e.g. a continuous wave (CW) -- whose basis must extend
+    to higher frequencies than the GP (red-noise / GWB) bases. Unlike a GP it
+    has *no prior*: its coefficients are a deterministic function of a handful
+    of physical parameters, supplied by ``coeffs``.
+
+    The object is purely *declarative and noise-free* -- it carries only its
+    own design matrices and coefficient map. All noise-dependent linear algebra
+    (the cross-terms with the GP basis and the data) lives in
+    ``VectorWoodburyKernel_varP.make_kernelproduct_gpcomponent``, which consumes
+    ``Fs`` exactly as it consumes a GP's ``F``.
+
+    Parameters
+    ----------
+    Fs : list of array
+        Per-pulsar design matrices, one ``(ntoa_i, n_ext)`` array per pulsar,
+        in the same pulsar order as the likelihood.
+    coeffs : callable
+        ``coeffs(params) -> (npsr, n_ext)`` deterministic coefficient map, with
+        a ``.params`` attribute listing its parameter names.
+    name : str
+        Identifier for the signal.
+    """
+    def __init__(self, Fs, coeffs, name='extsignal'):
+        self.Fs, self.coeffs, self.name = Fs, coeffs, name
+
+    @property
+    def params(self):
+        return self.coeffs.params
+
 def CompoundGlobalGP(gplist):
     if all(isinstance(gp, GlobalVariableGP) for gp in gplist):
         fmats = [np.hstack(F) for F in zip(*[gp.Fs for gp in gplist])]
@@ -2287,8 +2320,32 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
         return kernelproduct
 
-    def make_kernelproduct_gpcomponent(self, ys, transform=None):
+    def make_kernelproduct_gpcomponent(self, ys, transform=None, additives=None,
+                                       extsignals=None):
         # -0.5 yt Nm y + yt Nm F a - 0.5 ct Ft Nm F c - 0.5 log |2 pi N| - 0.5 cT Pm c - 0.5 log |2 pi P|
+        #
+        # The coefficient pipeline has two stages, separated by the GP prior:
+        #
+        #   xi --[reparams]--> c_gp  --(prior barrier)--  c_total = c_gp + sum(additives)
+        #
+        # * ``transform`` (one callable or a list) -- *reparameterizations*:
+        #   bijections on the GP coefficients applied BEFORE the prior. Each is
+        #   ``rp(params, c) -> (c, ldL)`` and contributes a log-Jacobian ldL.
+        #   Decentering is a reparam. The prior sees the reparam *output*.
+        # * ``additives`` (a list) -- *deterministic signals* (e.g. a CW) applied
+        #   AFTER the prior. Each is ``add(params) -> (npsr, nbasis)`` array added
+        #   to the coefficients. A pure additive shift has Jacobian 1 (zero
+        #   log-det), and its parameters never enter the GP prior, so the GP
+        #   (red-noise / HD) prior structurally cannot penalize it.
+        # * ``extsignals`` (a list of ExtSignal) -- deterministic signals on
+        #   their OWN basis F_cw (e.g. a CW needing higher frequencies than the
+        #   GP bases reach). The residual model becomes F c_total + F_cw c_cw;
+        #   the data quadratic form picks up three extra terms built from
+        #   trace-time constants -- CW-data, GP-CW cross, and CW-CW:
+        #     + c_cw . (F_cw^T N^-1 y)
+        #     - c_total . (F^T N^-1 F_cw) . c_cw
+        #     - 0.5 c_cw . (F_cw^T N^-1 F_cw) . c_cw
+        #   No prior, no Jacobian; the cw parameters never enter the GP prior.
 
         NmFs, ldNs = zip(*[N.solve_2d(F) for N, F in zip(self.Ns, self.Fs)])
         if regularize_FtNmF:
@@ -2304,6 +2361,40 @@ class VectorWoodburyKernel_varP(VariableKernel):
         ytNmy, ldN = float(sum(ytNmys)), float(sum(ldNs))
 
         n_psr = len(FtNmFs)
+
+        # normalize the transform stages: ``transform`` may be a single callable
+        # or a list of reparams; ``additives`` is a (possibly empty) list.
+        if transform is None:
+            reparams = []
+        elif isinstance(transform, (list, tuple)):
+            reparams = list(transform)
+        else:
+            reparams = [transform]
+        additives = list(additives) if additives else []
+        staged = bool(reparams or additives)
+
+        # external-signal cross-terms: precompute the trace-time constants for
+        # each ExtSignal carried on its own basis F_cw. N is fixed for this whole
+        # route (ytNmy / ldN are baked above), so these are constants too.
+        extterms = []
+        for es in (extsignals or []):
+            NmFcws = [N.solve_2d(Fcw)[0] for N, Fcw in zip(self.Ns, es.Fs)]
+            FcwNmy = jnparray([NmFcw.T @ y for NmFcw, y in zip(NmFcws, ys)])
+            FtNmFcw = jnparray([F.T @ NmFcw for F, NmFcw in zip(self.Fs, NmFcws)])
+            FcwtNmFcw = jnparray([Fcw.T @ NmFcw for Fcw, NmFcw in zip(es.Fs, NmFcws)])
+            extterms.append((es.coeffs, FcwNmy, FtNmFcw, FcwtNmFcw))
+
+        def extcontrib(params, c_total):
+            """Sum of the external-signal terms added to the data quadratic form."""
+            tot = 0.0
+            for coeffs, FcwNmy, FtNmFcw, FcwtNmFcw in extterms:
+                ccw = coeffs(params)
+                tot = tot + (jnp.sum(ccw * FcwNmy)
+                             - jnp.einsum('ij,ijk,ik', c_total, FtNmFcw, ccw)
+                             - 0.5 * jnp.einsum('ij,ijk,ik', ccw, FcwtNmFcw, ccw))
+            return tot
+
+        extparams = sum([list(es.params) for es in (extsignals or [])], [])
 
         if isinstance(self.index, list):
             cvarsall = self.index
@@ -2327,47 +2418,71 @@ class VectorWoodburyKernel_varP(VariableKernel):
             def kernelproduct(params):
                 c = fold(params)
                 ldL = 0.0
-                if transform is not None:
-                    c, tmp_ldL = transform(params, c)
+
+                # --- reparam stage: bijections on the GP coefficients, BEFORE
+                #     the prior; each contributes a log-Jacobian.
+                for rp in reparams:
+                    c, tmp_ldL = rp(params, c)
                     ldL += tmp_ldL
-                    params = {**params, **unfold(c)}
-                else:
-                    ldL += 0.0
 
+                # --- prior barrier: the GP prior sees ONLY the GP coefficients.
+                logpr = P_var_prior({**params, **unfold(c)} if reparams else params)
 
-                logpr = P_var_prior(params)
+                # --- additive stage: deterministic signals (e.g. a CW) added to
+                #     the coefficients AFTER the prior. Zero Jacobian; absent
+                #     from P_var_prior.params, so the GP prior never sees them.
+                c_total = c
+                for add in additives:
+                    c_total = c_total + add(params)
 
-                ret = (-0.5 * ytNmy + jnp.sum(c * NmFty) - 0.5 * jnp.einsum('ij,ijk,ik', c, FtNmF, c)
-                       -0.5 * ldN + logpr + ldL)
-                if transform:
-                    return (ret, c)
-                else:
-                    return ret
+                ret = (-0.5 * ytNmy + jnp.sum(c_total * NmFty)
+                       - 0.5 * jnp.einsum('ij,ijk,ik', c_total, FtNmF, c_total)
+                       - 0.5 * ldN + logpr + ldL
+                       + extcontrib(params, c_total))
+                # when staged, also return the GP-coefficient realization c
+                # (post-reparam, pre-additive) -- the prior-relevant draw.
+                return (ret, c) if staged else ret
 
-            kernelproduct.params = sorted(set(P_var_prior.params +
-                                              sum([list(cvars) for cvars in cvarsall], []) +
-                                              ([] if transform is None else transform.params)))
+            kernelproduct.params = sorted(set(
+                P_var_prior.params +
+                sum([list(cvars) for cvars in cvarsall], []) +
+                sum([list(rp.params) for rp in reparams], []) +
+                sum([list(add.params) for add in additives], []) +
+                extparams))
         else:
             P_var_inv = self.P_var.make_inv()
 
             def kernelproduct(params):
                 c = fold(params)
+                ldL = 0.0
 
-                if transform is not None:
-                    c, ldL = transform(params, c)
-                else:
-                    ldL = 0.0
+                # --- reparam stage (before the prior term)
+                for rp in reparams:
+                    c, tmp_ldL = rp(params, c)
+                    ldL += tmp_ldL
 
-                # P_var_inv does not use the coefficients
+                # P_var_inv does not use the coefficients; the prior term
+                # -0.5 c.Pm.c penalizes the GP coefficients c only.
                 Pm, ldP = P_var_inv(params)
+                prior_term = -0.5 * jnp.sum(c * Pm * c) - 0.5 * jnp.sum(ldP)
 
-                ret = (-0.5 * ytNmy + jnp.sum(c * NmFty) - 0.5 * jnp.einsum('ij,ijk,ik', c, FtNmF, c)
-                       -0.5 * ldN - 0.5 * jnp.sum(c * Pm * c) - 0.5 * jnp.sum(ldP) + ldL) # note Pm is 1D
-                return (ret, c) if transform is not None else ret
+                # --- additive stage (after the prior term); data term uses c_total
+                c_total = c
+                for add in additives:
+                    c_total = c_total + add(params)
 
-            kernelproduct.params = sorted(set(P_var_inv.params +
-                                              sum([list(cvars) for cvars in cvarsall], []) +
-                                              ([] if transform is None else transform.params)))
+                ret = (-0.5 * ytNmy + jnp.sum(c_total * NmFty)
+                       - 0.5 * jnp.einsum('ij,ijk,ik', c_total, FtNmF, c_total)
+                       - 0.5 * ldN + prior_term + ldL
+                       + extcontrib(params, c_total))  # note Pm is 1D
+                return (ret, c) if staged else ret
+
+            kernelproduct.params = sorted(set(
+                P_var_inv.params +
+                sum([list(cvars) for cvars in cvarsall], []) +
+                sum([list(rp.params) for rp in reparams], []) +
+                sum([list(add.params) for add in additives], []) +
+                extparams))
 
         return kernelproduct
 

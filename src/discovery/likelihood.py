@@ -619,12 +619,21 @@ class GlobalLikelihood:
 
 
 class ArrayLikelihood:
-    def __init__(self, psls, *, commongp=None, globalgp=None, transform=None, decenter=False):
+    def __init__(self, psls, *, commongp=None, globalgp=None, transform=None,
+                 decenter=False, additives=None, extsignals=None):
         self.psls = psls
         self.commongp = commongp
         self.globalgp = globalgp
         self.transform = transform
         self.decenter = decenter
+        # additives: deterministic coefficient-space signals (e.g. a CW) applied
+        # after the GP prior barrier in make_kernelproduct_gpcomponent. Each is
+        # add(params) -> (npsr, nbasis); see discovery.deterministic.makecw_additive.
+        self.additives = additives
+        # extsignals: deterministic signals on their OWN basis (matrix.ExtSignal),
+        # for signals needing higher frequencies than the GP bases reach (e.g. a
+        # CW); see discovery.deterministic.makecw_extsignal.
+        self.extsignals = extsignals
 
     # @functools.cached_property
     # def cloglast(self):
@@ -705,13 +714,18 @@ class ArrayLikelihood:
         if hasattr(commongp, 'index'):
             self.vsm.index = commongp.index
 
-        if self.transform is not None and self.decenter is True:
-            raise ValueError("Can't decenter and add a transformation right now.")
-
+        # reparam stage: bijections on the GP coefficients (Jacobians compose).
+        # Decentering and a user transform can now coexist -- both are reparams.
+        reparams = []
         if self.decenter:
-            loglike = self.vsm.make_kernelproduct_gpcomponent(self.ys, transform=decenter_transform)
-        else:
-            loglike = self.vsm.make_kernelproduct_gpcomponent(self.ys, transform=self.transform)
+            reparams.append(decenter_transform)
+        if self.transform is not None:
+            reparams.extend(self.transform if isinstance(self.transform, (list, tuple))
+                            else [self.transform])
+
+        loglike = self.vsm.make_kernelproduct_gpcomponent(
+            self.ys, transform=reparams, additives=self.additives,
+            extsignals=self.extsignals)
 
         return loglike
 

@@ -1,5 +1,6 @@
 import os
 import re
+import functools
 import inspect
 import types
 import typing
@@ -1062,3 +1063,53 @@ def makedelay(psr, delay, components=None, common=[], name='delay'):
 # use with makedelay to set residuals dynamically from arrays
 def getresiduals(y):
     return -y
+
+
+def make_extsignal_fourier(psrs, coefffunc, components, T=None, common=[],
+                           name='extsignal'):
+    """Build a deterministic signal carried on its OWN Fourier basis (Route A).
+
+    Returns a ``matrix.ExtSignal`` for use as ``ArrayLikelihood(extsignals=[...])``.
+    Unlike a GP it has no prior: its Fourier coefficients are a deterministic
+    function of a few physical parameters (``coefffunc``). The likelihood folds
+    it in via cross-terms with the GP basis -- see
+    ``VectorWoodburyKernel_varP.make_kernelproduct_gpcomponent``.
+
+    The signal gets its own ``components`` -- typically MORE than the red-noise
+    or GWB GPs use, so the basis reaches higher frequencies (bin spacing is
+    fixed at 1/T_obs for every Fourier basis; only the number of bins, hence
+    the maximum frequency, differs).
+
+    Parameters
+    ----------
+    psrs : list of Pulsar
+        Same order as the ArrayLikelihood's pulsar list.
+    coefffunc : callable
+        Per-pulsar map from physical parameters to a length-``2*components``
+        Fourier-coefficient vector. Its first two positional arguments must be
+        ``f, df`` (bound here to the basis); any argument that is a pulsar
+        attribute (``pos``, ``mintoa``, ...) is bound from the pulsar; the rest
+        become sampled parameters. Example: ``deterministic.makefourier_binary()``.
+    components : int
+        Number of frequency bins for this signal's basis.
+    T : float, optional
+        Baseline for the Fourier basis (default: per-pulsar span).
+    common : list of str
+        Parameter names shared across pulsars (e.g. CW earth-term parameters).
+    name : str
+        Parameter-name prefix and ExtSignal name.
+    """
+    Fs, perpsr = [], []
+    for psr in psrs:
+        f, df, fmat = fourierbasis(psr, components, T)
+        Fs.append(matrix.jnparray(fmat))
+        # bind f, df positionally so makedelay sees only psr-attrs + parameters
+        bound = functools.partial(coefffunc, matrix.jnparray(f),
+                                  matrix.jnparray(df))
+        perpsr.append(makedelay(psr, bound, common=common, name=name))
+
+    def coeffs(params):
+        return jnp.stack([d(params) for d in perpsr])
+    coeffs.params = sorted(set().union(*(set(d.params) for d in perpsr)))
+
+    return matrix.ExtSignal(Fs, coeffs, name=name)

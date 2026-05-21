@@ -6,6 +6,10 @@ import re
 
 import pytest
 
+# numpyro is an optional dependency: skip this whole module (rather than erroring
+# at collection) when it is not installed, e.g. on CI where only base deps exist.
+pytest.importorskip("numpyro")
+
 import numpy as np
 
 import jax

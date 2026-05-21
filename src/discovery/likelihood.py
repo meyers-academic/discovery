@@ -1,4 +1,6 @@
 import functools
+import re
+from typing import Callable
 # from dataclasses import dataclass
 
 import numpy as np
@@ -34,6 +36,92 @@ from . import signals
 #                                              je.makepowerlaw_crn(5), 10, T=Tspan,
 #                                              common=['crn_log10_A', 'crn_gamma']),
 #                            concat=True)
+
+_SHAPE_RE = re.compile(r'\(([\d,\s]+)\)$')
+
+
+class ArrayLogL:
+    """Array-native wrapper around a dict-based likelihood callable.
+
+    Generalizes the `simple_dict_transformation` trick to parameters that are
+    array-valued (one name -> a block of columns). `func` must be callable as
+    `func(params_dict)` and carry an ordered `func.params` list of names
+    (e.g. PulsarLikelihood.logL, GlobalLikelihood.logL, ArrayLikelihood.logL).
+
+    The flat-vector column ordering is bundled with the callable so the two
+    cannot drift apart: `self.params` is the name ordering, `self.size` is the
+    flat length (>= len(params) when array params are present).
+
+    Per-parameter shapes are read from the `(N)` / `(N,M)` suffix that
+    discovery.signals encodes in array-valued parameter names. Pass `template`
+    (any {name: value} dict, e.g. a prior draw) to override the suffix or to
+    supply shapes for the rare array params that carry no suffix.
+    """
+
+    def __init__(self, func, template=None):
+        self.func = func
+        self.params = list(func.params)
+
+        self._layout, pos = {}, 0          # name -> (start, stop, shape)
+        for name in self.params:
+            shape = self._shape_of(name, template)
+            n = 1
+            for d in shape:
+                n *= d
+            self._layout[name] = (pos, pos + n, shape)
+            pos += n
+        self.size = pos
+
+    @staticmethod
+    def _shape_of(name, template):
+        m = _SHAPE_RE.search(name)
+        if m:
+            return tuple(int(d) for d in m.group(1).split(','))
+        if template is not None:
+            return tuple(matrix.jnp.shape(template[name]))
+        return ()
+
+    # fast path: array in, whatever func returns out
+    def __call__(self, x):
+        return self.func(self.array_to_dict(x))
+
+    def dict_to_array(self, d):
+        cols = []
+        for name in self.params:
+            _, _, shape = self._layout[name]
+            v = matrix.jnp.asarray(d[name])
+            cols.append(v.reshape(-1) if shape else v.reshape(1))
+        return matrix.jnp.concatenate(cols)
+
+    def array_to_dict(self, x):
+        out = {}
+        for name in self.params:
+            start, stop, shape = self._layout[name]
+            block = x[start:stop]
+            out[name] = block.reshape(shape) if shape else block[0]
+        return out
+
+    # for scatter-assembly of the flat vector without going through a dict
+    def slice_of(self, name):
+        start, stop, _ = self._layout[name]
+        return start, stop
+
+    def indices(self, names):
+        idx = []
+        for name in names:
+            start, stop, _ = self._layout[name]
+            idx.extend(range(start, stop))
+        return matrix.jnp.array(idx)
+
+    # one-time check that the layout matches what func expects; call eagerly
+    def check_roundtrip(self, d):
+        rt = self.array_to_dict(self.dict_to_array(d))
+        for name in self.params:
+            a, b = matrix.jnp.asarray(d[name]), matrix.jnp.asarray(rt[name])
+            if a.shape != b.shape or not bool(matrix.jnp.all(a == b)):
+                raise ValueError("ArrayLogL layout mismatch for {!r}".format(name))
+        return True
+
 
 class PulsarLikelihood:
     def __init__(self, args, concat=True):
@@ -186,6 +274,10 @@ class PulsarLikelihood:
         return self.N.make_kernelproduct(self.y)
 
     @functools.cached_property
+    def loglike_arr(self):
+        return ArrayLogL(self.logL)
+
+    @functools.cached_property
     def sample(self):
         if callable(self.y):
             noiseonly = self.N.make_sample()
@@ -199,7 +291,32 @@ class PulsarLikelihood:
             return make_sample
 
         return self.N.make_sample()
-
+    
+    @functools.cached_property
+    def white_noise_matrix(self):
+        """
+        Return the diagonal white noise matrix for this pulsar.
+        It will be scaled by EFAC and ECORR, but will NOT include EQUAD."""
+        def _return_next_layer_or_wn(obj):
+            """
+            for sorting through the depths of this model
+            """
+            if isinstance(obj, np.ndarray):
+                return obj
+            if hasattr(obj, 'N'): 
+                return obj.N
+            elif hasattr(obj, 'N_var'):
+                return obj.N_var
+            elif hasattr(obj, 'getN'):
+                return obj.getN
+        obj = self
+        # keep going until we hit a function
+        # or an array
+        while not isinstance(obj, np.ndarray) and not isinstance(obj, Callable):
+            if isinstance(obj, matrix.NoiseMatrixSM_novar) or isinstance(obj, matrix.NoiseMatrixSM_var):
+                print("WARNING: Kernel ecorr is included, but the 'white_noise_matrix' property just returns the diagonal, scaled TOA errors")
+            obj = _return_next_layer_or_wn(obj)
+        return obj
 
 class GlobalLikelihood:
     def __init__(self, psls, globalgp=None):
@@ -328,6 +445,10 @@ class GlobalLikelihood:
             loglike.params = sorted(params_kterms + params_kmeans + P_var_inv.params)
 
         return loglike
+
+    @functools.cached_property
+    def loglike_arr(self):
+        return ArrayLogL(self.logL)
 
     # MPI parallel likelihood
     @functools.cached_property
@@ -617,6 +738,10 @@ class ArrayLikelihood:
             loglike.params = sorted(kterms.params + params_kmeans + P_var_inv.params)
 
         return loglike
+
+    @functools.cached_property
+    def loglike_arr(self):
+        return ArrayLogL(self.logL)
 
     def cglogL(self, cgmaxiter=100, make_logdet='CG-MDL', detmatvecs=5, detsamples=200, clip=None):
         commongp = matrix.VectorCompoundGP(self.commongp)

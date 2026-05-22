@@ -8,7 +8,10 @@ jnp = matrix.jnp
 
 def uniform(par, a, b):
     def logpriorfunc(params):
-        return matrix.jnp.where(matrix.jnp.logical_and(params[par] >= a, params[par] <= b), 0, -matrix.jnp.inf)
+        x = params[par]
+        # jnp.sum collapses an array-valued parameter (e.g. log10_rho(30)) to a
+        # scalar contribution; for a scalar parameter it is a no-op.
+        return matrix.jnp.sum(matrix.jnp.where(matrix.jnp.logical_and(x >= a, x <= b), 0.0, -matrix.jnp.inf))
 
     return logpriorfunc
 
@@ -226,10 +229,11 @@ def sample_uniform(params, priordict={}, n=1, fail=True):
         for parname, range in priordict.items():
             if parname == par or re.match(parname, par):
                 if par.endswith(")"):
+                    size = int(par[par.index("(") + 1 : -1])
                     sample[par] = (
-                        np.random.uniform(*range, size=int(par[par.index("(") + 1 : -1]))
+                        np.random.uniform(*range, size=size)
                         if n == 1
-                        else np.random.uniform(*range, size=(n, int(par[par.index("(") + 1 : -1])))
+                        else np.random.uniform(*range, size=(n, size))
                     )
                 else:
                     sample[par] = np.random.uniform(*range) if n == 1 else np.random.uniform(*range, size=n)

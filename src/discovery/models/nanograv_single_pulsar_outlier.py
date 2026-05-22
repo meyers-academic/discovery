@@ -30,7 +30,7 @@ from .. import signals
 priordict_outlier_default = {
     **prior.priordict_standard,
     "nu":      [1, 40],
-    "theta_m": 0.1,
+    "theta_m": 0.01,
 }
 
 

@@ -1,4 +1,5 @@
 import functools
+from typing import Callable
 # from dataclasses import dataclass
 
 import numpy as np
@@ -199,7 +200,32 @@ class PulsarLikelihood:
             return make_sample
 
         return self.N.make_sample()
-
+    
+    @functools.cached_property
+    def white_noise_matrix(self):
+        """
+        Return the diagonal white noise matrix for this pulsar.
+        It will be scaled by EFAC and ECORR, but will NOT include EQUAD."""
+        def _return_next_layer_or_wn(obj):
+            """
+            for sorting through the depths of this model
+            """
+            if isinstance(obj, np.ndarray):
+                return obj
+            if hasattr(obj, 'N'): 
+                return obj.N
+            elif hasattr(obj, 'N_var'):
+                return obj.N_var
+            elif hasattr(obj, 'getN'):
+                return obj.getN
+        obj = self
+        # keep going until we hit a function
+        # or an array
+        while not isinstance(obj, np.ndarray) and not isinstance(obj, Callable):
+            if isinstance(obj, matrix.NoiseMatrixSM_novar) or isinstance(obj, matrix.NoiseMatrixSM_var):
+                print("WARNING: Kernel ecorr is included, but the 'white_noise_matrix' property just returns the diagonal, scaled TOA errors")
+            obj = _return_next_layer_or_wn(obj)
+        return obj
 
 class GlobalLikelihood:
     def __init__(self, psls, globalgp=None):

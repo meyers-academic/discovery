@@ -61,32 +61,8 @@ def getprior_uniform(par, priordict={}):
 
     raise KeyError(f'getprior_uniform: no prior for parameter {par}.')
 
-def makelogprior_uniform(params, priordict={}, array=False):
+def makelogprior_uniform(params, priordict={}):
     priordict = {**priordict_standard, **priordict}
-
-    if array:
-        # logprior over a flat array whose columns are `params` in order, with
-        # vector parameters expanded in place -- the same layout produced by
-        # sample_uniform(..., array=True) and consumed by model.loglike_arr.
-        a, b = [], []
-        for par in params:
-            for parname, prange in priordict.items():
-                if parname == par or re.match(parname, par):
-                    break
-            else:
-                raise KeyError(f"No known prior for {par}.")
-
-            n = int(par[par.index("(") + 1 : -1]) if par.endswith(")") else 1
-            a.extend([prange[0]] * n)
-            b.extend([prange[1]] * n)
-
-        a, b = matrix.jnparray(a), matrix.jnparray(b)
-
-        def logprior(x):
-            return matrix.jnp.sum(matrix.jnp.where(
-                matrix.jnp.logical_and(x >= a, x <= b), 0.0, -matrix.jnp.inf))
-
-        return logprior
 
     priors = []
     for par in params:
@@ -245,7 +221,7 @@ def makelogtransform_classic(func, priordict={}):
     return transformed
 
 
-def sample_uniform(params, priordict={}, n=1, fail=True, array=False):
+def sample_uniform(params, priordict={}, n=1, fail=True):
     priordict = {**priordict_standard, **priordict}
 
     sample = {}
@@ -266,13 +242,4 @@ def sample_uniform(params, priordict={}, n=1, fail=True, array=False):
             if fail:
                 raise KeyError(f"No known prior for {par}.")
 
-    if not array:
-        return sample
-
-    # flat array with `params` in order and vector parameters expanded in place
-    # (the column layout produced for / consumed by likelihood.ArrayLogL).
-    cols = [np.atleast_1d(sample[par]) for par in params]
-    if n == 1:
-        return np.concatenate(cols)
-    else:
-        return np.concatenate([c if c.ndim == 2 else c[:, None] for c in cols], axis=1)
+    return sample

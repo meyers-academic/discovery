@@ -15,9 +15,6 @@ one buffer instead of N.
 Backend follows discovery's own switch: arrays are built with ``matrix.jnp``
 (JAX or NumPy, as configured by ``matrix.config``), and the JAX pytree
 registration runs only when the JAX backend is active.
-
-This coexists deliberately with ``likelihood.ArrayLogL`` for now; once ``Params``
-is benchmarked on GPU, ``ArrayLogL`` is to be removed.
 """
 
 import re

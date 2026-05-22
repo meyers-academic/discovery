@@ -1109,7 +1109,12 @@ def make_extsignal_fourier(psrs, coefffunc, components, T=None, common=[],
         f, df, fmat = fourierbasis(psr, components, T)
         fs.append(np.asarray(f))
         dfs.append(np.asarray(df))
-        Fs.append(matrix.jnparray(fmat))
+        # keep Fs host-side: they are TOA-scale and only consumed by the
+        # host-side trace-time collapse in make_kernelproduct_gpcomponent.
+        # Casting to a device array here would pin them on the GPU for the
+        # ExtSignal's whole lifetime even though the traced code never reads
+        # them (the coeffs closure uses f_arr/df_arr, not Fs).
+        Fs.append(np.asarray(fmat))
     f_arr = matrix.jnparray(np.stack(fs))      # (npsr, 2*components)
     df_arr = matrix.jnparray(np.stack(dfs))
 

@@ -525,19 +525,17 @@ class GlobalLikelihood:
 
 class ArrayLikelihood:
     def __init__(self, psls, *, commongp=None, globalgp=None, transform=None,
-                 decenter=False, additives=None, extsignals=None):
+                 decenter=False, extsignals=None):
         self.psls = psls
         self.commongp = commongp
         self.globalgp = globalgp
         self.transform = transform
         self.decenter = decenter
-        # additives: deterministic coefficient-space signals (e.g. a CW) applied
-        # after the GP prior barrier in make_kernelproduct_gpcomponent. Each is
-        # add(params) -> (npsr, nbasis); see discovery.deterministic.makecw_additive.
-        self.additives = additives
         # extsignals: deterministic signals on their OWN basis (matrix.ExtSignal),
         # for signals needing higher frequencies than the GP bases reach (e.g. a
-        # CW); see discovery.deterministic.makecw_extsignal.
+        # CW); see discovery.deterministic.makecw_extsignal. For same-basis
+        # deterministic Fourier signals, use ``commongp=makecommongp_fourier(
+        # ..., means=mean_fn)`` instead.
         self.extsignals = extsignals
 
     # @functools.cached_property
@@ -618,6 +616,9 @@ class ArrayLikelihood:
             self.vsm.prior = commongp.prior
         if hasattr(commongp, 'index'):
             self.vsm.index = commongp.index
+        # propagate commongp's `means` so make_kernelproduct_gpcomponent applies
+        # the centered prior -- matches the wiring used in ArrayLikelihood.logL.
+        self.vsm.means = getattr(commongp, 'means', None)
 
         # reparam stage: bijections on the GP coefficients (Jacobians compose).
         # Decentering and a user transform can now coexist -- both are reparams.
@@ -629,13 +630,24 @@ class ArrayLikelihood:
                             else [self.transform])
 
         loglike = self.vsm.make_kernelproduct_gpcomponent(
-            self.ys, transform=reparams, additives=self.additives,
-            extsignals=self.extsignals)
+            self.ys, transform=reparams, extsignals=self.extsignals)
 
         return loglike
 
     @functools.cached_property
     def logL(self):
+        # `extsignals` is only wired into make_kernelproduct_gpcomponent
+        # (the clogL / coefficient path). Calling logL on a model with
+        # extsignals would silently drop them -- raise loudly instead until
+        # the marginalized paths get the cross-term wiring.
+        if self.extsignals:
+            def _logL_extsignals_unsupported(*args, **kwargs):
+                raise NotImplementedError(
+                    "extsignals only enter clogL; call ArrayLikelihood.clogL, "
+                    "or remove extsignals to use logL")
+            _logL_extsignals_unsupported.params = []
+            return _logL_extsignals_unsupported
+
         if self.commongp is None:
             if self.globalgp is None:
                 def loglike(params):

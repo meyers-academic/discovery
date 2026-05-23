@@ -92,43 +92,6 @@ class TestExtSignal:
 
         assert abs(delta_code - delta_brute) / abs(delta_brute) < 1e-9
 
-    def test_extsignal_equals_additive_on_shared_basis(self):
-        """With F_cw == a GP block's basis, the extsignal cross-term route and
-        the same-basis additive route give a bit-identical clogL."""
-        psrs = _read_psrs()
-        T = ds.getspan(psrs)
-        n_rn, n_gw = 24, 14
-        rng = np.random.default_rng(1)
-        np.random.seed(1)
-
-        def build(**kw):
-            return ds.ArrayLikelihood(
-                _psls(psrs),
-                commongp=ds.makecommongp_fourier(psrs, ds.powerlaw,
-                                                 components=n_rn, T=T, name='red_noise'),
-                globalgp=ds.makeglobalgp_fourier(psrs, ds.powerlaw, ds.hd_orf,
-                                                 components=n_gw, T=T, name='gw'),
-                decenter=True, **kw)
-
-        nbasis = 2 * n_rn + 2 * n_gw
-        gw_slot = slice(2 * n_rn, 2 * n_rn + 2 * n_gw)
-        cw_add = ds.makecw_additive(psrs, nbasis, gw_slot, components=n_gw, T=T)
-        cw_ext = ds.makecw_extsignal(psrs, components=n_gw, T=T)
-
-        m_add = build(additives=[cw_add])
-        m_ext = build(extsignals=[cw_ext])
-
-        pars = ds.sample_uniform(m_add.logL.params)
-        for p in psrs:
-            pars[f'{p.name}_gw_coefficients({n_gw*2})'] = rng.standard_normal(2 * n_gw)
-            pars[f'{p.name}_red_noise_coefficients({n_rn*2})'] = \
-                rng.standard_normal(2 * n_rn)
-        _set_cw(pars, set(cw_add.params) | set(cw_ext.params), rng)
-
-        v_add = float(m_add.clogL(pars)[0])
-        v_ext = float(m_ext.clogL(pars)[0])
-        assert abs(v_add - v_ext) / abs(v_add) < 1e-12
-
     def test_zero_amplitude_is_identity(self):
         """A negligible-amplitude CW leaves clogL bit-identical to no extsignal."""
         psrs = _read_psrs()
@@ -183,7 +146,10 @@ class TestExtSignal:
         # ... but never enter the GP prior.
         assert set(cw.params).isdisjoint(set(m.vsm.prior.params))
 
-        pars = ds.sample_uniform(m.logL.params)
+        # logL refuses when extsignals is set; pull hyperparam names from clogL
+        hyperparams = [k for k in clogl.params
+                       if '_coefficients(' not in k and k not in set(cw.params)]
+        pars = ds.sample_uniform(hyperparams)
         for p in psrs:
             pars[f'{p.name}_gw_coefficients({n_gw*2})'] = rng.standard_normal(2 * n_gw)
             pars[f'{p.name}_red_noise_coefficients({n_rn*2})'] = \

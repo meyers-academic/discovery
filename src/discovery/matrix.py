@@ -2320,30 +2320,28 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
         return kernelproduct
 
-    def make_kernelproduct_gpcomponent(self, ys, transform=None, additives=None,
-                                       extsignals=None):
+    def make_kernelproduct_gpcomponent(self, ys, transform=None, extsignals=None):
         # -0.5 yt Nm y + yt Nm F a - 0.5 ct Ft Nm F c - 0.5 log |2 pi N| - 0.5 cT Pm c - 0.5 log |2 pi P|
         #
-        # The coefficient pipeline has two stages, separated by the GP prior:
+        # The coefficient pipeline:
         #
-        #   xi --[reparams]--> c_gp  --(prior barrier)--  c_total = c_gp + sum(additives)
+        #   xi --[reparams]--> c_gp  --(prior barrier)--  data uses c_gp
         #
         # * ``transform`` (one callable or a list) -- *reparameterizations*:
         #   bijections on the GP coefficients applied BEFORE the prior. Each is
         #   ``rp(params, c) -> (c, ldL)`` and contributes a log-Jacobian ldL.
         #   Decentering is a reparam. The prior sees the reparam *output*.
-        # * ``additives`` (a list) -- *deterministic signals* (e.g. a CW) applied
-        #   AFTER the prior. Each is ``add(params) -> (npsr, nbasis)`` array added
-        #   to the coefficients. A pure additive shift has Jacobian 1 (zero
-        #   log-det), and its parameters never enter the GP prior, so the GP
-        #   (red-noise / HD) prior structurally cannot penalize it.
+        # * ``self.means`` (from the underlying commongp) -- centers the GP
+        #   prior on a deterministic Fourier signal a0: c ~ N(a0, Phi). The
+        #   prior penalizes c - a0; the data still uses c. Mirrors the wiring
+        #   in make_kernelproduct_varN (the marginalized twin).
         # * ``extsignals`` (a list of ExtSignal) -- deterministic signals on
         #   their OWN basis F_cw (e.g. a CW needing higher frequencies than the
-        #   GP bases reach). The residual model becomes F c_total + F_cw c_cw;
+        #   GP bases reach). The residual model becomes F c + F_cw c_cw;
         #   the data quadratic form picks up three extra terms built from
         #   trace-time constants -- CW-data, GP-CW cross, and CW-CW:
         #     + c_cw . (F_cw^T N^-1 y)
-        #     - c_total . (F^T N^-1 F_cw) . c_cw
+        #     - c . (F^T N^-1 F_cw) . c_cw
         #     - 0.5 c_cw . (F_cw^T N^-1 F_cw) . c_cw
         #   No prior, no Jacobian; the cw parameters never enter the GP prior.
 
@@ -2362,16 +2360,19 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
         n_psr = len(FtNmFs)
 
-        # normalize the transform stages: ``transform`` may be a single callable
-        # or a list of reparams; ``additives`` is a (possibly empty) list.
+        # normalize ``transform``: may be a single callable or a list of reparams.
         if transform is None:
             reparams = []
         elif isinstance(transform, (list, tuple)):
             reparams = list(transform)
         else:
             reparams = [transform]
-        additives = list(additives) if additives else []
-        staged = bool(reparams or additives)
+        staged = bool(reparams)
+
+        # `means` on the underlying commongp centers the GP prior on a0:
+        # c ~ N(a0, Phi). The prior penalizes c - a0, the data still uses c.
+        kmeans = getattr(self, 'means', None)
+        kmeans_params = list(kmeans.params) if kmeans is not None else []
 
         # external-signal cross-terms: precompute the trace-time constants for
         # each ExtSignal carried on its own basis F_cw. N is fixed for this whole
@@ -2425,29 +2426,26 @@ class VectorWoodburyKernel_varP(VariableKernel):
                     c, tmp_ldL = rp(params, c)
                     ldL += tmp_ldL
 
-                # --- prior barrier: the GP prior sees ONLY the GP coefficients.
-                logpr = P_var_prior({**params, **unfold(c)} if reparams else params)
+                # --- prior barrier: the GP prior sees ONLY the GP coefficients
+                #     -- with `means` set, it sees c - a0.
+                c_for_prior = c - kmeans(params) if kmeans is not None else c
+                logpr = P_var_prior(
+                    {**params, **unfold(c_for_prior)}
+                    if (reparams or kmeans is not None) else params)
 
-                # --- additive stage: deterministic signals (e.g. a CW) added to
-                #     the coefficients AFTER the prior. Zero Jacobian; absent
-                #     from P_var_prior.params, so the GP prior never sees them.
-                c_total = c
-                for add in additives:
-                    c_total = c_total + add(params)
-
-                ret = (-0.5 * ytNmy + jnp.sum(c_total * NmFty)
-                       - 0.5 * jnp.einsum('ij,ijk,ik', c_total, FtNmF, c_total)
+                ret = (-0.5 * ytNmy + jnp.sum(c * NmFty)
+                       - 0.5 * jnp.einsum('ij,ijk,ik', c, FtNmF, c)
                        - 0.5 * ldN + logpr + ldL
-                       + extcontrib(params, c_total))
+                       + extcontrib(params, c))
                 # when staged, also return the GP-coefficient realization c
-                # (post-reparam, pre-additive) -- the prior-relevant draw.
+                # (post-reparam) -- the prior-relevant draw.
                 return (ret, c) if staged else ret
 
             kernelproduct.params = sorted(set(
                 P_var_prior.params +
                 sum([list(cvars) for cvars in cvarsall], []) +
                 sum([list(rp.params) for rp in reparams], []) +
-                sum([list(add.params) for add in additives], []) +
+                kmeans_params +
                 extparams))
         else:
             P_var_inv = self.P_var.make_inv()
@@ -2461,27 +2459,24 @@ class VectorWoodburyKernel_varP(VariableKernel):
                     c, tmp_ldL = rp(params, c)
                     ldL += tmp_ldL
 
-                # P_var_inv does not use the coefficients; the prior term
-                # -0.5 c.Pm.c penalizes the GP coefficients c only.
+                # -0.5 (c - a0).Pm.(c - a0) penalizes the GP coefficients,
+                # centered on `means` if set.
                 Pm, ldP = P_var_inv(params)
-                prior_term = -0.5 * jnp.sum(c * Pm * c) - 0.5 * jnp.sum(ldP)
+                c_for_prior = c - kmeans(params) if kmeans is not None else c
+                prior_term = (-0.5 * jnp.sum(c_for_prior * Pm * c_for_prior)
+                              - 0.5 * jnp.sum(ldP))
 
-                # --- additive stage (after the prior term); data term uses c_total
-                c_total = c
-                for add in additives:
-                    c_total = c_total + add(params)
-
-                ret = (-0.5 * ytNmy + jnp.sum(c_total * NmFty)
-                       - 0.5 * jnp.einsum('ij,ijk,ik', c_total, FtNmF, c_total)
+                ret = (-0.5 * ytNmy + jnp.sum(c * NmFty)
+                       - 0.5 * jnp.einsum('ij,ijk,ik', c, FtNmF, c)
                        - 0.5 * ldN + prior_term + ldL
-                       + extcontrib(params, c_total))  # note Pm is 1D
+                       + extcontrib(params, c))  # note Pm is 1D
                 return (ret, c) if staged else ret
 
             kernelproduct.params = sorted(set(
                 P_var_inv.params +
                 sum([list(cvars) for cvars in cvarsall], []) +
                 sum([list(rp.params) for rp in reparams], []) +
-                sum([list(add.params) for add in additives], []) +
+                kmeans_params +
                 extparams))
 
         return kernelproduct

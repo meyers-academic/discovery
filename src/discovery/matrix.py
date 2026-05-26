@@ -153,6 +153,38 @@ class GlobalVariableGP:
         self.Phi, self.Fs = Phi, Fs
         self.Phi_inv = None
 
+
+class ExtSignal:
+    """A deterministic signal carried on its own (non-GP) Fourier-style basis.
+
+    Used for signals (e.g. a continuous wave) whose basis must extend to
+    higher frequencies than the GP bases reach. Unlike a GP it has no prior:
+    its coefficients are a deterministic function of a handful of physical
+    parameters, supplied by ``coeffs``.
+
+    The object is purely declarative and noise-free; all noise-dependent
+    linear algebra (cross-terms with the GP basis and the data) lives in
+    ``VectorWoodburyKernel_varP.make_kernelproduct_gpcomponent``.
+
+    Parameters
+    ----------
+    Fs : list of array
+        Per-pulsar design matrices, one ``(ntoa_i, n_ext)`` array per pulsar,
+        in the same pulsar order as the likelihood.
+    coeffs : callable
+        ``coeffs(params) -> (npsr, n_ext)`` deterministic coefficient map,
+        with a ``.params`` attribute listing its parameter names.
+    name : str
+        Identifier for the signal.
+    """
+    def __init__(self, Fs, coeffs, name='extsignal'):
+        self.Fs, self.coeffs, self.name = Fs, coeffs, name
+
+    @property
+    def params(self):
+        return self.coeffs.params
+
+
 def CompoundGlobalGP(gplist):
     if all(isinstance(gp, GlobalVariableGP) for gp in gplist):
         fmats = [np.hstack(F) for F in zip(*[gp.Fs for gp in gplist])]
@@ -2078,8 +2110,25 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
         return kernelproduct
 
-    def make_kernelproduct_gpcomponent(self, ys, transform=None):
+    def make_kernelproduct_gpcomponent(self, ys, transform=None, extsignals=None):
         # -0.5 yt Nm y + yt Nm F a - 0.5 ct Ft Nm F c - 0.5 log |2 pi N| - 0.5 cT Pm c - 0.5 log |2 pi P|
+        #
+        # The coefficient pipeline:
+        #
+        #   xi --[reparams]--> c_gp  --(prior barrier)--  data uses c_gp
+        #
+        # * ``transform`` -- single callable or list of reparams. Each is
+        #   ``rp(params, c) -> (c, ldL)`` and contributes a log-Jacobian ldL.
+        #   Decentering is a reparam. The prior sees the reparam *output*.
+        # * ``self.means`` (from the underlying commongp) -- centers the GP
+        #   prior on a0: c ~ N(a0, Phi). The prior penalizes c - a0; the data
+        #   still uses c.
+        # * ``extsignals`` (a list of ExtSignal) -- deterministic signals on
+        #   their OWN basis F_cw (e.g. a CW). The data quadratic form picks up
+        #   three extra terms: + c_cw . (F_cw^T N^-1 y)
+        #                      - c . (F^T N^-1 F_cw) . c_cw
+        #                      - 0.5 c_cw . (F_cw^T N^-1 F_cw) . c_cw
+        #   No prior, no Jacobian; CW parameters never enter the GP prior.
 
         NmFs, ldNs = zip(*[N.solve_2d(F) for N, F in zip(self.Ns, self.Fs)])
         if regularize_FtNmF:
@@ -2094,17 +2143,50 @@ class VectorWoodburyKernel_varP(VariableKernel):
         FtNmF, NmFty = jnparray(FtNmFs), jnparray(NmFtys)
         ytNmy, ldN = float(sum(ytNmys)), float(sum(ldNs))
 
+        # normalize ``transform``: may be a single callable or a list of reparams.
+        if transform is None:
+            reparams = []
+        elif isinstance(transform, (list, tuple)):
+            reparams = list(transform)
+        else:
+            reparams = [transform]
+        staged = bool(reparams)
+
+        # ``self.means`` (from the underlying commongp) centers the GP prior on a0
+        kmeans = getattr(self, 'means', None)
+        kmeans_params = list(kmeans.params) if kmeans is not None else []
+
+        # extsignal cross-terms: precompute the trace-time constants for each
+        # ExtSignal carried on its own basis F_cw. N is fixed for this whole
+        # route (ytNmy / ldN are baked above), so these are constants too.
+        extterms = []
+        for es in (extsignals or []):
+            NmFcws = [N.solve_2d(Fcw)[0] for N, Fcw in zip(self.Ns, es.Fs)]
+            FcwNmy = jnparray([NmFcw.T @ y for NmFcw, y in zip(NmFcws, ys)])
+            FtNmFcw = jnparray([F.T @ NmFcw for F, NmFcw in zip(self.Fs, NmFcws)])
+            FcwtNmFcw = jnparray([Fcw.T @ NmFcw for Fcw, NmFcw in zip(es.Fs, NmFcws)])
+            extterms.append((es.coeffs, FcwNmy, FtNmFcw, FcwtNmFcw))
+
+        def extcontrib(params, c):
+            tot = 0.0
+            for coeffs, FcwNmy, FtNmFcw, FcwtNmFcw in extterms:
+                ccw = coeffs(params)
+                tot = tot + (jnp.sum(ccw * FcwNmy)
+                             - jnp.einsum('ij,ijk,ik', c, FtNmFcw, ccw)
+                             - 0.5 * jnp.einsum('ij,ijk,ik', ccw, FcwtNmFcw, ccw))
+            return tot
+
+        extparams = sum([list(es.params) for es in (extsignals or [])], [])
+
         if isinstance(self.index, list):
             cvarsall = self.index
         else:
             cvarsall = [{par: sl} for par, sl in self.index.items()]
 
-        # cvarsall is a list over pulsars; each cvars is a dict over GPs
-        # make an npsr x nbasis array from a dictionary of parameter vectors
         def fold(params):
-            return jnp.array([jnp.concatenate([params[cvar] for cvar in cvars]) for cvars in cvarsall])
+            return jnp.array([jnp.concatenate([params[cvar] for cvar in cvars])
+                              for cvars in cvarsall])
 
-        # make a dictionary back from the array
         def unfold(c):
             cv, cnt = c.flatten(), 0
             return {cvar: cv[cnt:(cnt := cnt + sl.stop - sl.start)]
@@ -2115,43 +2197,53 @@ class VectorWoodburyKernel_varP(VariableKernel):
 
             def kernelproduct(params):
                 c = fold(params)
+                ldL = 0.0
+                for rp in reparams:
+                    c, tmp_ldL = rp(params, c)
+                    ldL = ldL + tmp_ldL
 
-                if transform is not None:
-                    c, ldL = transform(params, c)
-                    params = {**params, **unfold(c)}
-                else:
-                    ldL = 0.0
+                c_for_prior = c - kmeans(params) if kmeans is not None else c
+                logpr = P_var_prior(
+                    {**params, **unfold(c_for_prior)}
+                    if (reparams or kmeans is not None) else params)
 
-                logpr = P_var_prior(params)
+                ret = (-0.5 * ytNmy + jnp.sum(c * NmFty)
+                       - 0.5 * jnp.einsum('ij,ijk,ik', c, FtNmF, c)
+                       - 0.5 * ldN + logpr + ldL
+                       + extcontrib(params, c))
+                return (ret, c) if staged else ret
 
-                ret = (-0.5 * ytNmy + jnp.sum(c * NmFty) - 0.5 * jnp.einsum('ij,ijk,ik', c, FtNmF, c)
-                       -0.5 * ldN - logpr + ldL)
-                return (ret, c) if transform is not None else ret
-
-            kernelproduct.params = sorted(set(P_var_prior.params +
-                                              sum([list(cvars) for cvars in cvarsall], []) +
-                                              ([] if transform is None else transform.params)))
+            kernelproduct.params = sorted(set(
+                P_var_prior.params +
+                sum([list(cvars) for cvars in cvarsall], []) +
+                sum([list(rp.params) for rp in reparams], []) +
+                kmeans_params + extparams))
         else:
             P_var_inv = self.P_var.make_inv()
 
             def kernelproduct(params):
                 c = fold(params)
+                ldL = 0.0
+                for rp in reparams:
+                    c, tmp_ldL = rp(params, c)
+                    ldL = ldL + tmp_ldL
 
-                if transform is not None:
-                    c, ldL = transform(params, c)
-                else:
-                    ldL = 0.0
-
-                # P_var_inv does not use the coefficients
                 Pm, ldP = P_var_inv(params)
+                c_for_prior = c - kmeans(params) if kmeans is not None else c
+                prior_term = (-0.5 * jnp.sum(c_for_prior * Pm * c_for_prior)
+                              - 0.5 * jnp.sum(ldP))
 
-                ret = (-0.5 * ytNmy + jnp.sum(c * NmFty) - 0.5 * jnp.einsum('ij,ijk,ik', c, FtNmF, c)
-                       -0.5 * ldN - 0.5 * jnp.sum(c * Pm * c) - 0.5 * jnp.sum(ldP) + ldL) # note Pm is 1D
-                return (ret, c) if transform is not None else ret
+                ret = (-0.5 * ytNmy + jnp.sum(c * NmFty)
+                       - 0.5 * jnp.einsum('ij,ijk,ik', c, FtNmF, c)
+                       - 0.5 * ldN + prior_term + ldL
+                       + extcontrib(params, c))  # note Pm is 1D
+                return (ret, c) if staged else ret
 
-            kernelproduct.params = sorted(set(P_var_inv.params +
-                                              sum([list(cvars) for cvars in cvarsall], []) +
-                                              ([] if transform is None else transform.params)))
+            kernelproduct.params = sorted(set(
+                P_var_inv.params +
+                sum([list(cvars) for cvars in cvarsall], []) +
+                sum([list(rp.params) for rp in reparams], []) +
+                kmeans_params + extparams))
 
         return kernelproduct
 

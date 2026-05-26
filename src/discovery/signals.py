@@ -1057,3 +1057,90 @@ def makedelay(psr, delay, components=None, common=[], name='delay'):
 # use with makedelay to set residuals dynamically from arrays
 def getresiduals(y):
     return -y
+
+
+def make_extsignal_fourier(psrs, coefffunc, components, T=None, common=[],
+                           name='extsignal'):
+    """Build a deterministic signal carried on its OWN Fourier basis.
+
+    Returns a ``matrix.ExtSignal`` for use as ``ArrayLikelihood(extsignals=[...])``.
+    Unlike a GP it has no prior: its Fourier coefficients are a deterministic
+    function of a few physical parameters (``coefffunc``). The likelihood folds
+    it in via cross-terms with the GP basis -- see
+    ``VectorWoodburyKernel_varP.make_kernelproduct_gpcomponent``.
+
+    Parameters
+    ----------
+    psrs : list of `discover.Pulsar` objects
+        Same order as the ArrayLikelihood's pulsar list.
+    coefffunc : callable
+        Per-pulsar map from physical parameters to a length-``2*components``
+        Fourier-coefficient vector. Its first two positional arguments must be
+        ``f, df`` (bound here to the basis); any argument that is a pulsar
+        attribute (``pos``, ``mintoa``, ...) is bound from the pulsar; the rest
+        become sampled parameters. Example: ``deterministic.makefourier_binary()``.
+        If they are in `common` then they are common to the array. Otherwise one parameter
+        per pulsar is created.
+    components : int
+        Number of frequency bins for this signal's basis.
+    T : float, optional
+        Total baseline time (in seconds) for the Fourier basis (default: per-pulsar span).
+    common : list of str
+        Parameter names shared across pulsars (e.g. CW earth-term parameters).
+    name : str
+        Parameter-name prefix and ExtSignal name.
+    """
+    fs, dfs, Fs = [], [], []
+    for psr in psrs:
+        f, df, fmat = fourierbasis(psr, components, T)
+        fs.append(np.asarray(f))
+        dfs.append(np.asarray(df))
+        # keep Fs host-side: TOA-scale, only consumed by host-side trace-time
+        # collapse in make_kernelproduct_gpcomponent.
+        Fs.append(np.asarray(fmat))
+    f_arr = matrix.jnparray(np.stack(fs))      # (npsr, 2*components)
+    df_arr = matrix.jnparray(np.stack(dfs))
+
+    # inspect coefffunc: arguments after the leading f, df
+    argspec = inspect.getfullargspec(coefffunc)
+    args = argspec.args + [a for a in argspec.kwonlyargs
+                           if a not in (argspec.kwonlydefaults or {})]
+    sig_args = [a for a in args if a not in ('f', 'df')]
+
+    is_attr = {a: hasattr(psrs[0], a) for a in sig_args}
+    is_common = {a: (not is_attr[a]) and (a in common or f'{name}_{a}' in common)
+                 for a in sig_args}
+
+    def pname(psr, a):
+        if a in common:
+            return a
+        if f'{name}_{a}' in common:
+            return f'{name}_{a}'
+        return f'{psr.name}_{name}_{a}'
+
+    attr_arr = {a: matrix.jnparray(np.stack([np.asarray(getattr(p, a))
+                                             for p in psrs]))
+                for a in sig_args if is_attr[a]}
+
+    in_axes = (0, 0) + tuple(None if is_common[a] else 0 for a in sig_args)
+    vfunc = jax.vmap(coefffunc, in_axes=in_axes)
+
+    params_list = sorted(set(
+        [pname(psrs[0], a) for a in sig_args if is_common[a]] +
+        [pname(p, a) for p in psrs for a in sig_args
+         if not is_attr[a] and not is_common[a]]))
+
+    def coeffs(params):
+        callargs = [f_arr, df_arr]
+        for a in sig_args:
+            if is_attr[a]:
+                callargs.append(attr_arr[a])
+            elif is_common[a]:
+                callargs.append(params[pname(psrs[0], a)])
+            else:
+                callargs.append(matrix.jnparray(
+                    [params[pname(p, a)] for p in psrs]))
+        return vfunc(*callargs)                 # (npsr, 2*components)
+    coeffs.params = params_list
+
+    return matrix.ExtSignal(Fs, coeffs, name=name)

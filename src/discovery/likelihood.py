@@ -528,11 +528,19 @@ class GlobalLikelihood:
 
 
 class ArrayLikelihood:
-    def __init__(self, psls, *, commongp=None, globalgp=None, transform=None):
+    def __init__(self, psls, *, commongp=None, globalgp=None, transform=None,
+                 decenter=False, extsignals=None):
         self.psls = psls
         self.commongp = commongp
         self.globalgp = globalgp
         self.transform = transform
+        self.decenter = decenter
+        # extsignals: deterministic signals on their OWN basis (matrix.ExtSignal),
+        # for signals needing higher frequencies than the GP bases reach (e.g. a
+        # CW); see discovery.deterministic.makecw_extsignal. For same-basis
+        # deterministic Fourier signals, use makecommongp_fourier(..., means=...)
+        # instead.
+        self.extsignals = extsignals
 
     @functools.cached_property
     def conditional(self):
@@ -580,26 +588,91 @@ class ArrayLikelihood:
 
             return loglike
         elif self.commongp is None:
-            # commongp = matrix.VectorCompoundGP(self.globalgp)
             raise NotImplementedError("ArrayLikelihood does not support a globalgp without a commongp")
         elif self.globalgp is None:
-            # merge common GPs if necessary
             commongp = matrix.VectorCompoundGP(self.commongp)
         else:
-            # merge common GPs and global GP
             cgp = self.commongp if isinstance(self.commongp, list) else [self.commongp]
             commongp = matrix.VectorCompoundGP(cgp + [self.globalgp])
 
         Ns, self.ys = zip(*[(psl.N, psl.y) for psl in self.psls])
+
+        # Both this line and the decentering code below assume N and F are constants.
         self.vsm = matrix.VectorWoodburyKernel_varP(Ns, commongp.F, commongp.Phi)
+
+        if self.decenter:
+            # build a decentering reparam closure. Precomputes per-pulsar
+            # NmF / FtNmF / NmFty at trace time (constant N assumption).
+            #
+            # Bridge between matrix.py kernels (have .solve_2d) and metamath
+            # kernels (have .make_solve as a graph). Same for Fs — under the
+            # monkeypatch, mh.CompoundGP.F can produce metamath graphs which
+            # we materialize once at trace time.
+            def _solve_2d(N, F):
+                if hasattr(N, 'solve_2d'):
+                    return N.solve_2d(F)
+                f = metamatrix.func(N.make_solve)
+                return f(F, params={})
+
+            def _eval_F(F):
+                if isinstance(F, dict):
+                    return matrix.jnp.asarray(metamatrix.func(F)(params={}))
+                return matrix.jnp.asarray(F)
+
+            vsm_Fs = [_eval_F(F) for F in self.vsm.Fs]
+            NmFs, ldNs = zip(*[_solve_2d(N, F) for N, F in zip(self.vsm.Ns, vsm_Fs)])
+            FtNmFs = [F.T @ NmF for F, NmF in zip(vsm_Fs, NmFs)]
+            NmFtys = [NmF.T @ y for NmF, y in zip(NmFs, self.ys)]
+            FtNmF, NmFty = matrix.jnparray(FtNmFs), matrix.jnparray(NmFtys)
+
+            def decenter_transform(params, c):
+                cgp_list = (self.commongp if isinstance(self.commongp, list)
+                            else [self.commongp])
+                phis_invs_commongp = [gp.Phi.getN(params)**-1 for gp in cgp_list]
+                if self.globalgp is not None:
+                    # decenter using CURN: just the diagonal of the globalgp Phi
+                    phis_invs_globalgp = (matrix.jnp.diag(
+                        self.globalgp.Phi.getN(params)**-1
+                    ).reshape((len(self.psls), -1)))
+                    phis_invs = matrix.jnp.concatenate(
+                        [*phis_invs_commongp, phis_invs_globalgp], axis=1)
+                else:
+                    phis_invs = matrix.jnp.concatenate([*phis_invs_commongp], axis=1)
+                i1, i2 = matrix.jnp.diag_indices(phis_invs.shape[1], ndim=2)
+
+                cf = matrix.matrix_factor(FtNmF.at[:, i1, i2].add(phis_invs), lower=True)
+                am = matrix.jsp.linalg.solve_triangular(
+                    cf[0], c, trans=1, lower=cf[1])
+                mus = matrix.matrix_solve(cf, NmFty)
+                # Jacobian of f^-1 wrt xi: |L|; cf[0] is L^-1.
+                ldL = -matrix.jnp.logdet(cf[0][:, i1, i2])
+
+                return am + mus, ldL
+            decenter_transform.params = []
+
         if hasattr(commongp, 'prior'):
             self.vsm.prior = commongp.prior
         if hasattr(commongp, 'index'):
             self.vsm.index = commongp.index
+        # propagate commongp.means so the GP prior is centered on a0 when set
+        self.vsm.means = getattr(commongp, 'means', None)
 
-        loglike = self.vsm.make_kernelproduct_gpcomponent(self.ys, transform=self.transform)
+        # reparam stage: bijections on the GP coefficients; Jacobians compose.
+        reparams = []
+        if self.decenter:
+            reparams.append(decenter_transform)
+        if self.transform is not None:
+            reparams.extend(self.transform if isinstance(self.transform, (list, tuple))
+                            else [self.transform])
 
-        return loglike
+        loglike = self.vsm.make_kernelproduct_gpcomponent(
+            self.ys, transform=reparams, extsignals=self.extsignals)
+
+        # metamath.VectorWoodburyKernel returns a graph; matrix.py still
+        # returns a callable. ffunc converts a graph to a `(params) -> ...`
+        # callable at the outer boundary; for an already-callable result it's
+        # a no-op.
+        return ffunc(loglike)
 
     @functools.cached_property
     def logL(self):

@@ -1,5 +1,19 @@
+"""metamath: graph-based kernel/GP classes built on the metamatrix DSL.
+
+Kernel-math methods in this file return metamatrix **graphs**, not closures.
+Sub-objects (`N.make_solve`, `P.make_inv`, reparams, ExtSignal coeff maps,
+priors, ...) compose into those graphs as leaves so `fold_constants` can
+decide what runs at trace time vs runtime. `mm.func` belongs at the outer
+boundary in `likelihood.py`, not inside methods here. `make_sample` is the
+one documented exception.
+
+See `docs/components/metamatrix_architecture.md` for the full conventions
+and porting guidance before adding new methods.
+"""
+
 import functools
 
+import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
 
@@ -57,6 +71,34 @@ def woodbury(g, y, Nsolve, F, Pinv):
     # more readable, but doing this keeps y.T @ Nmy from being cached
     # logp = g.node(lambda y, Nmy, FtNmy, mu, ld: -0.5 * (y.T @ Nmy - FtNmy.T @ mu) - 0.5 * ld,
     #               [y, Nmy, FtNmy, mu, ld], description=f'-0.5 * (y.T @ Nmy - FtNmy.T @ mu) - 0.5 * ld')
+
+
+@mm.graph
+def woodburykernelsolve(g, y, T, Nsolve, F, Pinv):
+    """Return (T^T Σ^-1 y, T^T Σ^-1 T) for Σ = N + F P F^T.
+
+    Used by GlobalLikelihood.conditional to project per-pulsar Woodburys
+    onto the global GP basis T.
+    """
+    Nmy, _ = Nsolve(y)
+    NmF, _ = Nsolve(F)
+    NmT, _ = Nsolve(T)
+
+    FtNmy = g.dot(NmF, y)   # F.T @ N^-1 y
+    FtNmF = g.dot(F, NmF)   # F.T @ N^-1 F
+    FtNmT = g.dot(NmF, T)   # F.T @ N^-1 T  (N symmetric, so == (N^-1 F)^T T)
+
+    TtNmy = g.dot(NmT, y)
+    TtNmF = g.dot(NmT, F)
+    TtNmT = g.dot(NmT, T)
+
+    Pm, lP = Pinv
+    cf, lS = g.cho_factor(Pm + FtNmF)
+
+    TtSy = TtNmy - TtNmF @ g.cho_solve(cf, FtNmy)
+    TtST = TtNmT - TtNmF @ g.cho_solve(cf, FtNmT)
+
+    result = g.pair(TtSy, TtST)
 
 
 @mm.graph
@@ -203,6 +245,108 @@ def vectorwoodbury(g, ys, Nsolves, Fs, Pinv):
 
 
 @mm.graph
+def gaussian_coefficient_logprior(g, c_for_prior, Pinv):
+    """Gaussian log-prior on per-pulsar GP coefficients: `-0.5 c.T Pm c - 0.5 sum(ldP)`.
+
+    General-purpose; not tied to any particular compound topology. Used as the
+    `prior` leaf of `vectorgpcomponent` whenever the prior precision collapses
+    into a single `Pinv` leaf.
+
+    Inputs:
+      c_for_prior : (npsr, k)        — per-pulsar coefficient matrix.
+      Pinv        : GraphLeaf returning (Pm, ldP) with
+                      Pm  shape (npsr, k, k)  — batched precision per pulsar
+                                                (batched-diagonal under
+                                                 metamatrix.matrix_inv);
+                      ldP shape (npsr,)       — per-pulsar log|Phi|.
+
+    Output:
+      scalar `logpr = -0.5 * einsum('ij,ijk,ik->', c, Pm, c) - 0.5 * sum(ldP)`.
+    """
+    Pm, ldP = Pinv
+    quad = g.node(
+        lambda c_, P_: jnp.einsum('ij,ijk,ik->', c_, P_, c_),
+        [c_for_prior, Pm], description='c_for_prior.T @ Pm @ c_for_prior')
+    logpr = -0.5 * quad - 0.5 * g.sum(ldP)
+
+
+@mm.graph
+def vectorgpcomponent(g, ys, Nsolves, Fs, prior, coeffs, means, ext_coeffs, ext_Fs):
+    """ArrayLikelihood.clogL: log p(y, c) at fixed GP coefficients c.
+
+    Mirrors `vectorwoodbury`'s per-pulsar precompute, but the GP coefficients
+    come from outside (a FuncLeaf folding params -> (c, ldL)) instead of being
+    solved for as the MAP. The prior on c is centered on `means(params)` when
+    provided. ExtSignals contribute their own basis cross-terms.
+
+    Leaves:
+      ys         : per-pulsar residual ArgLeafs.
+      Nsolves    : per-pulsar `N.make_solve` GraphLeafs (each (y) -> (Nmy, lN)).
+      Fs         : per-pulsar GP basis (Const/Func/GraphLeafs).
+      prior      : GraphLeaf `(c_for_prior) -> scalar logpr`. The single-Pinv
+                   case wraps `P.make_inv` via `gaussian_coefficient_logprior`;
+                   the mixed-Phi case (commongp + globalgp(HD)) supplies a
+                   per-GP-sum graph built by `CompoundGP._build_mixed_logprior`.
+                   Same interface.
+      coeffs     : FuncLeaf params -> (c, ldL); c shape (npsr, k); ldL is the
+                   summed log-|J| from reparams.
+      means      : FuncLeaf params -> a0 of shape (npsr, k), or ConstLeaf(0.0)
+                   if no means are configured.
+      ext_coeffs : list of FuncLeafs (one per ExtSignal): params -> ccw.
+      ext_Fs     : list of lists of per-pulsar Fcw leaves (one list per ExtSignal).
+
+    Named outputs:
+      'logp'   — scalar log-likelihood.
+      'staged' — pair (logp, c); used when reparams were applied so the caller
+                 can see the post-reparam coefficients.
+    """
+    NmFs, ldNs, ytNmys, NmFtys, FtNmFs = [], [], [], [], []
+    for y, F, Nsolve in zip(ys, Fs, Nsolves):
+        Nmy, lN = Nsolve(y)
+        NmF, _ = Nsolve(F)
+        NmFs.append(NmF)
+        ldNs.append(lN)
+        ytNmys.append(g.dot(y, Nmy))
+        NmFtys.append(g.dot(NmF, y))   # F.T @ N^-1 y
+        FtNmFs.append(g.dot(F, NmF))   # F.T @ N^-1 F
+
+    ytNmy = g.sum_all(ytNmys)
+    ldN   = g.sum_all(ldNs)
+    NmFty = g.array(NmFtys)            # (npsr, k)
+    FtNmF = g.array(FtNmFs)            # (npsr, k, k)
+
+    c, ldL = coeffs.split()
+    c_for_prior = c - means            # means is ConstLeaf(0.0) when absent
+
+    logpr = prior(c_for_prior)         # Apply on GraphLeaf -> scalar
+
+    quad_c = g.node(
+        lambda c_, F_: jnp.einsum('ij,ijk,ik->', c_, F_, c_),
+        [c, FtNmF], description='c.T @ FtNmF @ c')
+    cNmFty = g.node(lambda c_, n_: jnp.sum(c_ * n_), [c, NmFty],
+                    description='sum(c * NmFty)')
+    data_term = -0.5 * ytNmy + cNmFty - 0.5 * quad_c - 0.5 * ldN
+
+    logp = data_term + logpr + ldL
+    for ccw, Fcw_list in zip(ext_coeffs, ext_Fs):
+        NmFcws = [Nsolve(Fcw_i) for Nsolve, Fcw_i in zip(Nsolves, Fcw_list)]
+        FcwNmy    = g.array([g.dot(NmFcw[0], y) for NmFcw, y in zip(NmFcws, ys)])
+        FtNmFcw   = g.array([g.dot(F, NmFcw[0]) for F, NmFcw in zip(Fs, NmFcws)])
+        FcwtNmFcw = g.array([g.dot(Fcw_i, NmFcw[0])
+                             for Fcw_i, NmFcw in zip(Fcw_list, NmFcws)])
+        cwdata = g.node(lambda x_, B_: jnp.sum(x_ * B_), [ccw, FcwNmy],
+                        description='sum(ccw * FcwNmy)')
+        cross = g.node(lambda c_, A_, x_: jnp.einsum('ij,ijk,ik->', c_, A_, x_),
+                       [c, FtNmFcw, ccw], description='c.T @ FtNmFcw @ ccw')
+        cwself = g.node(lambda x_, A_: jnp.einsum('ij,ijk,ik->', x_, A_, x_),
+                        [ccw, FcwtNmFcw], description='ccw.T @ FcwtNmFcw @ ccw')
+        logp = logp + cwdata - cross - 0.5 * cwself
+
+    g.named(logp, 'logp')
+    g.named(g.pair(logp, c), 'staged')
+
+
+@mm.graph
 def vectorwoodburysolve(g, ys, Nsolves, Fs, Pinv):
     Nmys, NmFs, FtNmys, FtNmFs, lNs = [], [], [], [], []
 
@@ -244,9 +388,147 @@ def delay(g, y, d):
 
 
 
+def _materialize(x):
+    """Resolve x — array, callable, or metamath graph — to (const_array, fn).
+
+    Exactly one of the returned values is non-None. `fn` (when set) has a
+    `.params` attribute and is called as `fn(params=params)`.
+    """
+    if isinstance(x, dict):           # metamath graph
+        fn = mm.func(x)
+        if not fn.args and not fn.params:
+            return jnp.asarray(fn(params={})), None
+        return None, fn
+    if callable(x):
+        return None, x
+    return jnp.asarray(x), None
+
+
+def _sm_apply(y, Np, Uind, P):
+    """Apply K^-1 to y for K = diag(N) + F P F^T (exposure-indexed Sherman-Morrison).
+
+    Dispatches on y.ndim so the same node serves both `Nsolve(y)` (1D) and
+    `Nsolve(F)` (2D) call-sites in the Woodbury graph. Takes the already-
+    padded Np (so `pad(N)` can fold when N is constant).
+    """
+    if y.ndim == 1:
+        yp = jnp.pad(y, ((1, 0),), constant_values=0.0)
+        return matrix.smup_ind_correct(yp, Np, Uind, P)
+    else:
+        # y has shape (d, k); vsmup_ind_correct expects (k, d+1).
+        Tp = jnp.pad(y.T, ((0, 0), (1, 0)), constant_values=0.0)
+        return matrix.vsmup_ind_correct(Tp, Np, Uind, P).T
+
+
+@mm.graph
+def smsolve(g, y, N, Uind, P):
+    """Sherman-Morrison-Woodbury solve `K^-1 y` for `K = diag(N) + F P F^T`.
+
+    F is the ecorr exposure matrix (0/1 epoch indicators), encoded compactly
+    as ``Uind`` (per-epoch list of TOA indices, padded with 0 to a common
+    length; index 0 of Np is a sentinel +inf so padded entries contribute 0).
+
+    The math is decomposed across graph nodes so the constant pieces fold:
+
+      ``logN``   = ``sum(log N)``           — folds when N is const
+      ``Np``     = ``pad(N)`` with +inf     — folds when N is const
+      ``log1pt`` = ``sum log1p(P · F^T diag(1/N) F)`` (the F^T·F is
+                   diagonal by epoch, gathered via ``Uind``)
+                                            — folds when both N and P are const
+      ``Kmy``    = ``K^-1 y``               — runtime (depends on the
+                                              residual / basis matrix)
+
+    Returns (Kmy, logdet). Equivalent to ``matrix.SM_1d_indexed`` (1D y) /
+    ``matrix.SM_2d_indexed`` (2D y) but exposed as a graph so folding can
+    bake the N-only and (N,P)-only precompute when noisedict / ecorr-prior
+    are pinned.
+    """
+    logN = g.node(lambda N_: jnp.sum(jnp.log(N_)),
+                  [N], description='sum(log N)')
+    Np = g.node(lambda N_: jnp.pad(N_, ((1, 0),), constant_values=jnp.inf),
+                [N], description='pad(N) with +inf at idx 0')
+    log1pt = g.node(lambda Np_, P_, U_: jnp.sum(matrix.vsmdp_ind(Np_, P_, U_)),
+                    [Np, P, Uind],
+                    description='sum log1p(P · F^T diag(1/N) F)')
+    logdet = logN + log1pt
+
+    Kmy = g.node(_sm_apply, [y, Np, Uind, P], description='K^-1 y')
+    result = g.pair(Kmy, logdet)
+
+
+class NoiseMatrixSM(matrix.Kernel):
+    """metamath analog of matrix.NoiseMatrixSM_var.
+
+    K = diag(N) + F P F^T where F is the ecorr exposure matrix (0/1 indicators
+    per epoch). Uses the indexed Sherman-Morrison solve via a graph node.
+    """
+    def __init__(self, N, F, P):
+        # signature matches matrix.NoiseMatrixSM_var(getnoise, F, getP)
+        self.N = N            # callable: params -> diag noise (n_toa,)
+        self.F = F            # exposure matrix (n_toa, n_epoch), constant
+        self.P = P            # callable: params -> per-epoch variance (n_epoch,)
+        self.Uind = jnp.array(matrix.make_uind(F))
+
+    @property
+    def make_solve(self):
+        return smsolve(None, self.N, self.Uind, self.P)
+
+    @property
+    def make_inv(self):
+        # not needed for Woodbury, but provide for completeness via dense fallback
+        raise NotImplementedError("NoiseMatrixSM.make_inv not implemented; "
+                                  "use make_solve inside a Woodbury.")
+
+    def make_kernelproduct(self, y):
+        return normal(y, self.make_solve)
+
+    def make_sample(self):
+        """Sample noise ~ N(0, K) where K = diag(N) + F P F^T.
+
+        Equivalent to drawing N(0, diag(N)) + F @ N(0, diag(P)).
+        """
+        N_const, N_fn = _materialize(self.N)
+        P_const, P_fn = _materialize(self.P)
+        F = jnp.asarray(self.F)
+
+        def sample(key, params={}):
+            N_arr = N_const if N_fn is None else N_fn(params=params)
+            P_arr = P_const if P_fn is None else P_fn(params=params)
+
+            key, k1, k2 = jax.random.split(key, 3)
+            noise = jax.random.normal(k1, N_arr.shape) * jnp.sqrt(N_arr)
+            ecorr = jax.random.normal(k2, P_arr.shape) * jnp.sqrt(P_arr)
+            return key, noise + F @ ecorr
+
+        sample.params = sorted(set(
+            (list(N_fn.params) if N_fn is not None else []) +
+            (list(P_fn.params) if P_fn is not None else [])
+        ))
+        return sample
+
+
 class NoiseMatrix(matrix.Kernel):
     def __init__(self, N):
         self.N = N
+        # matrix.NoiseMatrix*_var classes expose the callable as `getN`; alias
+        # for compat with signals.py construction (e.g. NoiseMatrixSM_var(..., egp.Phi.getN))
+        self.getN = N
+
+    def make_sample(self):
+        """Sample x ~ N(0, N). Dispatches on N.ndim at runtime: 1D → diag, 2D → cholesky."""
+        N_const, N_fn = _materialize(self.N)
+
+        def sample(key, params={}):
+            N_arr = N_const if N_fn is None else N_fn(params=params)
+            key, subkey = jax.random.split(key)
+            if N_arr.ndim == 1:
+                return key, jax.random.normal(subkey, N_arr.shape) * jnp.sqrt(N_arr)
+            else:
+                L = jsp.linalg.cholesky(N_arr, lower=True)
+                return key, L @ jax.random.normal(subkey, (N_arr.shape[0],))
+
+        sample.params = list(N_fn.params) if N_fn is not None else []
+        return sample
 
     @property
     def make_solve(self):
@@ -264,9 +546,44 @@ class NoiseMatrix(matrix.Kernel):
         return normal(y, self.make_solve)
 
 
+class NoiseMatrix1D(NoiseMatrix):
+    """Marker subclass for 1D (diagonal) noise. Same impl as NoiseMatrix.
+
+    Exists so that `isinstance(x, matrix.NoiseMatrix1D_var)` dimension dispatch
+    in likelihood.py still discriminates 1D vs 2D when the monkeypatch is active.
+    """
+
+
+class NoiseMatrix2D(NoiseMatrix):
+    """Marker subclass for 2D (full) noise."""
+
+
+def NoiseMatrix12D(getN):
+    """Dispatch on getN.type, matching matrix.NoiseMatrix12D_var."""
+    is_2d = getattr(getN, "type", None) is jax.Array
+    return (NoiseMatrix2D if is_2d else NoiseMatrix1D)(getN)
+
+
 class WoodburyKernel(matrix.Kernel):
     def __init__(self, N, F, P):
         self.N, self.F, self.P = N, F, P
+
+    def make_sample(self):
+        """Sample y ~ N(0, N + F P F^T) as noise + F @ coefficients."""
+        N_sample = self.N.make_sample()
+        P_sample = self.P.make_sample()
+        F_const, F_fn = _materialize(self.F)
+
+        F_params = list(F_fn.params) if F_fn is not None else []
+
+        def sample(key, params={}):
+            key, noise = N_sample(key, params)
+            key, c = P_sample(key, params)
+            F_arr = F_const if F_fn is None else F_fn(params=params)
+            return key, noise + F_arr @ c
+
+        sample.params = sorted(set(N_sample.params + P_sample.params + F_params))
+        return sample
 
     @property
     def make_solve(self):
@@ -274,6 +591,19 @@ class WoodburyKernel(matrix.Kernel):
 
     def make_kernelproduct(self, y):
         return woodbury(y, self.N.make_solve, self.F, self.P.make_inv)
+
+    def make_kernelsolve(self, y, T):
+        """Callable returning (T^T Σ^-1 y, T^T Σ^-1 T) for Σ = N + F P F^T.
+
+        Matches the contract of matrix.WoodburyKernel_var*.make_kernelsolve
+        so likelihood.py's GlobalLikelihood.conditional path works unchanged.
+        """
+        graph = woodburykernelsolve(y, T, self.N.make_solve, self.F, self.P.make_inv)
+        f = mm.func(graph)
+        def call(params={}):
+            return f(params=params)
+        call.params = f.params
+        return call
 
     def make_conditional(self, y):
         return mm.prune_graph(woodbury(y, self.N.make_solve, self.F, self.P.make_inv), output='cond')
@@ -332,6 +662,76 @@ class VectorWoodburyKernel(matrix.Kernel):
             self.P.make_inv
         )
 
+    def make_kernelproduct_gpcomponent(self, ys, transform=None, extsignals=None):
+        """ArrayLikelihood.clogL path. Returns a metamatrix graph.
+
+        Composes the GP-coefficient log-likelihood from `vectorgpcomponent`:
+
+            xi --[reparams]--> c  --(prior on c - means)--  data sees c
+
+        Leaves go in as graphs / FuncLeafs / arrays; folding decides what
+        runs at trace time vs runtime. The output is a graph with named
+        subgraphs 'logp' and 'staged'; the method prunes to whichever
+        matches the reparam state.
+
+        - ``transform``: callable or list of ``rp(params, c) -> (c, ldL)``.
+        - ``self.means``: callable ``params -> a0``; centers the GP prior.
+        - ``extsignals``: list of ``ExtSignal`` (each with .coeffs, .Fs).
+        """
+        if transform is None:
+            reparams = []
+        elif isinstance(transform, (list, tuple)):
+            reparams = list(transform)
+        else:
+            reparams = [transform]
+
+        # Prior on c_for_prior: either the uniform-Phi wrap of `P.make_inv` or,
+        # for a mixed-Phi compound (commongp + HD globalgp), the per-GP-sum
+        # graph supplied by `CompoundGP._build_mixed_logprior`. Both look the
+        # same to `vectorgpcomponent` — a GraphLeaf taking c_for_prior.
+        if hasattr(self, 'prior') and self.prior is not None:
+            prior_graph = self.prior
+        else:
+            prior_graph = gaussian_coefficient_logprior(None, self.P.make_inv)
+
+        # Build the params -> (c, ldL) FuncLeaf that bundles fold + reparams.
+        # cvarsall: list-per-pulsar of {coeff-name: slice}.
+        cvarsall = (self.index if isinstance(self.index, list)
+                    else [{par: sl} for par, sl in self.index.items()])
+        cvar_params = sum([list(cvars) for cvars in cvarsall], [])
+
+        def _fold(params):
+            return jnp.array([jnp.concatenate([params[cvar] for cvar in cvars])
+                              for cvars in cvarsall])
+
+        def _coeffs(params):
+            c = _fold(params)
+            ldL = 0.0
+            for rp in reparams:
+                c, dldL = rp(params, c)
+                ldL = ldL + dldL
+            return (c, ldL)
+
+        _coeffs.params = sorted(set(
+            cvar_params + sum([list(rp.params) for rp in reparams], [])))
+
+        means_leaf = self.means if getattr(self, 'means', None) is not None else 0.0
+
+        ext_coeffs = [es.coeffs for es in (extsignals or [])]
+        ext_Fs     = [list(es.Fs) for es in (extsignals or [])]
+
+        graph = vectorgpcomponent(
+            ys,
+            [N.make_solve for N in self.Ns],
+            list(self.Fs),
+            prior_graph,
+            _coeffs,
+            means_leaf,
+            ext_coeffs,
+            ext_Fs,
+        )
+        return mm.prune_graph(graph, output=('staged' if reparams else 'logp'))
+
 
 class CompoundGP:
     def __new__(cls, x):
@@ -342,25 +742,122 @@ class CompoundGP:
             return super().__new__(cls)
     def __init__(self, gplist):
         self.gplist = gplist
+        # Mixed-Phi compound: at least one gp's Phi is dense (NoiseMatrix2D,
+        # e.g. HD globalgp) while another is per-pulsar diagonal
+        # (NoiseMatrix1D, e.g. commongp). The Phi.N arrays can't be concat'd
+        # into a single batched Phi — instead, the joint prior decomposes as
+        # a sum of per-GP contributions, supplied as a graph leaf.
+        phi_kinds = {('2D' if isinstance(gp.Phi, NoiseMatrix2D) else '1D')
+                     for gp in gplist}
+        self._mixed_phi = len(phi_kinds) > 1
+        if self._mixed_phi:
+            self.prior = self._build_mixed_logprior(gplist)
         if all(hasattr(gp, 'index') for gp in gplist):
-            self.index = {k: v for d in gplist for k, v in d.index.items()}
+            # vector commongp (per-pulsar F tuples) or commongp + globalgp
+            # (the globalgp carries Fs as a list). Either way → list-of-dicts,
+            # one per pulsar, matching matrix.VectorCompoundGP.
+            def _is_vector(gp):
+                if hasattr(gp, 'F') and isinstance(gp.F, tuple):
+                    return True
+                if hasattr(gp, 'Fs') and isinstance(gp.Fs, (list, tuple)):
+                    return True
+                return False
+            if all(_is_vector(gp) for gp in gplist):
+                self.index = [dict(g) for g in
+                              zip(*[gp.index.items() for gp in gplist])]
+            else:
+                # non-vector (single PulsarLikelihood): cumulative-offset flat dict
+                index, cnt = {}, 0
+                for gp in gplist:
+                    for var, sli in gp.index.items():
+                        width = sli.stop - sli.start
+                        index[var] = slice(cnt, cnt + width)
+                        cnt += width
+                self.index = index
     def _concat(self, vecmats):
         return functools.reduce(lambda x, y: concat(x, y), vecmats)
     @property
     def F(self):
-        # for VectorWoodburyKernel
-        if all(isinstance(gp.F, tuple) for gp in self.gplist):
-            return tuple(self._concat(Fs) for Fs in zip(*(gp.F for gp in self.gplist)))
+        # for VectorWoodburyKernel: each gp exposes either F (tuple of per-pulsar
+        # arrays, commongp-style) or Fs (list, globalgp-style). Normalize both.
+        def _per_psr(gp):
+            return gp.F if hasattr(gp, 'F') else gp.Fs
+        if all(isinstance(_per_psr(gp), (tuple, list)) for gp in self.gplist):
+            return tuple(self._concat(Fs) for Fs in zip(*(_per_psr(gp) for gp in self.gplist)))
         else:
-            return self._concat([gp.F for gp in self.gplist])
+            return self._concat([_per_psr(gp) for gp in self.gplist])
+
+    @staticmethod
+    def _build_mixed_logprior(gplist):
+        """Per-GP-sum log-prior graph for a mixed-Phi compound.
+
+        Input  arg : c_for_prior of shape (npsr, k_total).
+        Output     : scalar `Σ_g log p_g(c[:, g_slice])`.
+
+        Per-GP contribution (matches matrix.VectorCompoundGP.priorfunc):
+          - diagonal Phi (NoiseMatrix1D, per-pulsar):
+              `-0.5 sum(c_g^2 / Phi_g) - 0.5 sum(log|Phi_g|)`
+          - dense Phi (NoiseMatrix2D, e.g. HD globalgp):
+              `-0.5 c_flat^T Phi^-1 c_flat - 0.5 logdet(Phi)`,
+            where c_flat is c_g.reshape(-1) (row-major: per-pulsar order
+            matches gp.index slice ordering).
+        """
+        b = mm.GraphBuilder()
+        c_for_prior = b.leaf(None, name='c_for_prior')
+
+        widths = [next(iter(gp.index.values())).stop -
+                  next(iter(gp.index.values())).start
+                  for gp in gplist]
+        offsets = [0]
+        for w in widths:
+            offsets.append(offsets[-1] + w)
+
+        def _slice_op(s, e):
+            return lambda c: c[:, s:e]
+
+        def _dense_contrib(c_, Phi_):
+            cf = c_.reshape(-1)
+            return (-0.5 * cf @ jnp.linalg.solve(Phi_, cf)
+                    - 0.5 * jnp.linalg.slogdet(Phi_)[1])
+
+        def _diag_contrib(c_, Phi_):
+            return (-0.5 * jnp.sum(c_ * c_ / Phi_)
+                    - 0.5 * jnp.sum(jnp.log(jnp.abs(Phi_))))
+
+        contribs = []
+        for i, gp in enumerate(gplist):
+            s, e = offsets[i], offsets[i + 1]
+            phi_n_leaf = b.leaf(gp.Phi.N, name=f'gp{i}_phiN')
+            c_slice = b.node(_slice_op(s, e), [c_for_prior],
+                             description=f'c_for_prior[:,{s}:{e}]')
+            if isinstance(gp.Phi, NoiseMatrix2D):
+                contrib = b.node(_dense_contrib, [c_slice, phi_n_leaf],
+                                 description=f'gp{i} dense logprior')
+            else:
+                contrib = b.node(_diag_contrib, [c_slice, phi_n_leaf],
+                                 description=f'gp{i} diag logprior')
+            contribs.append(contrib)
+
+        logpr = contribs[0]
+        for c in contribs[1:]:
+            logpr = logpr + c
+        b.named(logpr, 'logpr')
+        return b.graph
 
     @property
     def Phi(self):
+        if self._mixed_phi:
+            # Mixed-Phi has no single combined Phi; the prior lives on
+            # `self.prior` instead and is consumed via VectorWoodburyKernel's
+            # `prior` branch. likelihood.py threads this None through to the
+            # kernel as P, and never calls P.make_inv when self.prior is set.
+            return None
         N = self._concat([gp.Phi.N for gp in self.gplist])
         nm = NoiseMatrix(N)
 
-        if any(hasattr(gp, 'Phi_inv') for gp in self.gplist):
-            print('hi')
+        # combined_inv only available when every gp supplies a Phi_inv;
+        # otherwise fall through to the default noiseinv graph.
+        if all(getattr(gp, 'Phi_inv', None) is not None for gp in self.gplist):
             phi_invs = [gp.Phi_inv for gp in self.gplist]
 
             def combined_inv(params):

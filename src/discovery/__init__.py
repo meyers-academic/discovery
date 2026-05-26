@@ -13,6 +13,5 @@ from .optimal import *
 from .solar import *
 from .pulsar import *
 from .deterministic import *
-from .basis import *
 
 __version__ = "0.5"

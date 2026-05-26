@@ -120,8 +120,18 @@ class ConstantMatrix:
 class VariableMatrix:
     pass
 
-class Kernel:
-    pass
+from .kernel_helpers import (
+    Kernel,
+    ExtSignal,
+    make_uind,
+    smup_ind,
+    smdp_ind,
+    vsmup_ind,
+    vsmdp_ind,
+    smup_ind_correct,
+    vsmup_ind_correct,
+)
+
 
 class ConstantKernel(Kernel):
     pass
@@ -152,37 +162,6 @@ class GlobalVariableGP:
     def __init__(self, Phi, Fs):
         self.Phi, self.Fs = Phi, Fs
         self.Phi_inv = None
-
-
-class ExtSignal:
-    """A deterministic signal carried on its own (non-GP) Fourier-style basis.
-
-    Used for signals (e.g. a continuous wave) whose basis must extend to
-    higher frequencies than the GP bases reach. Unlike a GP it has no prior:
-    its coefficients are a deterministic function of a handful of physical
-    parameters, supplied by ``coeffs``.
-
-    The object is purely declarative and noise-free; all noise-dependent
-    linear algebra (cross-terms with the GP basis and the data) lives in
-    ``VectorWoodburyKernel_varP.make_kernelproduct_gpcomponent``.
-
-    Parameters
-    ----------
-    Fs : list of array
-        Per-pulsar design matrices, one ``(ntoa_i, n_ext)`` array per pulsar,
-        in the same pulsar order as the likelihood.
-    coeffs : callable
-        ``coeffs(params) -> (npsr, n_ext)`` deterministic coefficient map,
-        with a ``.params`` attribute listing its parameter names.
-    name : str
-        Identifier for the signal.
-    """
-    def __init__(self, Fs, coeffs, name='extsignal'):
-        self.Fs, self.coeffs, self.name = Fs, coeffs, name
-
-    @property
-    def params(self):
-        return self.coeffs.params
 
 
 def CompoundGlobalGP(gplist):
@@ -500,39 +479,11 @@ def SM_2d_fused(Y, N, F, P):
 
     return AmB - delta, jnp.sum(jnp.log(N)) + jnp.sum(jnp.log1p(vtAmu))
 
-# indexed, carefully handwritten
-
-def make_uind(U):
-    Uind = np.zeros((U.shape[1], jnp.max(jnp.sum(U, axis=0)) + 1), 'i')
-
-    for i in range(U.shape[1]):
-        ind = np.where(U[:,i])[0]
-        Uind[i,0:len(ind)] = ind + 1
-
-    return Uind
-
-def smup_ind(A, l, Amb, ind):
-    Amu = 1.0 / A[ind]
-
-    vtAmb = l * jnp.sum(Amb[ind])
-    vtAmu = l * jnp.sum(Amu)
-
-    return Amu * (vtAmb / (1.0 + vtAmu))
-
-def smdp_ind(A, l, ind):
-    Amu = 1.0 / A[ind]
-    vtAmu = l * jnp.sum(Amu)
-
-    return jnp.log1p(vtAmu)
-
-vsmup_ind = jax.vmap(smup_ind, in_axes=(None, 0, None, 0))
-vsmdp_ind = jax.vmap(smdp_ind, in_axes=(None, 0, 0))
-
-def smup_ind_correct(yp, Np, Uind, P):
-    corrections = vsmup_ind(Np, P, yp / Np, Uind)
-    return (yp / Np).at[Uind.reshape(-1)].add(-corrections.reshape(-1))[1:]
-
-vsmup_ind_correct = jax.vmap(smup_ind_correct, in_axes=(0, None, None, None))
+# indexed, carefully handwritten —
+# `make_uind`, `smup_ind`, `smdp_ind`, `vsmup_ind`, `vsmdp_ind`,
+# `smup_ind_correct`, `vsmup_ind_correct` now live in `kernel_helpers.py`
+# and are imported at the top of this module so the matrix.* names still
+# resolve. `SM_*_indexed` (below) compose them.
 
 def SM_1d_indexed(y, N, Uind, P):
     yp = jnp.pad(y, ((1,0),), constant_values=0.0)

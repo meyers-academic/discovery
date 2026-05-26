@@ -17,9 +17,15 @@ import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
 
-from . import matrix
 from . import signals
 from . import metamatrix as mm
+from .kernel_helpers import (
+    Kernel,
+    make_uind,
+    smup_ind_correct,
+    vsmup_ind_correct,
+    vsmdp_ind,
+)
 
 
 
@@ -413,11 +419,11 @@ def _sm_apply(y, Np, Uind, P):
     """
     if y.ndim == 1:
         yp = jnp.pad(y, ((1, 0),), constant_values=0.0)
-        return matrix.smup_ind_correct(yp, Np, Uind, P)
+        return smup_ind_correct(yp, Np, Uind, P)
     else:
         # y has shape (d, k); vsmup_ind_correct expects (k, d+1).
         Tp = jnp.pad(y.T, ((0, 0), (1, 0)), constant_values=0.0)
-        return matrix.vsmup_ind_correct(Tp, Np, Uind, P).T
+        return vsmup_ind_correct(Tp, Np, Uind, P).T
 
 
 @mm.graph
@@ -447,7 +453,7 @@ def smsolve(g, y, N, Uind, P):
                   [N], description='sum(log N)')
     Np = g.node(lambda N_: jnp.pad(N_, ((1, 0),), constant_values=jnp.inf),
                 [N], description='pad(N) with +inf at idx 0')
-    log1pt = g.node(lambda Np_, P_, U_: jnp.sum(matrix.vsmdp_ind(Np_, P_, U_)),
+    log1pt = g.node(lambda Np_, P_, U_: jnp.sum(vsmdp_ind(Np_, P_, U_)),
                     [Np, P, Uind],
                     description='sum log1p(P · F^T diag(1/N) F)')
     logdet = logN + log1pt
@@ -456,7 +462,7 @@ def smsolve(g, y, N, Uind, P):
     result = g.pair(Kmy, logdet)
 
 
-class NoiseMatrixSM(matrix.Kernel):
+class NoiseMatrixSM(Kernel):
     """metamath analog of matrix.NoiseMatrixSM_var.
 
     K = diag(N) + F P F^T where F is the ecorr exposure matrix (0/1 indicators
@@ -467,7 +473,7 @@ class NoiseMatrixSM(matrix.Kernel):
         self.N = N            # callable: params -> diag noise (n_toa,)
         self.F = F            # exposure matrix (n_toa, n_epoch), constant
         self.P = P            # callable: params -> per-epoch variance (n_epoch,)
-        self.Uind = jnp.array(matrix.make_uind(F))
+        self.Uind = jnp.array(make_uind(F))
 
     @property
     def make_solve(self):
@@ -507,7 +513,7 @@ class NoiseMatrixSM(matrix.Kernel):
         return sample
 
 
-class NoiseMatrix(matrix.Kernel):
+class NoiseMatrix(Kernel):
     def __init__(self, N):
         self.N = N
         # matrix.NoiseMatrix*_var classes expose the callable as `getN`; alias
@@ -564,7 +570,7 @@ def NoiseMatrix12D(getN):
     return (NoiseMatrix2D if is_2d else NoiseMatrix1D)(getN)
 
 
-class WoodburyKernel(matrix.Kernel):
+class WoodburyKernel(Kernel):
     def __init__(self, N, F, P):
         self.N, self.F, self.P = N, F, P
 
@@ -617,7 +623,7 @@ class WoodburyKernel(matrix.Kernel):
         return woodburylatent(y, self.N.make_solve, self.F, self.P.make_solve, getc)
 
 
-class GlobalWoodburyKernel(matrix.Kernel):
+class GlobalWoodburyKernel(Kernel):
     def __init__(self, Ns, Fs, P):
         self.Ns, self.Fs, self.P = Ns, Fs, P
 
@@ -637,7 +643,7 @@ class GlobalWoodburyKernel(matrix.Kernel):
             return globalwoodbury(ys, self.Ns.make_solve, self.Fs, self.P.make_inv)
 
 
-class VectorWoodburyKernel(matrix.Kernel):
+class VectorWoodburyKernel(Kernel):
     def __init__(self, Ns, Fs, P):
         self.Ns, self.Fs, self.P = Ns, Fs, P
 

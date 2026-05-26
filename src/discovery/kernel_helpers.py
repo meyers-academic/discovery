@@ -101,3 +101,33 @@ def smup_ind_correct(yp, Np, Uind, P):
 
 
 vsmup_ind_correct = jax.vmap(smup_ind_correct, in_axes=(0, None, None, None))
+
+
+# ---- Configurable aliases ----
+# `matrix.config(backend=..., factor=...)` populates module-level names on
+# `matrix.py` (`jnp`, `jsp`, `jnparray`, `jnpsplit`, `jnpnormal`,
+# `matrix_factor`, `matrix_solve`, `matrix_norm`, `regularize_FtNmF`, ...) so
+# downstream code can switch numpy vs jax, single vs double precision, and
+# cholesky vs LU factorization through one entry point. To let both
+# `matrix.py`-backed and `metamath`-backed code reach those same values
+# without depending on `matrix` directly, we forward them via PEP 562
+# module `__getattr__` here. Read `kh.jnp` and you get the current value of
+# `matrix.jnp` at call time — no caching, no shadow copy.
+
+_CONFIG_ALIASES = frozenset({
+    "jnp", "jsp",
+    "jnparray", "jnpzeros", "intarray",
+    "jnpkey", "jnpsplit", "jnpnormal",
+    "matrix_factor", "matrix_solve", "matrix_norm",
+    "regularize_FtNmF", "SM_algorithm",
+    "single_precision", "partial",
+})
+
+
+def __getattr__(name):
+    if name in _CONFIG_ALIASES:
+        # deferred import to break the kernel_helpers ↔ matrix cycle
+        from . import matrix as _matrix
+        return getattr(_matrix, name)
+    raise AttributeError(
+        f"module 'discovery.kernel_helpers' has no attribute {name!r}")

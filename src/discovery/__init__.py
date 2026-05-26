@@ -52,9 +52,13 @@ def config(kernels=None):
             f"unknown kernels {kernels!r}; expected 'matrix' or 'metamath'"
         )
 
+    from . import _kernel_switch
+
     if kernels == "metamath":
+        _kernel_switch.apply_patches()
         from . import likelihood_metamath as _src
     else:
+        _kernel_switch.restore_patches()
         from . import likelihood as _src
 
     import sys

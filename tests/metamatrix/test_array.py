@@ -16,6 +16,7 @@ import discovery as ds
 
 from ._comparison import assert_close, assert_params_equal
 from ._patch import metamatrix_patch
+from ._routes import build_routes
 
 
 # ---------- per-pulsar PSL skeleton (no per-psr RN — RN goes in commongp) ----------
@@ -94,28 +95,29 @@ LOGL_ROWS = [
 
 # ---------- helpers ----------
 
-def _both(build, psrs):
-    old = build(psrs)
-    _ = old.logL
-    with metamatrix_patch():
-        new = build(psrs)
-        _ = new.logL
-    return old, new
+ALT_ROUTES = ("mh_patched", "mh_native")
+
+
+def _routes(build, psrs):
+    return build_routes(lambda: build(psrs))
 
 
 # ---------- tests ----------
 
 @pytest.mark.parametrize("build", LOGL_ROWS)
 def test_logL(psrs, build):
-    old, new = _both(build, psrs)
-    assert_params_equal(new.logL, old.logL, name=build.__name__)
-
+    r = _routes(build, psrs)
+    ref = r["matrix"]
     np.random.seed(0)
-    p0 = ds.sample_uniform(old.logL.params)
+    p0 = ds.sample_uniform(ref.logL.params)
+    ref_val = float(ref.logL(p0))
 
-    lo = float(old.logL(p0))
-    ln = float(new.logL(p0))
-    assert_close(ln, lo, kind="logL", name=build.__name__)
+    for route in ALT_ROUTES:
+        assert_params_equal(r[route].logL, ref.logL,
+                            name=f"{build.__name__}[{route}]")
+        val = float(r[route].logL(p0))
+        assert_close(val, ref_val, kind="logL",
+                     name=f"{build.__name__}[{route}]")
 
 
 # conditional — only meaningful with commongp.
@@ -150,24 +152,24 @@ def test_conditional_metamath_only(psrs, build):
 
 @pytest.mark.parametrize("build", CONDITIONAL_ROWS)
 def test_clogL(psrs, build):
-    old, new = _both(build, psrs)
-    _ = old.clogL
-    with metamatrix_patch():
-        _ = new.clogL
-
-    assert_params_equal(new.clogL, old.clogL, name=build.__name__)
+    r = _routes(build, psrs)
+    ref = r["matrix"]
 
     np.random.seed(0)
-    scalar = [p for p in old.clogL.params if not p.endswith(")")]
+    scalar = [p for p in ref.clogL.params if not p.endswith(")")]
     p0 = ds.sample_uniform(scalar)
-    for p in old.clogL.params:
+    for p in ref.clogL.params:
         if p.endswith(")"):
-            n = int(p[p.index("(") + 1 : -1])
+            n = int(p[p.index("(") + 1: -1])
             p0[p] = 1e-6 * np.random.randn(n)
+    ref_val = float(ref.clogL(p0))
 
-    lo = float(old.clogL(p0))
-    ln = float(new.clogL(p0))
-    assert_close(ln, lo, kind="logL", name=build.__name__)
+    for route in ALT_ROUTES:
+        assert_params_equal(r[route].clogL, ref.clogL,
+                            name=f"{build.__name__}[{route}]")
+        val = float(r[route].clogL(p0))
+        assert_close(val, ref_val, kind="logL",
+                     name=f"{build.__name__}[{route}]")
 
 
 # ============================================================================
@@ -241,15 +243,12 @@ NEW_CLOGL_ROWS = [
 
 
 def _fill_clogL_p0(build, psrs):
-    """Build old+new, sample p0 with array coeffs + any non-standard scalars."""
-    old, new = _both(build, psrs)
-    _ = old.clogL
-    with metamatrix_patch():
-        _ = new.clogL
-    assert_params_equal(new.clogL, old.clogL, name=build.__name__)
+    """Build all three routes, sample p0 with array coeffs + non-standard scalars."""
+    r = _routes(build, psrs)
+    ref = r["matrix"]
 
     np.random.seed(0)
-    params = old.clogL.params
+    params = ref.clogL.params
 
     # scalars with known priors via sample_uniform; array-coeff and any
     # unrecognized scalars get manual fills.
@@ -258,7 +257,6 @@ def _fill_clogL_p0(build, psrs):
         if p.endswith(")"):
             array_p.append(p)
         else:
-            # sample_uniform raises KeyError on unknown; classify by regex match
             try:
                 ds.sample_uniform([p])
                 scalar_known.append(p)
@@ -269,23 +267,30 @@ def _fill_clogL_p0(build, psrs):
     for p in scalar_unknown:
         p0[p] = float(np.random.randn())
     for p in array_p:
-        n = int(p[p.index("(") + 1 : -1])
+        n = int(p[p.index("(") + 1: -1])
         p0[p] = 1e-6 * np.random.randn(n)
-    return old, new, p0
+    return r, p0
+
+
+def _compare_clogL(lo, ln, *, name):
+    """clogL may return (logp, c) when staged (reparams applied) or scalar."""
+    if isinstance(lo, tuple):
+        lo_logp, lo_c = float(lo[0]), np.asarray(lo[1])
+        ln_logp, ln_c = float(ln[0]), np.asarray(ln[1])
+        assert_close(ln_logp, lo_logp, kind="logL", name=f"{name}.logp")
+        assert_close(ln_c, lo_c, kind="coeffs", name=f"{name}.c")
+    else:
+        assert_close(float(ln), float(lo), kind="logL", name=name)
 
 
 @pytest.mark.parametrize("build", NEW_CLOGL_ROWS)
 def test_clogL_new_features(psrs, build):
-    old, new, p0 = _fill_clogL_p0(build, psrs)
+    r, p0 = _fill_clogL_p0(build, psrs)
+    ref = r["matrix"]
+    lo = ref.clogL(p0)
 
-    lo = old.clogL(p0)
-    ln = new.clogL(p0)
-
-    # staged clogL returns (logp, c); compare both pieces if so.
-    if isinstance(lo, tuple):
-        lo_logp, lo_c = float(lo[0]), np.asarray(lo[1])
-        ln_logp, ln_c = float(ln[0]), np.asarray(ln[1])
-        assert_close(ln_logp, lo_logp, kind="logL", name=f"{build.__name__}.logp")
-        assert_close(ln_c, lo_c, kind="coeffs", name=f"{build.__name__}.c")
-    else:
-        assert_close(float(ln), float(lo), kind="logL", name=build.__name__)
+    for route in ALT_ROUTES:
+        assert_params_equal(r[route].clogL, ref.clogL,
+                            name=f"{build.__name__}[{route}]")
+        ln = r[route].clogL(p0)
+        _compare_clogL(lo, ln, name=f"{build.__name__}[{route}]")

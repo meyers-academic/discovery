@@ -1,12 +1,12 @@
 """Tier-1 parity table: single-pulsar PulsarLikelihood.
 
-Each row builds the same model two ways:
-  - 'old' : stock matrix.py
-  - 'new' : matrix.py monkeypatched to metamath classes
+Each row builds the same model under three routes (matrix.py reference,
+metamath-via-monkeypatch, metamath-native via likelihood_metamath.py) and
+asserts the output method (logL / conditional / clogL / ...) and param set
+agree across all three. See ``_routes.build_routes`` for the route
+definitions.
 
-and asserts the output method (logL/conditional/clogL/...) and param set agree.
-
-xfail rows pin known gaps in the monkeypatch coverage; they flip to a failure
+xfail rows pin known gaps in the metamath coverage; they flip to failure
 when the underlying gap closes (strict=True).
 """
 
@@ -18,7 +18,7 @@ import jax
 import discovery as ds
 
 from ._comparison import assert_close, assert_params_equal
-from ._patch import metamatrix_patch
+from ._routes import build_routes
 
 
 # ---------- model builders ----------
@@ -121,14 +121,13 @@ LOGL_ROWS = [
 
 # ---------- helpers ----------
 
-def _both(build, psr):
-    """Build the model twice (old + new). Returns (old, new)."""
-    old = build(psr)
-    _ = old.logL  # force closure capture before patch
-    with metamatrix_patch():
-        new = build(psr)
-        _ = new.logL
-    return old, new
+ALT_ROUTES = ("mh_patched", "mh_native")
+
+
+def _routes(build, psr):
+    """Build the model under each route. Returns the dict from
+    ``build_routes``."""
+    return build_routes(lambda: build(psr))
 
 
 def _draw_params(model, seed=0):
@@ -140,13 +139,17 @@ def _draw_params(model, seed=0):
 
 @pytest.mark.parametrize("build", LOGL_ROWS)
 def test_logL(psr, build):
-    old, new = _both(build, psr)
-    assert_params_equal(new.logL, old.logL, name=build.__name__)
+    r = _routes(build, psr)
+    ref = r["matrix"]
+    p0 = _draw_params(ref)
+    ref_val = float(ref.logL(p0))
 
-    p0 = _draw_params(old)
-    lo = float(old.logL(p0))
-    ln = float(new.logL(p0))
-    assert_close(ln, lo, kind="logL", name=build.__name__)
+    for route in ALT_ROUTES:
+        assert_params_equal(r[route].logL, ref.logL,
+                            name=f"{build.__name__}[{route}]")
+        val = float(r[route].logL(p0))
+        assert_close(val, ref_val, kind="logL",
+                     name=f"{build.__name__}[{route}]")
 
 
 # conditional / clogL only make sense with at least one variable GP
@@ -159,48 +162,43 @@ CONDITIONAL_ROWS = [
 
 @pytest.mark.parametrize("build", CONDITIONAL_ROWS)
 def test_conditional(psr, build):
-    old, new = _both(build, psr)
-    # force conditional closures too
-    _ = old.conditional
-    with metamatrix_patch():
-        _ = new.conditional
+    r = _routes(build, psr)
+    ref = r["matrix"]
+    p0 = _draw_params(ref)
+    mu_ref, cf_ref = ref.conditional(p0)
 
-    assert_params_equal(new.conditional, old.conditional, name=build.__name__)
-
-    p0 = _draw_params(old)
-
-    mu_o, cf_o = old.conditional(p0)
-    mu_n, cf_n = new.conditional(p0)
-
-    assert_close(np.asarray(mu_n), np.asarray(mu_o), kind="coeffs",
-                 name=f"{build.__name__}.mu")
-    # cf is (matrix, lower_flag); only the matrix is numeric
-    assert_close(np.asarray(cf_n[0]), np.asarray(cf_o[0]), kind="matrix",
-                 name=f"{build.__name__}.cf")
+    for route in ALT_ROUTES:
+        assert_params_equal(r[route].conditional, ref.conditional,
+                            name=f"{build.__name__}[{route}]")
+        mu, cf = r[route].conditional(p0)
+        assert_close(np.asarray(mu), np.asarray(mu_ref), kind="coeffs",
+                     name=f"{build.__name__}[{route}].mu")
+        assert_close(np.asarray(cf[0]), np.asarray(cf_ref[0]), kind="matrix",
+                     name=f"{build.__name__}[{route}].cf")
 
 
 @pytest.mark.parametrize("build", CONDITIONAL_ROWS)
 def test_clogL(psr, build):
-    old, new = _both(build, psr)
-    _ = old.clogL
-    with metamatrix_patch():
-        _ = new.clogL
-
-    assert_params_equal(new.clogL, old.clogL, name=build.__name__)
+    r = _routes(build, psr)
+    ref = r["matrix"]
 
     # clogL params include latent coefficient vectors like "..._coefficients(60)"
     # for which there is no standard prior; draw those manually.
     np.random.seed(0)
-    scalar_params = [p for p in old.clogL.params if not p.endswith(")")]
+    scalar_params = [p for p in ref.clogL.params if not p.endswith(")")]
     p0 = ds.sample_uniform(scalar_params)
-    for p in old.clogL.params:
+    for p in ref.clogL.params:
         if p.endswith(")"):
-            n = int(p[p.index("(") + 1 : -1])
+            n = int(p[p.index("(") + 1: -1])
             p0[p] = 1e-6 * np.random.randn(n)
+    ref_val = float(ref.clogL(p0))
 
-    lo = float(old.clogL(p0))
-    ln = float(new.clogL(p0))
-    assert_close(ln, lo, kind="logL", name=build.__name__)
+    for route in ALT_ROUTES:
+        assert_params_equal(r[route].clogL, ref.clogL,
+                            name=f"{build.__name__}[{route}]")
+        val = float(r[route].clogL(p0))
+        assert_close(val, ref_val, kind="logL",
+                     name=f"{build.__name__}[{route}]")
 
 
 SAMPLE_ROWS = [
@@ -211,33 +209,32 @@ SAMPLE_ROWS = [
 
 @pytest.mark.parametrize("build", SAMPLE_ROWS)
 def test_sample(psr, build):
-    old, new = _both(build, psr)
-    _ = old.sample
-    with metamatrix_patch():
-        _ = new.sample
+    r = _routes(build, psr)
+    ref = r["matrix"]
 
-    p0 = _draw_params(old)
+    p0 = _draw_params(ref)
     key = jax.random.PRNGKey(42)
-    _, yo = old.sample(key, p0)
-    _, yn = new.sample(key, p0)
+    _, y_ref = ref.sample(key, p0)
 
-    assert_close(np.asarray(yn), np.asarray(yo), kind="residuals",
-                 name=build.__name__)
+    for route in ALT_ROUTES:
+        _, y = r[route].sample(key, p0)
+        assert_close(np.asarray(y), np.asarray(y_ref), kind="residuals",
+                     name=f"{build.__name__}[{route}]")
 
 
 @pytest.mark.parametrize("build", CONDITIONAL_ROWS)
 def test_sample_conditional(psr, build):
-    old, new = _both(build, psr)
-    _ = old.sample_conditional
-    with metamatrix_patch():
-        _ = new.sample_conditional
+    r = _routes(build, psr)
+    ref = r["matrix"]
 
-    p0 = _draw_params(old)
+    p0 = _draw_params(ref)
     key = jax.random.PRNGKey(42)
-    _, co = old.sample_conditional(key, p0)
-    _, cn = new.sample_conditional(key, p0)
+    _, c_ref = ref.sample_conditional(key, p0)
 
-    assert set(co.keys()) == set(cn.keys())
-    for k in co:
-        assert_close(np.asarray(cn[k]), np.asarray(co[k]), kind="coeffs",
-                     name=f"{build.__name__}.{k}")
+    for route in ALT_ROUTES:
+        _, c = r[route].sample_conditional(key, p0)
+        assert set(c.keys()) == set(c_ref.keys())
+        for k in c_ref:
+            assert_close(np.asarray(c[k]), np.asarray(c_ref[k]),
+                         kind="coeffs",
+                         name=f"{build.__name__}[{route}].{k}")

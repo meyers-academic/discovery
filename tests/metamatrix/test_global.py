@@ -14,7 +14,7 @@ import jax
 import discovery as ds
 
 from ._comparison import assert_close, assert_params_equal
-from ._patch import metamatrix_patch
+from ._routes import build_routes
 
 
 # ---------- per-psr builder ----------
@@ -68,28 +68,29 @@ LOGL_ROWS = [
 
 # ---------- helpers ----------
 
-def _both(build, psrs):
-    old = build(psrs)
-    _ = old.logL
-    with metamatrix_patch():
-        new = build(psrs)
-        _ = new.logL
-    return old, new
+ALT_ROUTES = ("mh_patched", "mh_native")
+
+
+def _routes(build, psrs):
+    return build_routes(lambda: build(psrs))
 
 
 # ---------- tests ----------
 
 @pytest.mark.parametrize("build", LOGL_ROWS)
 def test_logL(psrs, build):
-    old, new = _both(build, psrs)
-    assert_params_equal(new.logL, old.logL, name=build.__name__)
-
+    r = _routes(build, psrs)
+    ref = r["matrix"]
     np.random.seed(0)
-    p0 = ds.sample_uniform(old.logL.params)
+    p0 = ds.sample_uniform(ref.logL.params)
+    ref_val = float(ref.logL(p0))
 
-    lo = float(old.logL(p0))
-    ln = float(new.logL(p0))
-    assert_close(ln, lo, kind="logL", name=build.__name__)
+    for route in ALT_ROUTES:
+        assert_params_equal(r[route].logL, ref.logL,
+                            name=f"{build.__name__}[{route}]")
+        val = float(r[route].logL(p0))
+        assert_close(val, ref_val, kind="logL",
+                     name=f"{build.__name__}[{route}]")
 
 
 # conditional only meaningful with globalgp
@@ -104,23 +105,20 @@ def test_conditional(psrs, build):
     """GlobalLikelihood.conditional has its own bespoke matrix.py path; with
     monkeypatch, globalgp.Phi.make_inv etc still resolve through metamath.
     """
-    old, new = _both(build, psrs)
-    _ = old.conditional
-    with metamatrix_patch():
-        _ = new.conditional
-
-    assert_params_equal(new.conditional, old.conditional, name=build.__name__)
-
+    r = _routes(build, psrs)
+    ref = r["matrix"]
     np.random.seed(0)
-    p0 = ds.sample_uniform(old.conditional.params)
+    p0 = ds.sample_uniform(ref.conditional.params)
+    mu_ref, cf_ref = ref.conditional(p0)
 
-    mu_o, cf_o = old.conditional(p0)
-    mu_n, cf_n = new.conditional(p0)
-
-    assert_close(np.asarray(mu_n), np.asarray(mu_o), kind="coeffs",
-                 name=f"{build.__name__}.mu")
-    assert_close(np.asarray(cf_n[0]), np.asarray(cf_o[0]), kind="matrix",
-                 name=f"{build.__name__}.cf")
+    for route in ALT_ROUTES:
+        assert_params_equal(r[route].conditional, ref.conditional,
+                            name=f"{build.__name__}[{route}]")
+        mu, cf = r[route].conditional(p0)
+        assert_close(np.asarray(mu), np.asarray(mu_ref), kind="coeffs",
+                     name=f"{build.__name__}[{route}].mu")
+        assert_close(np.asarray(cf[0]), np.asarray(cf_ref[0]), kind="matrix",
+                     name=f"{build.__name__}[{route}].cf")
 
 
 SAMPLE_ROWS = [
@@ -132,19 +130,16 @@ SAMPLE_ROWS = [
 @pytest.mark.parametrize("build", SAMPLE_ROWS)
 def test_sample(psrs, build):
     """Per-pulsar prior draws plus (when globalgp set) a correlated Phi draw."""
-    old, new = _both(build, psrs)
-    _ = old.sample
-    with metamatrix_patch():
-        _ = new.sample
-
+    r = _routes(build, psrs)
+    ref = r["matrix"]
     np.random.seed(0)
-    p0 = ds.sample_uniform(old.logL.params)
+    p0 = ds.sample_uniform(ref.logL.params)
     key = jax.random.PRNGKey(42)
+    _, ys_ref = ref.sample(key, p0)
 
-    _, ys_o = old.sample(key, p0)
-    _, ys_n = new.sample(key, p0)
-
-    assert len(ys_o) == len(ys_n) == len(psrs)
-    for i, (yo, yn) in enumerate(zip(ys_o, ys_n)):
-        assert_close(np.asarray(yn), np.asarray(yo), kind="residuals",
-                     name=f"{build.__name__}.psr{i}")
+    for route in ALT_ROUTES:
+        _, ys = r[route].sample(key, p0)
+        assert len(ys) == len(ys_ref) == len(psrs)
+        for i, (yr, y) in enumerate(zip(ys_ref, ys)):
+            assert_close(np.asarray(y), np.asarray(yr), kind="residuals",
+                         name=f"{build.__name__}[{route}].psr{i}")

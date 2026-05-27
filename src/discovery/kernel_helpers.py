@@ -27,6 +27,55 @@ class Kernel:
     pass
 
 
+class ConstantKernel(Kernel):
+    pass
+
+
+class VariableKernel(Kernel):
+    pass
+
+
+class ConstantMatrix:
+    pass
+
+
+class VariableMatrix:
+    pass
+
+
+class NoiseMatrix:
+    """Base type for noise-kernel objects. Subclassed by `matrix.NoiseMatrix*`
+    and `metamath.NoiseMatrix`; carried as a marker for isinstance dispatch."""
+    pass
+
+
+class GP:
+    pass
+
+
+class ConstantGP:
+    """A Gaussian-process signal whose prior precision is fixed at trace time
+    (no parameters). `Phi` is the prior covariance; `F` is the per-pulsar
+    design matrix."""
+    def __init__(self, Phi, F):
+        self.Phi, self.F = Phi, F
+
+
+class VariableGP:
+    """A Gaussian-process signal whose prior precision depends on parameters."""
+    def __init__(self, Phi, F):
+        self.Phi, self.F = Phi, F
+
+
+class GlobalVariableGP:
+    """Like VariableGP, but with per-pulsar design matrices in a list `Fs`.
+    Factories returning a GlobalVariableGP should set `.index` as a dict
+    of component-vector-name -> slice within the stacked Fs."""
+    def __init__(self, Phi, Fs):
+        self.Phi, self.Fs = Phi, Fs
+        self.Phi_inv = None
+
+
 class ExtSignal:
     """A deterministic signal carried on its own (non-GP) Fourier-style basis.
 

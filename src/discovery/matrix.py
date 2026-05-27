@@ -114,14 +114,17 @@ except ImportError:
 
 
 
-class ConstantMatrix:
-    pass
-
-class VariableMatrix:
-    pass
-
 from .kernel_helpers import (
     Kernel,
+    ConstantKernel,
+    VariableKernel,
+    ConstantMatrix,
+    VariableMatrix,
+    NoiseMatrix,
+    GP,
+    ConstantGP,
+    VariableGP,
+    GlobalVariableGP,
     ExtSignal,
     make_uind,
     smup_ind,
@@ -131,37 +134,6 @@ from .kernel_helpers import (
     smup_ind_correct,
     vsmup_ind_correct,
 )
-
-
-class ConstantKernel(Kernel):
-    pass
-
-class VariableKernel(Kernel):
-    pass
-
-class GP:
-    pass
-
-class NoiseMatrix:
-    pass
-
-class ConstantGP:
-    def __init__(self, Phi, F):
-        self.Phi, self.F = Phi, F
-
-class VariableGP:
-    def __init__(self, Phi, F):
-        self.Phi, self.F = Phi, F
-
-
-# note that all factories that return a GlobalVariableGP should define its `index`
-# as a dictionary of component vector names to slices within the Fs matrix, which
-# is used by GlobalLikelihood.sample_conditional to parse out the vectors
-
-class GlobalVariableGP:
-    def __init__(self, Phi, Fs):
-        self.Phi, self.Fs = Phi, Fs
-        self.Phi_inv = None
 
 
 def CompoundGlobalGP(gplist):

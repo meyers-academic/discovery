@@ -11,22 +11,19 @@ import functools
 import numpy as np
 import jax
 
-# matrix.py is still imported for the GP marker classes (`ConstantGP`,
-# `VariableGP`) and noise base classes that `signals.py` returns —
-# isinstance() checks against the args list need them. The actual
-# numerical kernel implementations resolve to metamath under
-# `ds.config(kernels='metamath')` via the patch in `_kernel_switch.py`,
-# so kernel composition below uses `metamath.*` directly. Numerical
-# primitives (jnp/jsp/jnparray/jnpsplit/jnpnormal/matrix_factor/...)
-# are reached through `kernel_helpers` so that `matrix.config(backend=
-# ..., factor=...)` continues to control numpy-vs-jax, precision, and
-# cholesky-vs-LU even in the metamath path.
+# Numerical primitives (jnp/jsp/jnparray/jnpsplit/jnpnormal/matrix_factor/...)
+# are reached through `kernel_helpers` (`kh.X`) so that `matrix.config(
+# backend=..., factor=...)` continues to drive numpy-vs-jax, precision, and
+# cholesky-vs-LU even in the metamath path. The GP/Kernel marker types
+# (`ConstantGP`, `VariableGP`, `Kernel`, ...) also live in `kernel_helpers`
+# now. `matrix` is only imported for the cglogL Tier-3 helpers (cgsolve,
+# make_logdet_estimator) and `CompoundGlobalGP` (an untested edge case
+# taking a list of globalgps).
 from . import matrix
 from . import signals
 from . import metamatrix
 from . import metamath
 from . import kernel_helpers as kh
-from .kernel_helpers import Kernel
 
 # Kernel
 #   ConstantKernel
@@ -83,9 +80,9 @@ class PulsarLikelihood:
     def __init__(self, args, concat=True):
         y     = [arg for arg in args if isinstance(arg, np.ndarray) or isinstance(arg, jax.Array)]
         delay = [arg for arg in args if callable(arg)]
-        noise = [arg for arg in args if isinstance(arg, Kernel)]
-        cgps  = [arg for arg in args if isinstance(arg, matrix.ConstantGP)]
-        vgps  = [arg for arg in args if isinstance(arg, matrix.VariableGP)]
+        noise = [arg for arg in args if isinstance(arg, kh.Kernel)]
+        cgps  = [arg for arg in args if isinstance(arg, kh.ConstantGP)]
+        vgps  = [arg for arg in args if isinstance(arg, kh.VariableGP)]
 
         if len(y) == 0 and len(delay) == 0:
             raise ValueError("I need exactly one residual vector or one or more delay functions.")

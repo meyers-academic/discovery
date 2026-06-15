@@ -182,7 +182,7 @@ not elimination._
 > inserted between `signals.py` (written to call `matrix.X`) and the metamath
 > classes, translating one to the other by overwriting attributes on the
 > `matrix` module at runtime. Phase 1b replaces this spooky mutation with the
-> explicit `_kernels.py` factory; the shim is deleted in Phase 4.
+> explicit `_kernels.py` factory; the shim is deleted in Phase 5.
 
 ### Phase 2 — Rehome `likelihood_metamath.py`'s remaining `matrix.*` deps
 - Move/needs homes (in the shared module or `metamath.py`):
@@ -225,13 +225,34 @@ carry-overs remain, both pinned for Phase 4:
   - **`CompoundGlobalGP`** — factory fallthrough to `matrix.py`; no metamath
     port; untested globalgp-as-list edge case.
 
-### Phase 4 — Delete
-0. **Close the Phase-3 carry-overs first** (they block deleting `matrix.py`):
-   - Port the all-constant 2D GP prior path so metamath handles a constant
-     (index-less) 2D GP; then the strict `xfail` on `fourier_variance_fixed`
-     flips to pass — remove the marker.
-   - Relocate/port `CompoundGlobalGP` out of `matrix.py` (use `_kernels`
-     factory + metamath); add a parity route for the globalgp-as-list form.
+### Phase 4 — Close the carry-overs (no deletion)
+
+Make the metamath path feature-complete so nothing real depends on the matrix
+path's unique behavior — **without removing anything yet**. Both paths stay
+present and parity-tested; this is the checkpoint where others can exercise the
+metamath path on their own workflows before we commit to deletion in Phase 5.
+
+1. **All-constant 2D GP prior.** Port the path so metamath handles a constant
+   (index-less) 2D GP prior (`metamath.CompoundGP._build_mixed_logprior`
+   currently requires `gp.index`). Then the strict `xfail` on
+   `test_pulsar.py::test_logL[fourier_variance_fixed]` flips to pass — remove
+   the marker.
+2. **`CompoundGlobalGP`.** Relocate it out of `matrix.py` (into the `_kernels`
+   factory + a metamath implementation) so it builds metamath kernels in
+   metamath mode; add a parity route for the globalgp-as-list form.
+3. Any other behavior gaps surfaced while others test the metamath path.
+- **Gate:** full suite green with **no `xfail` carry-overs remaining**; the
+  metamath path matches the matrix oracle on every routed model. `matrix.py`
+  and `likelihood.py` are untouched and still serve as the oracle.
+
+> **Checkpoint for external testing.** After Phase 4, the metamath path is
+> intended to be complete. Pause here for collaborators to validate it against
+> real analyses before Phase 5 removes the fallback.
+
+### Phase 5 — Delete
+
+Only once Phase 4 is signed off and the metamath path has been externally
+exercised.
 1. Remove the matrix branch from `_kernels.py` (factory collapses to metamath);
    delete `_kernel_switch.py`.
 2. Delete `matrix.py`. Delete the matrix-mode parity routes/oracle. Retire the
@@ -240,8 +261,8 @@ carry-overs remain, both pinned for Phase 4:
 4. Fix `__init__.py`: drop `from .matrix import *`; either remove
    `config(kernels=...)` or keep it as a deprecation no-op for one release.
 5. Update `examples/` and `docs/tutorials/` notebooks that import/select paths.
-- **Gate:** full suite green (no `xfail` left for the carry-overs); example
-  notebooks run; no `matrix`/`likelihood_metamath` references remain.
+- **Gate:** full suite green; example notebooks run; no `matrix`/
+  `likelihood_metamath` references remain.
 
 ---
 

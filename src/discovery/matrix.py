@@ -10,111 +10,17 @@ import jax.numpy
 import jax.scipy
 import jax.tree_util
 
-def config(**kwargs):
-    global jnp, jsp, jnparray, jnpzeros, intarray, jnpkey, jnpsplit, jnpnormal
-    global matrix_factor, matrix_solve, matrix_norm, partial, SM_algorithm, regularize_FtNmF
-
-    np.logdet = lambda a: np.sum(np.log(np.abs(a)))
-    jax.numpy.logdet = lambda a: jax.numpy.sum(jax.numpy.log(jax.numpy.abs(a)))
-
-    np.make2d = lambda a: a if a.ndim == 2 else np.diag(a)
-    jax.numpy.make2d = lambda a: a if a.ndim == 2 else jax.numpy.diag(a)
-
-    np.makearray = lambda a: np.array(a) if hasattr(a, '__len__') else a
-    jax.numpy.makearray = lambda a: jax.numpy.array(a) if hasattr(a, '__len__') else a
-
-    backend = kwargs.get('backend')
-
-    if backend == 'numpy':
-        jnp, jsp = np, sp
-
-        jnparray = lambda a: np.array(a, dtype=np.float64)
-        jnpzeros = lambda a: np.zeros(a, dtype=np.float64)
-        intarray = lambda a: np.array(a, dtype=np.int64)
-
-        jnpkey    = lambda seed: np.random.default_rng(seed)
-        jnpsplit  = lambda gen: (gen, gen)
-        jnpnormal = lambda gen, shape: gen.normal(size=shape)
-        single_precision = False
-        partial = functools.partial
-    elif backend == 'jax':
-        jnp, jsp = jax.numpy, jax.scipy
-        single_precision = not jax.config.x64_enabled
-        jnparray = lambda a: jnp.array(a, dtype=jnp.float64 if jax.config.x64_enabled else jnp.float32)
-        jnpzeros = lambda a: jnp.zeros(a, dtype=jnp.float64 if jax.config.x64_enabled else jnp.float32)
-        intarray = lambda a: jnp.array(a, dtype=jnp.int64)
-
-        jnpkey    = lambda seed: jax.random.PRNGKey(seed)
-        jnpsplit  = jax.random.split
-        jnpnormal = jax.random.normal
-
-        partial = jax.tree_util.Partial
-
-    regularize_FtNmF = kwargs.get('regularize_FtNmF', single_precision)
-    factor = kwargs.get('factor')
-
-    if factor == 'cholesky':
-        matrix_factor = jsp.linalg.cho_factor
-        matrix_solve  = jsp.linalg.cho_solve
-        matrix_norm   = 2.0
-    elif factor == 'lu':
-        matrix_factor = jsp.linalg.lu_factor
-        matrix_solve  = jsp.linalg.lu_solve
-        matrix_norm   = 1.0
-
-    SM_algorithm = 'indexed'
-
-config(backend='jax', factor='cholesky')
-
-def rngkey(seed):
-    return jnpkey(seed)
-
-# CG solver and Lanczos-Hutchinson logdet estimator, need matfree and jaxopt
-try:
-    import jaxopt
-    from matfree import decomp, funm, stochtrace
-
-    cgsolve = jaxopt.linear_solve.solve_cg
-
-    def dense_funm_sym_eigh(matfun, clip=None):
-        def fun(dense_matrix):
-            eigvals, eigvecs = funm.linalg.eigh(dense_matrix)
-            # optional clipping
-            if clip:
-                eigvals = jnp.clip(eigvals, a_min=1e-6)
-            fx_eigvals = funm.func.vmap(matfun)(eigvals)
-            return eigvecs @ funm.linalg.diagonal(fx_eigvals) @ eigvecs.T
-
-        return fun
-
-    def integrand_funm_sym_logdet(tridiag_sym, clip=None):
-        dense_funm = dense_funm_sym_eigh(jnp.log, clip=clip)
-        return funm.integrand_funm_sym(dense_funm, tridiag_sym)
-
-    def make_logdet_estimator(ndim, num_matvecs=40, samples=1000, clip=None):
-        #
-        # log det A = tr log A = (1/S) \sum_i^S z_i^T (log A) z_i
-
-        # set up Lanczos tridiagonalization interface, uses num_matvecs applications of A
-        tridiag_sym = decomp.tridiag_sym(num_matvecs)
-
-        # set up integrand for Lanczos quadrature
-        problem = integrand_funm_sym_logdet(tridiag_sym, clip=clip)
-
-        # generate `samples` random probes of shape
-        sampler = stochtrace.sampler_normal(jnpzeros(ndim), num=samples)
-
-        # combine problem and sampler into Hutchinson trace estimator
-        estimator = stochtrace.estimator(problem, sampler=sampler)
-
-        return estimator
-
-except ImportError:
-    pass
-
-
-
-from .kernel_helpers import (
+# Backend configuration and shared kernel primitives now live in `utils.py`.
+# They are re-exported here so legacy callers (signals.py, likelihood.py) that
+# reach them as `matrix.<name>` keep working until those modules are migrated.
+from .utils import (
+    config,
+    rngkey,
+    jnp, jsp,
+    jnparray, jnpzeros, intarray,
+    jnpkey, jnpsplit, jnpnormal,
+    matrix_factor, matrix_solve, matrix_norm,
+    partial, SM_algorithm, regularize_FtNmF, single_precision,
     Kernel,
     ConstantKernel,
     VariableKernel,
@@ -134,6 +40,13 @@ from .kernel_helpers import (
     smup_ind_correct,
     vsmup_ind_correct,
 )
+
+# CG solver / Lanczos-Hutchinson logdet estimator are optional (need matfree
+# and jaxopt). Re-export them only if utils managed to define them.
+try:
+    from .utils import cgsolve, make_logdet_estimator
+except ImportError:
+    pass
 
 
 def CompoundGlobalGP(gplist):
@@ -453,7 +366,7 @@ def SM_2d_fused(Y, N, F, P):
 
 # indexed, carefully handwritten —
 # `make_uind`, `smup_ind`, `smdp_ind`, `vsmup_ind`, `vsmdp_ind`,
-# `smup_ind_correct`, `vsmup_ind_correct` now live in `kernel_helpers.py`
+# `smup_ind_correct`, `vsmup_ind_correct` now live in `utils.py`
 # and are imported at the top of this module so the matrix.* names still
 # resolve. `SM_*_indexed` (below) compose them.
 

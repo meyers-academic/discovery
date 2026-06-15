@@ -19,7 +19,7 @@ import jax.scipy as jsp
 
 from . import signals
 from . import metamatrix as mm
-from .kernel_helpers import (
+from .utils import (
     Kernel,
     make_uind,
     smup_ind_correct,

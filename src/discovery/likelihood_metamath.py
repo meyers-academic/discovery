@@ -12,18 +12,17 @@ import numpy as np
 import jax
 
 # Numerical primitives (jnp/jsp/jnparray/jnpsplit/jnpnormal/matrix_factor/...)
-# are reached through `kernel_helpers` (`kh.X`) so that `matrix.config(
-# backend=..., factor=...)` continues to drive numpy-vs-jax, precision, and
-# cholesky-vs-LU even in the metamath path. The GP/Kernel marker types
-# (`ConstantGP`, `VariableGP`, `Kernel`, ...) also live in `kernel_helpers`
-# now. `matrix` is only imported for the cglogL Tier-3 helpers (cgsolve,
-# make_logdet_estimator) and `CompoundGlobalGP` (an untested edge case
-# taking a list of globalgps).
+# are reached through `utils` (`kh.X`) so that `config(backend=..., factor=...)`
+# continues to drive numpy-vs-jax, precision, and cholesky-vs-LU even in the
+# metamath path. The GP/Kernel marker types (`ConstantGP`, `VariableGP`,
+# `Kernel`, ...) also live in `utils` now. `matrix` is still imported for the
+# cglogL Tier-3 helpers (cgsolve, make_logdet_estimator) and `CompoundGlobalGP`
+# (an untested edge case taking a list of globalgps) -- to be rehomed in Phase 2.
 from . import matrix
 from . import signals
 from . import metamatrix
 from . import metamath
-from . import kernel_helpers as kh
+from . import utils as kh
 
 # Kernel
 #   ConstantKernel

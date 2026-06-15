@@ -12,17 +12,19 @@ import numpy as np
 import jax
 
 # Numerical primitives (jnp/jsp/jnparray/jnpsplit/jnpnormal/matrix_factor/...)
-# are reached through `utils` (`kh.X`) so that `config(backend=..., factor=...)`
-# continues to drive numpy-vs-jax, precision, and cholesky-vs-LU even in the
-# metamath path. The GP/Kernel marker types (`ConstantGP`, `VariableGP`,
-# `Kernel`, ...) also live in `utils` now. `matrix` is still imported for the
-# cglogL Tier-3 helpers (cgsolve, make_logdet_estimator) and `CompoundGlobalGP`
-# (an untested edge case taking a list of globalgps) -- to be rehomed in Phase 2.
-from . import matrix
+# and the cglogL Tier-3 helpers (cgsolve, make_logdet_estimator) are reached
+# through `utils` (`kh.X`) so that `config(backend=..., factor=...)` continues to
+# drive numpy-vs-jax, precision, and cholesky-vs-LU even in the metamath path.
+# The GP/Kernel marker types (`ConstantGP`, `VariableGP`, `Kernel`, ...) also
+# live in `utils`. Kernel constructors go through the `_kernels` factory; the
+# only one used here is `CompoundGlobalGP` (an untested edge case taking a list
+# of globalgps), which currently falls through to `matrix.CompoundGlobalGP` --
+# relocating/porting it to metamath is deferred to Phase 4.
 from . import signals
 from . import metamatrix
 from . import metamath
 from . import utils as kh
+from . import _kernels as kernels
 
 # Kernel
 #   ConstantKernel
@@ -70,11 +72,11 @@ class PulsarLikelihood:
     """Single-pulsar likelihood — metamath-native composition.
 
     Kernel/GP composition (Woodbury chaining, compound GPs, delays) goes
-    through `metamath.*` directly. The GP marker types (`matrix.ConstantGP`,
-    `matrix.VariableGP`) are still used for isinstance dispatch because
-    `signals.py` factories tag their outputs with them; the actual
-    underlying kernels are metamath instances thanks to the patch installed
-    by `ds.config(kernels='metamath')`.
+    through `metamath.*` directly. The GP marker types (`utils.ConstantGP`,
+    `utils.VariableGP`) are used for isinstance dispatch because `signals.py`
+    factories tag their outputs with them; the actual underlying kernels are
+    metamath instances because `ds.config(kernels='metamath')` sets the
+    `_kernels` factory mode.
     """
     def __init__(self, args, concat=True):
         y     = [arg for arg in args if isinstance(arg, np.ndarray) or isinstance(arg, jax.Array)]
@@ -211,7 +213,7 @@ class PulsarLikelihood:
 class GlobalLikelihood:
     def __init__(self, psls, globalgp=None):
         self.psls = psls
-        self.globalgp = matrix.CompoundGlobalGP(globalgp) if isinstance(globalgp, list) else globalgp
+        self.globalgp = kernels.CompoundGlobalGP(globalgp) if isinstance(globalgp, list) else globalgp
 
     # allow replacement of residuals
     def __setattr__(self, name, value):
@@ -519,7 +521,7 @@ class ArrayLikelihood:
         self.globalgp = globalgp
         self.transform = transform
         self.decenter = decenter
-        # extsignals: deterministic signals on their OWN basis (matrix.ExtSignal),
+        # extsignals: deterministic signals on their OWN basis (utils.ExtSignal),
         # for signals needing higher frequencies than the GP bases reach (e.g. a
         # CW); see discovery.deterministic.makecw_extsignal. For same-basis
         # deterministic Fourier signals, use makecommongp_fourier(..., means=...)
@@ -746,7 +748,7 @@ class ArrayLikelihood:
             npsr = len(self.globalgp.Fs)
             ngp = self.globalgp.Fs[0].shape[1]
 
-            logdet_estimator = matrix.make_logdet_estimator(npsr * ngp, detmatvecs, detsamples, clip)
+            logdet_estimator = kh.make_logdet_estimator(npsr * ngp, detmatvecs, detsamples, clip)
             rndkey = jax.random.PRNGKey(1)
 
             def loglike(params):
@@ -775,9 +777,9 @@ class ArrayLikelihood:
                     return (kh.jsp.linalg.cho_solve(orfcf, kh.jsp.linalg.cho_solve(phicf, FtNmy.T).T) +
                             kh.jnp.squeeze(FtNmF @ FtNmy[..., None])) # kh.jnp.einsum('kij,kj->ki', FtNmF, FtNmy))
 
-                sol = matrix.cgsolve(matvec, FtNmy, M=precond, maxiter=cgmaxiter)
+                sol = kh.cgsolve(matvec, FtNmy, M=precond, maxiter=cgmaxiter)
 
-                jnp, jspa = matrix.jnp, matrix.jsp.linalg
+                jnp, jspa = kh.jnp, kh.jsp.linalg
 
                 if make_logdet == 'G-series':
                     # expand in G

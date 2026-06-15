@@ -4,7 +4,6 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 
-from . import matrix
 from . import const
 
 
@@ -284,7 +283,7 @@ def makecw_extsignal(psrs, components, T=None, *, pulsarterm=True, common=None,
                      name='cw'):
     """Continuous-wave (CW) signal on its OWN Fourier basis.
 
-    Returns a ``matrix.ExtSignal`` for ``ArrayLikelihood(extsignals=[...])``.
+    Returns a ``utils.ExtSignal`` for ``ArrayLikelihood(extsignals=[...])``.
     Gets its own ``components`` -- typically more than the red-noise / GWB GPs --
     so the basis reaches the higher frequencies a CW search needs. The
     likelihood folds it in via GP-CW cross-terms; the CW parameters never enter

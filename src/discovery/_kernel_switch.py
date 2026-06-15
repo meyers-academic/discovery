@@ -18,30 +18,10 @@ deleted.
 from contextlib import contextmanager
 
 from . import matrix
-from . import metamath as mh
-
-
-_PATCHES = {
-    # noise variants collapse to a single metamath NoiseMatrix; dispatch happens
-    # at runtime via Sym.solve based on tensor ndim. The 1D-vs-2D marker
-    # subclasses preserve the isinstance dispatch that likelihood.py performs.
-    "NoiseMatrix1D_novar":     mh.NoiseMatrix1D,
-    "NoiseMatrix1D_var":       mh.NoiseMatrix1D,
-    "NoiseMatrix2D_var":       mh.NoiseMatrix2D,
-    "NoiseMatrix12D_var":      mh.NoiseMatrix12D,
-    "VectorNoiseMatrix1D_var": mh.NoiseMatrix1D,
-
-    # ecorr Sherman-Morrison: dedicated indexed-SM graph
-    "NoiseMatrixSM_novar":     mh.NoiseMatrixSM,
-    "NoiseMatrixSM_var":       mh.NoiseMatrixSM,
-
-    # Woodbury + compound
-    "WoodburyKernel":            mh.WoodburyKernel,
-    "VectorWoodburyKernel_varP": mh.VectorWoodburyKernel,
-    "CompoundGP":                mh.CompoundGP,
-    "VectorCompoundGP":          mh.CompoundGP,
-    "CompoundDelay":             mh.CompoundDelay,
-}
+# Single source of truth for the matrix-name -> metamath-class map lives in
+# `_kernels`; the test harness's `mh_patched` route reuses it here so the
+# monkeypatch and the production factory can never drift apart.
+from ._kernels import _METAMATH as _PATCHES
 
 
 # `_originals` is None when no patches are installed; otherwise it is the

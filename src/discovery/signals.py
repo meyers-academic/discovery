@@ -10,7 +10,8 @@ import scipy.interpolate as si
 import jax
 import jax.numpy as jnp
 
-from . import matrix
+from . import utils
+from . import _kernels as kernels
 from . import const
 from . import solar
 
@@ -21,119 +22,16 @@ def residuals(psr):
 
 
 # EFAC/EQUAD/ECORR noise
-
-# no backends
-def makenoise_measurement_simple(psr, noisedict={}):
-    efac = f'{psr.name}_efac'
-    log10_t2equad = f'{psr.name}_log10_t2equad'
-    params = [efac, log10_t2equad]
-
-    if all(par in noisedict for par in params):
-        noise = noisedict[efac]**2 * (psr.toaerrs**2 + 10.0**(2.0 * noisedict[log10_t2equad]))
-
-        return matrix.NoiseMatrix1D_novar(noise)
-    else:
-        toaerrs = matrix.jnparray(psr.toaerrs)
-        def getnoise(params):
-            return params[efac]**2 * (toaerrs**2 + 10.0**(2.0 * params[log10_t2equad]))
-        getnoise.params = params
-
-        return matrix.NoiseMatrix1D_var(getnoise)
-
+#
+# The measurement-noise constructors `makenoise_measurement` and
+# `makenoise_measurement_simple` now live in `measurement_noise.py` (collapsed
+# form -- no _novar/_var class enumeration; the variant is chosen by the
+# `_kernels` factory). They are re-exported at the bottom of this module so
+# `signals.makenoise_measurement` and `ds.makenoise_measurement` keep resolving.
 
 # nanograv backends
 def selection_backend_flags(psr):
     return psr.backend_flags
-
-
-def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=False, selection=selection_backend_flags, vectorize=True,
-                          outliers=False, enterprise=False):
-    backend_flags = selection(psr)
-    backends = [b for b in sorted(set(backend_flags)) if b != '']
-
-    efacs = [f'{psr.name}_{backend}_efac' for backend in backends]
-    if tnequad:
-        log10_tnequads = [f'{psr.name}_{backend}_log10_tnequad' for backend in backends]
-        params = efacs + log10_tnequads
-    else:
-        log10_t2equads = [f'{psr.name}_{backend}_log10_t2equad' for backend in backends]
-        params = efacs + log10_t2equads
-
-    masks = [(backend_flags == backend) for backend in backends]
-    logscale = np.log10(scale)
-
-    # scale each toa individually. register scales as a parameter
-    if outliers:
-        toaerr_scaling = f'{psr.name}_alpha_scaling({psr.toas.size})'
-        params.append(toaerr_scaling)
-
-    if all(par in noisedict for par in params):
-        if outliers:
-            raise ValueError("No outlier scaling if white noise is fixed.")
-        if tnequad:
-            noise = sum(mask * (noisedict[efac]**2 * (scale * psr.toaerrs)**2 + 10.0**(2 * (logscale + noisedict[log10_tnequad])))
-                        for mask, efac, log10_tnequad in zip(masks, efacs, log10_tnequads))
-        else:
-            noise = sum(mask * noisedict[efac]**2 * ((scale * psr.toaerrs)**2 + 10.0**(2 * (logscale + noisedict[log10_t2equad])))
-                        for mask, efac, log10_t2equad in zip(masks, efacs, log10_t2equads))
-
-        if ecorr:
-            egp = makegp_ecorr(psr, noisedict=noisedict, enterprise=enterprise, scale=scale, selection=selection)
-            return matrix.NoiseMatrixSM_novar(noise, egp.F, egp.Phi.N)
-        else:
-            return matrix.NoiseMatrix1D_novar(noise)
-    else:
-        if vectorize:
-            toaerrs2, masks = matrix.jnparray(scale**2 * psr.toaerrs**2), matrix.jnparray([mask for mask in masks])
-
-            if tnequad:
-                def getnoise(params):
-                    if outliers:
-                        alpha_scaling = params[toaerr_scaling]
-                    else:
-                        alpha_scaling = 1.0
-                    efac2  = matrix.jnparray([params[efac]**2 for efac in efacs])
-                    equad2 = matrix.jnparray([10.0**(2 * (logscale + params[log10_tnequad])) for log10_tnequad in log10_tnequads])
-
-                    return (masks * (efac2[:,jnp.newaxis] * (alpha_scaling*toaerrs2)[jnp.newaxis,:] + equad2[:,jnp.newaxis])).sum(axis=0)
-            else:
-
-                def getnoise(params):
-                    if outliers:
-                        alpha_scaling = params[toaerr_scaling]
-                    else:
-                        alpha_scaling = 1.0
-                    efac2  = matrix.jnparray([params[efac]**2 for efac in efacs])
-                    equad2 = matrix.jnparray([10.0**(2 * (logscale + params[log10_t2equad])) for log10_t2equad in log10_t2equads])
-
-                    return (masks * efac2[:,jnp.newaxis] * ((alpha_scaling*toaerrs2)[jnp.newaxis,:] + equad2[:,jnp.newaxis])).sum(axis=0)
-        else:
-            toaerrs, masks = matrix.jnparray(scale * psr.toaerrs), [matrix.jnparray(mask) for mask in masks]
-            if tnequad:
-                def getnoise(params):
-                    if outliers:
-                        alpha_scaling = params[toaerr_scaling]
-                    else:
-                        alpha_scaling = 1.0
-
-                    return sum(mask * (params[efac]**2 * (alpha_scaling * toaerrs**2) + 10.0**(2 * (logscale + params[log10_tnequad])))
-                               for mask, efac, log10_tnequad in zip(masks, efacs, log10_tnequads))
-            else:
-                def getnoise(params):
-                    if outliers:
-                        alpha_scaling = params[toaerr_scaling]
-                    else:
-                        alpha_scaling = 1.0
-                    return sum(mask * params[efac]**2 * (alpha_scaling * toaerrs**2 + 10.0**(2 * (logscale + params[log10_t2equad])))
-                               for mask, efac, log10_t2equad in zip(masks, efacs, log10_t2equads))
-
-        getnoise.params = params
-
-        if ecorr:
-            egp = makegp_ecorr(psr, noisedict={}, enterprise=enterprise, scale=scale, selection=selection)
-            return matrix.NoiseMatrixSM_var(getnoise, egp.F, egp.Phi.getN)
-        else:
-            return matrix.NoiseMatrix1D_var(getnoise)
 
 
 # ECORR
@@ -172,14 +70,14 @@ def makegp_ecorr_simple(psr, noisedict={}):
     if all(par in noisedict for par in params):
         phi = (10.0**(2.0 * noisedict[log10_ecorr])) * ones
 
-        return matrix.ConstantGP(matrix.NoiseMatrix1D_novar(phi), Umat)
+        return utils.ConstantGP(kernels.NoiseMatrix1D_novar(phi), Umat)
     else:
-        ones = matrix.jnparray(ones)
+        ones = utils.jnparray(ones)
         def getphi(params):
             return (10.0**(2.0 * params[log10_ecorr])) * ones
         getphi.params = params
 
-        return matrix.VariableGP(matrix.NoiseMatrix1D_var(getphi), Umat)
+        return utils.VariableGP(kernels.NoiseMatrix1D_var(getphi), Umat)
 
 # nanograv backends
 def makegp_ecorr(psr, noisedict={}, enterprise=False, scale=1.0, selection=selection_backend_flags, variable=False, name='ecorrGP'):
@@ -239,21 +137,21 @@ def makegp_ecorr(psr, noisedict={}, enterprise=False, scale=1.0, selection=selec
                 return phi
             getphi.params = []
 
-            gp = matrix.VariableGP(matrix.NoiseMatrix1D_var(getphi), Umatall)
+            gp = utils.VariableGP(kernels.NoiseMatrix1D_var(getphi), Umatall)
             gp.index = {f'{psr.name}_{name}_coefficients({Umatall.shape[1]})': slice(0,Umatall.shape[1])} # better for cosine
             gp.name, gp.pos = psr.name, psr.pos
             gp.gpname, gp.gpcommon = name, []
 
             return gp
         else:
-            return matrix.ConstantGP(matrix.NoiseMatrix1D_novar(phi), Umatall)
+            return utils.ConstantGP(kernels.NoiseMatrix1D_novar(phi), Umatall)
     else:
-        pmasks = [matrix.jnparray(pmask) for pmask in pmasks]
+        pmasks = [utils.jnparray(pmask) for pmask in pmasks]
         def getphi(params):
             return sum(10.0**(2 * (logscale + params[log10_ecorr])) * pmask for (log10_ecorr, pmask) in zip(log10_ecorrs, pmasks))
         getphi.params = params
 
-        gp = matrix.VariableGP(matrix.NoiseMatrix1D_var(getphi), Umatall)
+        gp = utils.VariableGP(kernels.NoiseMatrix1D_var(getphi), Umatall)
         gp.index = {f'{psr.name}_{name}_coefficients({Umatall.shape[1]})': slice(0,Umatall.shape[1])} # better for cosine
         gp.name, gp.pos = psr.name, psr.pos
         gp.gpname, gp.gpcommon = name, []
@@ -265,16 +163,16 @@ def makegp_ecorr(psr, noisedict={}, enterprise=False, scale=1.0, selection=selec
 
 def makegp_improper(psr, fmat, constant=1.0e40, name='improperGP', variable=False):
     if variable:
-        phi = matrix.jnparray(constant * np.ones(fmat.shape[1]))
+        phi = utils.jnparray(constant * np.ones(fmat.shape[1]))
 
         def getphi(params):
             return phi
         getphi.params = []
 
-        gp = matrix.VariableGP(matrix.NoiseMatrix1D_var(getphi), fmat)
+        gp = utils.VariableGP(kernels.NoiseMatrix1D_var(getphi), fmat)
         gp.index = {f'{psr.name}_{name}_coefficients({fmat.shape[1]})': slice(0, fmat.shape[1])}
     else:
-        gp = matrix.ConstantGP(matrix.NoiseMatrix1D_novar(constant * np.ones(fmat.shape[1])), fmat)
+        gp = utils.ConstantGP(kernels.NoiseMatrix1D_novar(constant * np.ones(fmat.shape[1])), fmat)
 
     gp.name = psr.name
     gp.gpname = name
@@ -340,7 +238,7 @@ def dmfourierbasis(psr, components, T=None, fref=1400.0):
 def dmfourierbasis_alpha(psr, components, T=None, fref=1400.0):
     f, df, fmat = fourierbasis(psr, components, T)
 
-    fmat, fnorm = matrix.jnparray(fmat), matrix.jnparray(fref / psr.freqs)
+    fmat, fnorm = utils.jnparray(fmat), utils.jnparray(fref / psr.freqs)
     def fmatfunc(alpha):
         return fmat * fnorm[:, None]**alpha
 
@@ -377,7 +275,7 @@ def makegp_fourier(psr, prior, components, T=None, mean=None, fourierbasis=fouri
 
     f, df, fmat = fourierbasis(psr, components, T)
 
-    # f, df = matrix.jnparray(f), matrix.jnparray(df)
+    # f, df = utils.jnparray(f), utils.jnparray(df)
     def priorfunc(params):
         return prior(f, df, *[params[arg] for arg in argmap])
     priorfunc.params = argmap
@@ -393,7 +291,7 @@ def makegp_fourier(psr, prior, components, T=None, mean=None, fourierbasis=fouri
             return fmat(*[params[arg] for arg in fargmap])
         fmatfunc.params = fargmap
 
-    gp = matrix.VariableGP(matrix.NoiseMatrix12D_var(priorfunc), fmatfunc if callable(fmat) else fmat)
+    gp = utils.VariableGP(kernels.NoiseMatrix12D_var(priorfunc), fmatfunc if callable(fmat) else fmat)
     gp.index = {f'{psr.name}_{name}_coefficients({len(f)})': slice(0,len(f))} # better for cosine
     gp.name, gp.pos = psr.name, psr.pos
     gp.gpname, gp.gpcommon = name, common
@@ -451,14 +349,14 @@ def makecommongp_fourier(psrs, prior, components, T, fourierbasis=fourierbasis, 
                                          [0 if isinstance(argmap, list) else None for argmap in argmaps])
 
         def priorfunc(params):
-            vpars = [matrix.jnparray([params[arg] for arg in argmap]) if isinstance(argmap, list) else params[argmap]
+            vpars = [utils.jnparray([params[arg] for arg in argmap]) if isinstance(argmap, list) else params[argmap]
                     for argmap in argmaps]
             return vprior(f, df, *vpars)
 
         priorfunc.params = sorted(set(sum([argmap if isinstance(argmap, list) else [argmap] for argmap in argmaps], [])))
         priorfunc.type = getattr(prior, 'type', None)
 
-    gp = matrix.VariableGP(matrix.VectorNoiseMatrix12D_var(priorfunc), fmats)
+    gp = utils.VariableGP(kernels.VectorNoiseMatrix12D_var(priorfunc), fmats)
     gp.index = {f'{psr.name}_{name}_coefficients({len(f)})': slice(len(f)*i,len(f)*(i+1))
                 for i, psr in enumerate(psrs)}
 
@@ -475,7 +373,7 @@ def makecommongp_fourier(psrs, prior, components, T, fourierbasis=fourierbasis, 
                      for arg in margs if not hasattr(psr, arg) and arg not in exclude} for psr in psrs]
 
         def meanfunc(params):
-            return matrix.jnparray([means(f, df, *psrpar.values(), **{arg: params[argname] for arg, argname in margmap.items()})
+            return utils.jnparray([means(f, df, *psrpar.values(), **{arg: params[argname] for arg, argname in margmap.items()})
                                     for psrpar, margmap in zip(psrpars, margmaps)])
         meanfunc.params = sorted(set.union(*[set(margmap.values()) for margmap in margmaps]))
 
@@ -490,10 +388,10 @@ def makegp_fourier_delay(psr, components, T=None, name='fourierGP'):
     argname = f'{psr.name}_{name}_mean({components*2})'
 
     _, _, fmat = fourierbasis(psr, components, T)
-    Fmat = matrix.jnparray(fmat)
+    Fmat = utils.jnparray(fmat)
 
     def delayfunc(params):
-        return matrix.jnp.dot(Fmat, params[argname])
+        return utils.jnp.dot(Fmat, params[argname])
     delayfunc.params = [argname]
 
     return delayfunc
@@ -504,13 +402,13 @@ def makegp_fourier_variance(psr, components, T=None, name='fourierGP', noisedict
     _, _, fmat = fourierbasis(psr, components, T)
 
     if argname in noisedict:
-        return matrix.ConstantGP(matrix.NoiseMatrix2D_novar(noisedict[argname]), fmat)
+        return utils.ConstantGP(kernels.NoiseMatrix2D_novar(noisedict[argname]), fmat)
     else:
         def priorfunc(params):
             return params[argname]
         priorfunc.params = [argname]
 
-        return matrix.VariableGP(matrix.NoiseMatrix2D_var(priorfunc), fmat)
+        return utils.VariableGP(kernels.NoiseMatrix2D_var(priorfunc), fmat)
 
 # Global Fourier GP
 
@@ -524,7 +422,7 @@ def makegp_fourier_allpsr(psrs, prior, components, T=None, fourierbasis=fourierb
                 for arg in argspec.args if arg not in ['f', 'df']] for psr in psrs]
 
     fs, dfs, fmats = zip(*[fourierbasis(psr, components, T) for psr in psrs])
-    f, df = matrix.jnparray(fs[0]), matrix.jnparray(dfs[0])
+    f, df = utils.jnparray(fs[0]), utils.jnparray(dfs[0])
 
     def priorfunc(params):
         return jnp.concatenate([prior(f, df, *[params[arg] for arg in argmap]) for argmap in argmaps])
@@ -535,7 +433,7 @@ def makegp_fourier_allpsr(psrs, prior, components, T=None, fourierbasis=fourierb
         return 1.0 / p, jnp.sum(jnp.log(p))
     invprior.params = priorfunc.params
 
-    gp = matrix.GlobalVariableGP(matrix.NoiseMatrix1D_var(priorfunc), fmats)
+    gp = utils.GlobalVariableGP(kernels.NoiseMatrix1D_var(priorfunc), fmats)
     gp.Phi_inv = invprior
 
     gp.index = {f'{psr.name}_{name}_coefficients({2*components})':
@@ -559,9 +457,9 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
                         for arg in argspec.args if arg not in exclude])
 
     fs, dfs, fmats = zip(*[fourierbasis(psr, components, T) for psr in psrs])
-    f, df = matrix.jnparray(fs[0]), matrix.jnparray(dfs[0])
+    f, df = utils.jnparray(fs[0]), utils.jnparray(dfs[0])
 
-    orfmats = [matrix.jnparray([[orf(p1.pos, p2.pos) for p1 in psrs] for p2 in psrs]) for orf in orfs]
+    orfmats = [utils.jnparray([[orf(p1.pos, p2.pos) for p1 in psrs] for p2 in psrs]) for orf in orfs]
 
     if len(priors) == 1 and len(orfs) == 1:
         prior, orfmat, argmap = priors[0], orfmats[0], argmaps[0]
@@ -577,7 +475,7 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
 
         # if we're not in the pixel-basis case we can take a shortcut in making the inverse
         if orfmat.ndim == 2:
-            invorf, orflogdet = matrix.jnparray(np.linalg.inv(orfmat)), np.linalg.slogdet(orfmat)[1]
+            invorf, orflogdet = utils.jnparray(np.linalg.inv(orfmat)), np.linalg.slogdet(orfmat)[1]
             def invprior(params):
                 phi = prior(f, df, *[params[arg] for arg in argmap])
                 invphi = 1.0 / phi if phi.ndim == 1 else jnp.linalg.inv(phi)
@@ -592,10 +490,10 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
             invprior.params = argmap
             invprior.type = jax.Array
 
-            orfcf = matrix.jsp.linalg.cho_factor(orfmat)
+            orfcf = utils.jsp.linalg.cho_factor(orfmat)
             def factors(params):
                 phi = prior(f, df, *[params[arg] for arg in argmap])
-                phicf = matrix.jsp.linalg.cho_factor(phi)
+                phicf = utils.jsp.linalg.cho_factor(phi)
 
                 return orfcf, phicf
             factors.params = argmap
@@ -613,9 +511,9 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
         invprior, factors = None, None
     # hack for metamath to properly
     # set phiinv
-    nm =matrix.NoiseMatrix12D_var(priorfunc)
+    nm =kernels.NoiseMatrix12D_var(priorfunc)
     nm.inv =invprior
-    gp = matrix.GlobalVariableGP(nm, fmats)
+    gp = utils.GlobalVariableGP(nm, fmats)
     gp.Phi_inv, gp.factors = invprior, factors
 
     gp.index = {f'{psr.name}_{name}_coefficients({len(f)})':
@@ -764,9 +662,9 @@ def psd2cov(psdfunc, components, T, oversample=3, fmax_factor=1, cutoff=1):
 
     if cutoff is not None:
         i_cutoff = int(np.ceil(oversample / cutoff))
-        fs, zs = matrix.jnparray(freqs[i_cutoff:]), jnp.zeros(i_cutoff)
+        fs, zs = utils.jnparray(freqs[i_cutoff:]), jnp.zeros(i_cutoff)
     else:
-        fs = matrix.jnparray(freqs)
+        fs = utils.jnparray(freqs)
 
     def covmat(*args):
         if cutoff is not None:
@@ -778,7 +676,7 @@ def psd2cov(psdfunc, components, T, oversample=3, fmax_factor=1, cutoff=1):
         Cfreq = jnp.fft.ifft(fullpsd, norm='backward')
         Ctau = Cfreq.real * len(fullpsd) * df / 2
 
-        return matrix.jsp.linalg.toeplitz(Ctau[:scaled_components:fmax_factor])
+        return utils.jsp.linalg.toeplitz(Ctau[:scaled_components:fmax_factor])
     covmat.__signature__ = inspect.signature(psdfunc)
     covmat.type = jax.Array
 
@@ -887,7 +785,6 @@ def make_combined_crn(components, irn_psd, crn_psd, crn_prefix: typing.Optional[
             combined, crn_params = make_combined_crn(14, ds.powerlaw, ds.powerlaw)
             gp = makegp_fourier(psr, combined, components=30, common=crn_params)
     """
-    from discovery import matrix
     irn_spec = inspect.getfullargspec(irn_psd)
     crn_spec = inspect.getfullargspec(crn_psd)
 
@@ -930,7 +827,7 @@ def make_combined_crn(components, irn_psd, crn_psd, crn_prefix: typing.Optional[
     def _impl(f, df, kw):
         irn_kw = {k: kw[k] for k in irn_names}
         crn_kw = {k: kw[crn_rename[k]] for k in crn_names}
-        if matrix.jnp == jnp:
+        if utils.jnp == jnp:
             phi = irn_psd(f, df, **irn_kw)
             phi = phi.at[:2 * components].add(
                 crn_psd(f[:2 * components], df[:2 * components], **crn_kw)
@@ -962,15 +859,15 @@ def make_combined_crn(components, irn_psd, crn_psd, crn_prefix: typing.Optional[
 # combined red_noise + crn
 
 # this is a factory because it needs to specify a different number of components for the CRN
-# note that the preferred way to fix gamma is for the user to use matrix.partial directly
+# note that the preferred way to fix gamma is for the user to use utils.partial directly
 def makepowerlaw_crn(components, crn_gamma='variable'):
-    if matrix.jnp == jnp:
+    if utils.jnp == jnp:
         def powerlaw_crn(f, df, log10_A, gamma, crn_log10_A, crn_gamma):
             phi = (10.0**(2.0 * log10_A)) / 12.0 / jnp.pi**2 * const.fyr ** (gamma - 3.0) * f ** (-gamma) * df
             phi = phi.at[:2*components].add((10.0**(2.0 * crn_log10_A)) / 12.0 / jnp.pi**2 *
                                             const.fyr ** (crn_gamma - 3.0) * f[:2*components] ** (-crn_gamma) * df[:2*components])
             return phi
-    elif matrix.jnp == np:
+    elif utils.jnp == np:
         def powerlaw_crn(f, df, log10_A, gamma, crn_log10_A, crn_gamma):
             phi = (10.0**(2.0 * log10_A)) / 12.0 / np.pi**2 * const.fyr ** (gamma - 3.0) * f ** (-gamma) * df
             phi[:2*components] += ((10.0**(2.0 * crn_log10_A)) / 12.0 / np.pi**2 *
@@ -978,7 +875,7 @@ def makepowerlaw_crn(components, crn_gamma='variable'):
             return phi
 
     if crn_gamma != 'variable':
-        return matrix.partial(powerlaw_crn, crn_gamma=crn_gamma)
+        return utils.partial(powerlaw_crn, crn_gamma=crn_gamma)
     else:
         return powerlaw_crn
 
@@ -998,12 +895,12 @@ def brokenpowerlaw_brokencrn(f, df, log10_A, gamma, log10_fb, crn_log10_A, crn_g
         (1 + (f / 10**crn_log10_fb) ** (1 / kappa)) ** (kappa * crn_gamma)
 
 def makefreespectrum_crn(components):
-    if matrix.jnp == jnp:
+    if utils.jnp == jnp:
         def freespectrum_crn(f, df, log10_rho: typing.Sequence, crn_log10_rho: typing.Sequence):
             phi = jnp.repeat(10.0**(2.0 * log10_rho), 2)
             phi = phi.at[:2*components].add(jnp.repeat(10.0**(2.0 * crn_log10_rho), 2))
             return phi
-    elif matrix.jnp == np:
+    elif utils.jnp == np:
         def freespectrum_crn(f, df, log10_rho: typing.Sequence, crn_log10_rho: typing.Sequence):
             phi = jnp.repeat(10.0**(2.0 * log10_rho), 2)
             phi[:2*components] += jnp.repeat(10.0**(2.0 * crn_log10_rho), 2)
@@ -1046,7 +943,7 @@ def makedelay(psr, delay, components=None, common=[], name='delay'):
                    (f'({components})' if (argspec.annotations.get(arg) == typing.Sequence and components is not None) else '')
               for arg in args if not hasattr(psr, arg)}
 
-    psrpars = {arg: matrix.jnparray(getattr(psr, arg)) for arg in args if hasattr(psr, arg)}
+    psrpars = {arg: utils.jnparray(getattr(psr, arg)) for arg in args if hasattr(psr, arg)}
 
     def delayfunc(params):
         return delay(**psrpars, **{arg: params[argname] for arg,argname in argmap.items()})
@@ -1063,7 +960,7 @@ def make_extsignal_fourier(psrs, coefffunc, components, T=None, common=[],
                            name='extsignal'):
     """Build a deterministic signal carried on its OWN Fourier basis.
 
-    Returns a ``matrix.ExtSignal`` for use as ``ArrayLikelihood(extsignals=[...])``.
+    Returns a ``utils.ExtSignal`` for use as ``ArrayLikelihood(extsignals=[...])``.
     Unlike a GP it has no prior: its Fourier coefficients are a deterministic
     function of a few physical parameters (``coefffunc``). The likelihood folds
     it in via cross-terms with the GP basis -- see
@@ -1098,8 +995,8 @@ def make_extsignal_fourier(psrs, coefffunc, components, T=None, common=[],
         # keep Fs host-side: TOA-scale, only consumed by host-side trace-time
         # collapse in make_kernelproduct_gpcomponent.
         Fs.append(np.asarray(fmat))
-    f_arr = matrix.jnparray(np.stack(fs))      # (npsr, 2*components)
-    df_arr = matrix.jnparray(np.stack(dfs))
+    f_arr = utils.jnparray(np.stack(fs))      # (npsr, 2*components)
+    df_arr = utils.jnparray(np.stack(dfs))
 
     # inspect coefffunc: arguments after the leading f, df
     argspec = inspect.getfullargspec(coefffunc)
@@ -1118,7 +1015,7 @@ def make_extsignal_fourier(psrs, coefffunc, components, T=None, common=[],
             return f'{name}_{a}'
         return f'{psr.name}_{name}_{a}'
 
-    attr_arr = {a: matrix.jnparray(np.stack([np.asarray(getattr(p, a))
+    attr_arr = {a: utils.jnparray(np.stack([np.asarray(getattr(p, a))
                                              for p in psrs]))
                 for a in sig_args if is_attr[a]}
 
@@ -1138,9 +1035,16 @@ def make_extsignal_fourier(psrs, coefffunc, components, T=None, common=[],
             elif is_common[a]:
                 callargs.append(params[pname(psrs[0], a)])
             else:
-                callargs.append(matrix.jnparray(
+                callargs.append(utils.jnparray(
                     [params[pname(p, a)] for p in psrs]))
         return vfunc(*callargs)                 # (npsr, 2*components)
     coeffs.params = params_list
 
-    return matrix.ExtSignal(Fs, coeffs, name=name)
+    return utils.ExtSignal(Fs, coeffs, name=name)
+
+
+# Measurement-noise constructors live in measurement_noise.py (collapsed form);
+# re-exported here so `signals.makenoise_measurement` / `ds.makenoise_measurement`
+# resolve. Import at module end to avoid a circular import (measurement_noise
+# imports signals for `makegp_ecorr` / `selection_backend_flags`).
+from .measurement_noise import makenoise_measurement, makenoise_measurement_simple  # noqa: E402

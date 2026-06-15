@@ -30,9 +30,11 @@ def config(kernels=None):
         - 'metamath': the graph-based path in `likelihood_metamath.py`,
                       built on `metamath.py` classes.
 
-        Distinct from `matrix.config(backend=...)`, which switches the
+        Distinct from `utils.config(backend=...)`, which switches the
         underlying numerical backend (numpy vs jax). This switch picks
-        which kernel implementation backs the likelihoods.
+        which kernel implementation backs the likelihoods: it sets the
+        `_kernels` factory mode (so `signals.py` builds the right kernels)
+        and rebinds the top-level likelihood classes.
 
         When called, rebinds `discovery.PulsarLikelihood`,
         `discovery.GlobalLikelihood`, and `discovery.ArrayLikelihood` to the
@@ -52,13 +54,13 @@ def config(kernels=None):
             f"unknown kernels {kernels!r}; expected 'matrix' or 'metamath'"
         )
 
-    from . import _kernel_switch
+    from . import _kernels
+
+    _kernels.set_mode(kernels)
 
     if kernels == "metamath":
-        _kernel_switch.apply_patches()
         from . import likelihood_metamath as _src
     else:
-        _kernel_switch.restore_patches()
         from . import likelihood as _src
 
     import sys

@@ -15,7 +15,7 @@ import discovery as ds
 
 from ._comparison import assert_close, assert_params_equal
 from ._routes import build_routes
-from discovery import recipes as R
+import discovery.recipes as R
 
 
 # Model builders live in `discovery.recipes` (in discovery.recipes, shared with the docs cookbook).

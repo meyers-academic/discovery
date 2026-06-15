@@ -1,10 +1,13 @@
 """Ready-made model-building recipes (a small "model zoo").
 
-Each function assembles a Discovery likelihood from the public API and returns
-it, e.g.::
+Import it explicitly (it is not pulled into the top-level ``discovery``
+namespace). Each function assembles a Discovery likelihood from the public API
+and returns it, e.g.::
 
     import discovery as ds
-    model = ds.recipes.full_rn(psr)
+    import discovery.recipes as ds_recipes
+
+    model = ds_recipes.full_rn(psr)
     logL  = model.logL(ds.sample_uniform(model.logL.params))
 
 This module is also the **single source of truth** for the parity test-suite

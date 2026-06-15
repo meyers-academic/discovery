@@ -71,8 +71,4 @@ def config(kernels=None):
     _KERNELS = kernels
 
 
-# Ready-made model recipes (model zoo); imported last so it can reference the
-# fully-initialised package. Exposed as `discovery.recipes`.
-from . import recipes
-
 __version__ = "0.5"

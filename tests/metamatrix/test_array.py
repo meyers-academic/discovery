@@ -17,79 +17,18 @@ import discovery as ds
 from ._comparison import assert_close, assert_params_equal
 from ._patch import metamatrix_patch
 from ._routes import build_routes
+from . import _recipes as R
 
 
-# ---------- per-pulsar PSL skeleton (no per-psr RN — RN goes in commongp) ----------
-
-def _psl_skeleton(psr):
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, psr.noisedict),
-        ds.makegp_ecorr(psr, psr.noisedict),
-        ds.makegp_timing(psr, svd=True),
-    ])
-
-
-# ---------- ArrayLikelihood builders ----------
-
-def _no_common(psrs):
-    """No commongp, no globalgp → sum of psl.logL (per-psr RN inline)."""
-    T = ds.getspan(psrs)
-    return ds.ArrayLikelihood([
-        ds.PulsarLikelihood([
-            psr.residuals,
-            ds.makenoise_measurement(psr, psr.noisedict),
-            ds.makegp_ecorr(psr, psr.noisedict),
-            ds.makegp_timing(psr, svd=True),
-            ds.makegp_fourier(psr, ds.powerlaw, components=30, T=T, name="rednoise"),
-        ]) for psr in psrs
-    ])
-
-
-def _common_rn(psrs):
-    """Single commongp: shared-basis RN. Triggers VectorWoodburyKernel path."""
-    T = ds.getspan(psrs)
-    return ds.ArrayLikelihood(
-        [_psl_skeleton(p) for p in psrs],
-        commongp=ds.makecommongp_fourier(psrs, ds.powerlaw, components=30,
-                                         T=T, name="rednoise"),
-    )
-
-
-def _common_rn_and_crn(psrs):
-    """Two commongps: per-psr RN + CRN with shared params."""
-    T = ds.getspan(psrs)
-    return ds.ArrayLikelihood(
-        [_psl_skeleton(p) for p in psrs],
-        commongp=[
-            ds.makecommongp_fourier(psrs, ds.powerlaw, components=30,
-                                    T=T, name="rednoise"),
-            ds.makecommongp_fourier(psrs, ds.powerlaw, components=14,
-                                    T=T, name="crn",
-                                    common=["crn_log10_A", "crn_gamma"]),
-        ],
-    )
-
-
-def _common_rn_plus_global_hd(psrs):
-    """commongp=RN + globalgp=HD-correlated GW. Exercises the fused metamath path."""
-    T = ds.getspan(psrs)
-    return ds.ArrayLikelihood(
-        [_psl_skeleton(p) for p in psrs],
-        commongp=ds.makecommongp_fourier(psrs, ds.powerlaw, components=30,
-                                         T=T, name="rednoise"),
-        globalgp=ds.makeglobalgp_fourier(psrs, ds.powerlaw, ds.hd_orf,
-                                         components=14, T=T, name="gw"),
-    )
-
+# Model builders live in `_recipes.py` (shared with the docs cookbook).
 
 # ---------- tables ----------
 
 LOGL_ROWS = [
-    pytest.param(_no_common,                  id="no_common"),
-    pytest.param(_common_rn,                  id="common_rn"),
-    pytest.param(_common_rn_and_crn,          id="common_rn+crn"),
-    pytest.param(_common_rn_plus_global_hd,   id="common_rn+global_hd"),
+    pytest.param(R.no_common,                id="no_common"),
+    pytest.param(R.common_rn,                id="common_rn"),
+    pytest.param(R.common_rn_and_crn,        id="common_rn+crn"),
+    pytest.param(R.common_rn_plus_global_hd, id="common_rn+global_hd"),
 ]
 
 
@@ -124,8 +63,8 @@ def test_logL(psrs, build):
 # matrix.VectorWoodburyKernel_varP has no make_conditional, so this is a
 # *metamath-only* capability; we run it standalone (no parity check).
 CONDITIONAL_ROWS = [
-    pytest.param(_common_rn,         id="common_rn"),
-    pytest.param(_common_rn_and_crn, id="common_rn+crn"),
+    pytest.param(R.common_rn,         id="common_rn"),
+    pytest.param(R.common_rn_and_crn, id="common_rn+crn"),
 ]
 
 
@@ -173,72 +112,14 @@ def test_clogL(psrs, build):
 
 
 # ============================================================================
-# Decentering / means / extsignals — new capabilities ported from b1bda23.
-# Each row's builder configures one of the three new clogL features.
+# Decentering / means / extsignals — clogL features (recipes in _recipes.py).
 # ============================================================================
 
-def _decenter_common_rn(psrs):
-    T = ds.getspan(psrs)
-    return ds.ArrayLikelihood(
-        [_psl_skeleton(p) for p in psrs],
-        commongp=ds.makecommongp_fourier(psrs, ds.powerlaw, components=30,
-                                         T=T, name="rednoise"),
-        decenter=True,
-    )
-
-
-def _decenter_common_rn_global_hd(psrs):
-    T = ds.getspan(psrs)
-    return ds.ArrayLikelihood(
-        [_psl_skeleton(p) for p in psrs],
-        commongp=ds.makecommongp_fourier(psrs, ds.powerlaw, components=30,
-                                         T=T, name="rednoise"),
-        globalgp=ds.makeglobalgp_fourier(psrs, ds.powerlaw, ds.hd_orf,
-                                         components=14, T=T, name="gw"),
-        decenter=True,
-    )
-
-
-def _means_on_commongp(psrs):
-    """commongp with a `means` callable that shifts the prior center.
-
-    The mean uses a per-pulsar scalar param ``{psr.name}_mean_amp`` that maps
-    to a flat coefficient shift across the Fourier basis.
-    """
-    import jax.numpy as jnp
-
-    def my_means(f, df, mean_amp):
-        # length-(2*components,) shift; sized by f
-        return mean_amp * jnp.ones_like(f)
-
-    T = ds.getspan(psrs)
-    return ds.ArrayLikelihood(
-        [_psl_skeleton(p) for p in psrs],
-        commongp=ds.makecommongp_fourier(psrs, ds.powerlaw, components=30,
-                                         T=T, name="rednoise",
-                                         means=my_means),
-    )
-
-
-def _extsignal_cw(psrs):
-    """commongp + a CW external signal on its own (higher-freq) basis."""
-    T = ds.getspan(psrs)
-    return ds.ArrayLikelihood(
-        [_psl_skeleton(p) for p in psrs],
-        commongp=ds.makecommongp_fourier(psrs, ds.powerlaw, components=30,
-                                         T=T, name="rednoise"),
-        extsignals=[
-            ds.makecw_extsignal(psrs, components=50, T=T,
-                                pulsarterm=True, name="cw"),
-        ],
-    )
-
-
 NEW_CLOGL_ROWS = [
-    pytest.param(_decenter_common_rn,             id="decenter+common_rn"),
-    pytest.param(_decenter_common_rn_global_hd, id="decenter+common_rn+global_hd"),
-    pytest.param(_means_on_commongp,              id="means_on_commongp"),
-    pytest.param(_extsignal_cw,                   id="extsignal_cw"),
+    pytest.param(R.decenter_common_rn,            id="decenter+common_rn"),
+    pytest.param(R.decenter_common_rn_global_hd,  id="decenter+common_rn+global_hd"),
+    pytest.param(R.means_on_commongp,             id="means_on_commongp"),
+    pytest.param(R.extsignal_cw,                  id="extsignal_cw"),
 ]
 
 

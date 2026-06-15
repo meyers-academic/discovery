@@ -4,163 +4,40 @@ Each row builds the same model under three routes (matrix.py reference,
 metamath-via-monkeypatch, metamath-native via likelihood_metamath.py) and
 asserts the output method (logL / conditional / clogL / ...) and param set
 agree across all three. See ``_routes.build_routes`` for the route
-definitions.
-
-xfail rows pin known gaps in the metamath coverage; they flip to failure
-when the underlying gap closes (strict=True).
+definitions. Model recipes are imported from ``_recipes`` (shared with the
+docs cookbook).
 """
 
 import numpy as np
 import pytest
 
 import jax
-import jax.numpy as jnp
 
 import discovery as ds
 
-
-def _toy_delay(toas):
-    # deterministic, parameter-free delay (args come only from psr attributes);
-    # exercises the CompoundDelay path without introducing unsampleable params.
-    return 1e-9 * jnp.sin(2.0 * jnp.pi * (toas - toas.min()) / 3.16e8)
-
 from ._comparison import assert_close, assert_params_equal
 from ._routes import build_routes
+from . import _recipes as R
 
 
-# ---------- model builders ----------
-# each takes a psr, returns a PulsarLikelihood. invoked twice — once inside
-# the patch context, once outside — so the body is just a recipe.
-
-def _measurement_simple(psr):
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement_simple(psr),
-    ])
-
-def _measurement_white(psr):
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr),
-    ])
-
-def _ecorr_gp(psr):
-    # ecorr-as-GP: VariableGP with NoiseMatrix1D_var Phi
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr),
-        ds.makegp_ecorr(psr),
-    ])
-
-def _ecorr_sm(psr):
-    # ecorr folded into measurement noise via Sherman-Morrison.
-    # SM noise classes don't define make_kernelproduct directly — they must be
-    # wrapped in a Woodbury, so we add a constant timing GP for a minimal combo.
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, psr.noisedict, ecorr=True),
-        ds.makegp_timing(psr, svd=True),
-    ])
-
-def _meas_timing(psr):
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, psr.noisedict),
-        ds.makegp_timing(psr, svd=True),
-    ])
-
-def _full_rn(psr):
-    # the realistic single-pulsar model: WN + ecorr-GP + timing + power-law RN
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, psr.noisedict),
-        ds.makegp_ecorr(psr, psr.noisedict),
-        ds.makegp_timing(psr, svd=True),
-        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
-    ])
-
-def _full_rn_concat_false(psr):
-    # same as _full_rn but PulsarLikelihood(... concat=False) → chained Woodburys
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, psr.noisedict),
-        ds.makegp_ecorr(psr, psr.noisedict),
-        ds.makegp_timing(psr, svd=True),
-        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
-    ], concat=False)
-
-def _multi_vgp(psr):
-    # two variable GPs (RN + freespectrum-like), exercises CompoundGP variable branch
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, psr.noisedict),
-        ds.makegp_ecorr(psr, psr.noisedict),
-        ds.makegp_timing(psr, svd=True),
-        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
-        # second variable GP under the dmgp prefix (has its own priors)
-        ds.makegp_fourier(psr, ds.powerlaw, components=14, name="dmgp"),
-    ])
-
-def _variable_timing(psr):
-    # makegp_timing(variable=True) — turns a constant timing GP into a variable one
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, ecorr=True),
-        ds.makegp_timing(psr, svd=True, variable=True),
-        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
-    ])
-
-
-def _fftcov_2d(psr):
-    # fftcov GP emits a *2D* covariance noise matrix (NoiseMatrix2D_var via the
-    # NoiseMatrix12D_var dispatcher). Exercises the 2D noise path that the fftcov
-    # family (os_example / numpyro_example) uses but no 1D-PSD row reaches.
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, psr.noisedict),
-        ds.makegp_timing(psr, svd=True),
-        # name 'rednoise' so the powerlaw params get standard sampling priors
-        ds.makegp_fftcov(psr, ds.powerlaw, components=31, name="rednoise"),
-    ])
-
-def _delay(psr):
-    # makedelay -> CompoundDelay path (used by the CW examples).
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, psr.noisedict),
-        ds.makegp_timing(psr, svd=True),
-        ds.makedelay(psr, _toy_delay, name="toydelay"),
-    ])
-
-def _fourier_variance_fixed(psr):
-    # makegp_fourier_variance with the variance matrix supplied -> ConstantGP
-    # wrapping NoiseMatrix2D_novar (the fixed 2D noise constructor).
-    comps = 10
-    argname = f"{psr.name}_fourierGP_variance({comps*2},{comps*2})"
-    cov = np.diag(np.full(comps * 2, 1e-4))
-    return ds.PulsarLikelihood([
-        psr.residuals,
-        ds.makenoise_measurement(psr, psr.noisedict),
-        ds.makegp_timing(psr, svd=True),
-        ds.makegp_fourier_variance(psr, components=comps, noisedict={argname: cov}),
-    ])
-
+# Model builders live in `_recipes.py` (shared with the docs cookbook); here we
+# just select which recipes feed which parity assertions.
 
 # ---------- logL rows ----------
 
 LOGL_ROWS = [
-    pytest.param(_measurement_simple, id="measurement_simple"),
-    pytest.param(_measurement_white,  id="measurement_white"),
-    pytest.param(_ecorr_gp,             id="measurement+ecorr_gp"),
-    pytest.param(_ecorr_sm,             id="ecorr_sm+timing"),
-    pytest.param(_meas_timing,          id="measurement+timing_svd"),
-    pytest.param(_full_rn,              id="full_rn"),
-    pytest.param(_full_rn_concat_false, id="full_rn_concat_false"),
-    pytest.param(_multi_vgp,            id="multi_vgp"),
-    pytest.param(_variable_timing,      id="variable_timing"),
-    pytest.param(_fftcov_2d,            id="fftcov_2d"),
-    pytest.param(_delay,                id="delay"),
-    pytest.param(_fourier_variance_fixed, id="fourier_variance_fixed"),
+    pytest.param(R.measurement_simple,    id="measurement_simple"),
+    pytest.param(R.measurement_white,     id="measurement_white"),
+    pytest.param(R.ecorr_gp,              id="measurement+ecorr_gp"),
+    pytest.param(R.ecorr_sm,              id="ecorr_sm+timing"),
+    pytest.param(R.meas_timing,           id="measurement+timing_svd"),
+    pytest.param(R.full_rn,               id="full_rn"),
+    pytest.param(R.full_rn_concat_false,  id="full_rn_concat_false"),
+    pytest.param(R.multi_vgp,             id="multi_vgp"),
+    pytest.param(R.variable_timing,       id="variable_timing"),
+    pytest.param(R.fftcov_2d,             id="fftcov_2d"),
+    pytest.param(R.delay,                 id="delay"),
+    pytest.param(R.fourier_variance_fixed, id="fourier_variance_fixed"),
 ]
 
 
@@ -200,8 +77,8 @@ def test_logL(psr, build):
 # conditional / clogL only make sense with at least one variable GP
 
 CONDITIONAL_ROWS = [
-    pytest.param(_full_rn, id="full_rn"),
-    pytest.param(_multi_vgp, id="multi_vgp"),
+    pytest.param(R.full_rn, id="full_rn"),
+    pytest.param(R.multi_vgp, id="multi_vgp"),
 ]
 
 
@@ -247,8 +124,8 @@ def test_clogL(psr, build):
 
 
 SAMPLE_ROWS = [
-    pytest.param(_full_rn, id="full_rn"),
-    pytest.param(_multi_vgp, id="multi_vgp"),
+    pytest.param(R.full_rn, id="full_rn"),
+    pytest.param(R.multi_vgp, id="multi_vgp"),
 ]
 
 

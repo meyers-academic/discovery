@@ -1,10 +1,18 @@
-"""Shared model-building recipes — the single source of truth for both the
-parity tests (``tests/metamatrix/test_{pulsar,global,array}.py``) and the docs
-cookbook (``docs/tutorials/cookbook_models.ipynb``).
+"""Ready-made model-building recipes (a small "model zoo").
 
-Each builder returns a Discovery likelihood model assembled from the public
-``discovery`` API. Every recipe works under both ``ds.config(kernels='matrix')``
-and ``ds.config(kernels='metamath')`` — the parity suite asserts they agree.
+Each function assembles a Discovery likelihood from the public API and returns
+it, e.g.::
+
+    import discovery as ds
+    model = ds.recipes.full_rn(psr)
+    logL  = model.logL(ds.sample_uniform(model.logL.params))
+
+This module is also the **single source of truth** for the parity test-suite
+(``tests/metamatrix/test_{pulsar,global,array}.py``) and the docs cookbook
+(``docs/tutorials/cookbook_models.ipynb``) — both import these same builders, so
+every recipe is exercised by a test that asserts the ``matrix`` and ``metamath``
+kernel backends agree. Every recipe works unchanged under either backend
+(``ds.config(kernels='matrix'|'metamath')``).
 
 Each function's one-line docstring is the cookbook caption; keep it to a single
 sentence. The ordered ``SINGLE_PULSAR`` / ``GLOBAL`` / ``ARRAY`` lists drive the

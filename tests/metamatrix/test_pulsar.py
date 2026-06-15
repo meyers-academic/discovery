@@ -4,7 +4,7 @@ Each row builds the same model under three routes (matrix.py reference,
 metamath-via-monkeypatch, metamath-native via likelihood_metamath.py) and
 asserts the output method (logL / conditional / clogL / ...) and param set
 agree across all three. See ``_routes.build_routes`` for the route
-definitions. Model recipes are imported from ``_recipes`` (shared with the
+definitions. Model recipes are imported from ``discovery.recipes`` (shared with the
 docs cookbook).
 """
 
@@ -17,10 +17,10 @@ import discovery as ds
 
 from ._comparison import assert_close, assert_params_equal
 from ._routes import build_routes
-from . import _recipes as R
+from discovery import recipes as R
 
 
-# Model builders live in `_recipes.py` (shared with the docs cookbook); here we
+# Model builders live in `discovery.recipes` (in discovery.recipes, shared with the docs cookbook); here we
 # just select which recipes feed which parity assertions.
 
 # ---------- logL rows ----------

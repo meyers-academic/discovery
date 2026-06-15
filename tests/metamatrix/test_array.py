@@ -17,10 +17,10 @@ import discovery as ds
 from ._comparison import assert_close, assert_params_equal
 from ._patch import metamatrix_patch
 from ._routes import build_routes
-from . import _recipes as R
+from discovery import recipes as R
 
 
-# Model builders live in `_recipes.py` (shared with the docs cookbook).
+# Model builders live in `discovery.recipes` (in discovery.recipes, shared with the docs cookbook).
 
 # ---------- tables ----------
 
@@ -112,7 +112,7 @@ def test_clogL(psrs, build):
 
 
 # ============================================================================
-# Decentering / means / extsignals — clogL features (recipes in _recipes.py).
+# Decentering / means / extsignals — clogL features (recipes in discovery.recipes).
 # ============================================================================
 
 NEW_CLOGL_ROWS = [

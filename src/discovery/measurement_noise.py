@@ -10,12 +10,10 @@ the variant-agnostic factory entry points `_kernels.NoiseMatrix1D` /
 The factory picks the concrete class.
 
 This is the strangler replacement for `signals.makenoise_measurement{,_simple}`.
-While both coexist, the parity suite compares them:
-  - matrix mode: collapsed vs original both build matrix.py classes, isolating
-    that the collapse itself is faithful;
-  - metamath mode: collapsed builds metamath kernels, compared to the matrix
-    oracle.
-Once green, `signals.py` is repointed here and the originals deleted.
+While both coexist, the parity suite compares them in matrix mode (collapsed vs
+original both build matrix.py classes, isolating that the collapse is faithful)
+and in metamath mode (collapsed builds metamath kernels, compared to the matrix
+oracle). Once green, `signals.py` is repointed here and the originals deleted.
 """
 import numpy as np
 import jax.numpy as jnp

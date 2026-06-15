@@ -97,14 +97,16 @@ def full_rn_concat_false(psr):
 
 
 def multi_vgp(psr):
-    """Two variable GPs (red noise + a DM GP) — exercises the compound variable-GP branch."""
+    """Two variable GPs: achromatic red noise + a chromatic DM GP (on the DM Fourier basis)."""
     return ds.PulsarLikelihood([
         psr.residuals,
         ds.makenoise_measurement(psr, psr.noisedict),
         ds.makegp_ecorr(psr, psr.noisedict),
         ds.makegp_timing(psr, svd=True),
         ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
-        ds.makegp_fourier(psr, ds.powerlaw, components=14, name="dmgp"),
+        # DM noise is chromatic -> use the DM (nu^-2) Fourier basis, not the default
+        ds.makegp_fourier(psr, ds.powerlaw, components=14, name="dmgp",
+                          fourierbasis=ds.dmfourierbasis),
     ])
 
 

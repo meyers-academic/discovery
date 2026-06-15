@@ -39,6 +39,7 @@ _METAMATH = {
     # subclasses preserve isinstance dispatch performed by likelihood.py.
     "NoiseMatrix1D_novar":     mh.NoiseMatrix1D,
     "NoiseMatrix1D_var":       mh.NoiseMatrix1D,
+    "NoiseMatrix2D_novar":     mh.NoiseMatrix2D,
     "NoiseMatrix2D_var":       mh.NoiseMatrix2D,
     "NoiseMatrix12D_var":      mh.NoiseMatrix12D,
     # Vector noise has no separate metamath class -- metamath's NoiseMatrix

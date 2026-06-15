@@ -14,8 +14,15 @@ import numpy as np
 import pytest
 
 import jax
+import jax.numpy as jnp
 
 import discovery as ds
+
+
+def _toy_delay(toas):
+    # deterministic, parameter-free delay (args come only from psr attributes);
+    # exercises the CompoundDelay path without introducing unsampleable params.
+    return 1e-9 * jnp.sin(2.0 * jnp.pi * (toas - toas.min()) / 3.16e8)
 
 from ._comparison import assert_close, assert_params_equal
 from ._routes import build_routes
@@ -104,6 +111,41 @@ def _variable_timing(psr):
     ])
 
 
+def _fftcov_2d(psr):
+    # fftcov GP emits a *2D* covariance noise matrix (NoiseMatrix2D_var via the
+    # NoiseMatrix12D_var dispatcher). Exercises the 2D noise path that the fftcov
+    # family (os_example / numpyro_example) uses but no 1D-PSD row reaches.
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr, psr.noisedict),
+        ds.makegp_timing(psr, svd=True),
+        # name 'rednoise' so the powerlaw params get standard sampling priors
+        ds.makegp_fftcov(psr, ds.powerlaw, components=31, name="rednoise"),
+    ])
+
+def _delay(psr):
+    # makedelay -> CompoundDelay path (used by the CW examples).
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr, psr.noisedict),
+        ds.makegp_timing(psr, svd=True),
+        ds.makedelay(psr, _toy_delay, name="toydelay"),
+    ])
+
+def _fourier_variance_fixed(psr):
+    # makegp_fourier_variance with the variance matrix supplied -> ConstantGP
+    # wrapping NoiseMatrix2D_novar (the fixed 2D noise constructor).
+    comps = 10
+    argname = f"{psr.name}_fourierGP_variance({comps*2},{comps*2})"
+    cov = np.diag(np.full(comps * 2, 1e-16))
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr, psr.noisedict),
+        ds.makegp_timing(psr, svd=True),
+        ds.makegp_fourier_variance(psr, components=comps, noisedict={argname: cov}),
+    ])
+
+
 # ---------- logL rows ----------
 
 LOGL_ROWS = [
@@ -116,6 +158,18 @@ LOGL_ROWS = [
     pytest.param(_full_rn_concat_false, id="full_rn_concat_false"),
     pytest.param(_multi_vgp,            id="multi_vgp"),
     pytest.param(_variable_timing,      id="variable_timing"),
+    pytest.param(_fftcov_2d,            id="fftcov_2d"),
+    pytest.param(_delay,                id="delay"),
+    pytest.param(
+        _fourier_variance_fixed, id="fourier_variance_fixed",
+        marks=pytest.mark.xfail(strict=True, reason=(
+            "Phase 3 known gap: an all-constant 2D GP prior (ConstantGP from "
+            "makegp_fourier_variance, NoiseMatrix2D_novar) is unsupported in the "
+            "metamath path -- metamath CompoundGP._build_mixed_logprior requires "
+            "gp.index, which a marginalized constant GP lacks. The kernel maps "
+            "(NoiseMatrix2D_novar -> mh.NoiseMatrix2D); the likelihood path does "
+            "not. Close in Phase 4; see docs/components/phase3_coverage.md.")),
+    ),
 ]
 
 

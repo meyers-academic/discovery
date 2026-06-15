@@ -17,11 +17,11 @@ call sites, plus the builders invoked by `examples/*.ipynb` and
 | `NoiseMatrix1D_novar`/`_var` | `makegp_ecorr*`, `makegp_timing`, `makegp_improper` | ✅ | `ecorr_gp`, `timing`, … | ✅ |
 | `NoiseMatrix12D_var` (1D) | `makegp_fourier` (1D PSD) | ✅→`NoiseMatrix12D` | `full_rn`, … | ✅ |
 | `NoiseMatrix2D_var` (2D) | `makegp_fftcov`/`avgcov`/`intcov` | ✅ | **`fftcov_2d` (added)** | ✅ closed |
-| `NoiseMatrix2D_novar` | `makegp_fourier_variance` (fixed) | ✅ (added) | **`fourier_variance_fixed`** | ⚠️ `xfail` (see gap C) |
+| `NoiseMatrix2D_novar` | `makegp_fourier_variance` (fixed) | ✅ (added) | **`fourier_variance_fixed`** | ✅ closed (Phase 4a) |
 | `VectorNoiseMatrix12D_var` | `makecommongp_fourier` | ✅ | `common_rn` | ✅ (closed Phase 1) |
 | `CompoundDelay` | `makedelay`/`makedelay_binary` | ✅ | **`delay` (added)** | ✅ closed |
 | `WoodburyKernel`, `CompoundGP`, `VectorCompoundGP`, `VectorWoodburyKernel_varP` | likelihood layer | ✅ | all model tests | ✅ |
-| `CompoundGlobalGP` | globalgp-as-list (CURN) | ❌ fallthrough→matrix | — | ⚠️ known gap (see D) |
+| `CompoundGlobalGP` | globalgp-as-list (CURN) | ✅ (Phase 4b) | **`global_compound`** | ✅ closed (Phase 4b) |
 
 PSD/ORF helpers (`powerlaw`, `freespectrum`, `brokenpowerlaw`,
 `make_combined_crn`, `makepowerlaw_crn`, `hd_orf`, …) are prior functions, not
@@ -42,15 +42,19 @@ kernel constructors — they ride on the GP builders above.
   but the **likelihood path** is unsupported in metamath: an all-constant 2D GP
   prior reaches `metamath.CompoundGP._build_mixed_logprior`, which requires
   `gp.index` — a marginalized constant GP has none.
-  **Pinned:** `test_pulsar.py::test_logL[fourier_variance_fixed]` is
-  `@pytest.mark.xfail(strict=True)`. strict ⇒ it flips to a failure the moment
-  the path is supported, so Phase 4 can't silently leave it half-done.
+  **Closed in Phase 4a:** `metamath.CompoundGP` now builds a real combined dense
+  `Phi` (block-diagonal, promoting 1D blocks) for a mixed but *marginalized*
+  compound, gating the coefficient-log-prior branch to the vector/decentered
+  path. `test_pulsar.py::test_logL[fourier_variance_fixed]` passes (xfail removed).
 - **D — `CompoundGlobalGP`.** The Phase-2 factory fallthrough (globalgp passed
-  as a *list*, e.g. some CURN setups). No metamath port; lives in `matrix.py`
-  and builds `matrix.NoiseMatrix1D_var` directly. Untested today (no parity
-  route, no notebook exercises the list form in a way the sweep could confirm).
-  **Deferred to Phase 4**, where `CompoundGlobalGP` must be relocated out of
-  `matrix.py` regardless — its removal is the forcing function.
+  as a *list*, e.g. HD + monopole). Originally lived only in `matrix.py` and
+  built `matrix.NoiseMatrix1D_var` directly, so it couldn't consume metamath GP
+  priors. **Closed in Phase 4b:** relocated to `signals.CompoundGlobalGP`,
+  backend-agnostic (factory + `utils.GlobalVariableGP`, reading only
+  mode-neutral `gp.Phi.getN`/`.getN.params`/`gp.Phi_inv`). Both `likelihood.py`
+  and `likelihood_metamath.py` now call it; `matrix.CompoundGlobalGP` is dead
+  code that goes with `matrix.py` in Phase 5. Routed by `test_global.py`'s
+  `global_compound` (logL + conditional).
 
 ## Integration check — `cw_extsignal_example.ipynb`
 
@@ -69,7 +73,8 @@ run — out of scope for the kernel-parity check.)
 
 ## Phase 3 result
 
-All production / notebook-driven kernel constructors are now parity-routed,
-**except** the two documented carry-overs to Phase 4: `NoiseMatrix2D_novar` (C,
-strict `xfail`) and `CompoundGlobalGP` (D). The matrix-path oracle may be
-deleted for every other constructor.
+All production / notebook-driven kernel constructors are now parity-routed.
+The two carry-overs (C `NoiseMatrix2D_novar`, D `CompoundGlobalGP`) were closed
+in **Phase 4** — see the updated dispositions above; there are no remaining
+`xfail`s. Every constructor the matrix oracle covers is now matched by the
+metamath path, so the oracle may be deleted in Phase 5.

@@ -545,6 +545,97 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
 makegp_fourier_global = makeglobalgp_fourier
 
 
+def CompoundGlobalGP(gplist):
+    """Combine multiple GlobalVariableGPs (e.g. HD + monopole) into one.
+
+    Backend-agnostic replacement for the legacy ``matrix.CompoundGlobalGP``:
+    builds the combined block-structured prior through the ``_kernels`` factory
+    and ``utils.GlobalVariableGP``, so it yields matrix.py classes in matrix
+    mode and metamath classes in metamath mode. Reads only mode-neutral GP
+    attributes (``gp.Phi.getN``, ``gp.Phi.getN.params``, ``gp.Phi_inv``) -- the
+    same surface ``makeglobalgp_fourier`` populates in either mode.
+    """
+    if not all(isinstance(gp, utils.GlobalVariableGP) for gp in gplist):
+        raise NotImplementedError("Cannot concatenate these types of GlobalGPs.")
+
+    fmats = [np.hstack(F) for F in zip(*[gp.Fs for gp in gplist])]
+    npsr = len(fmats)
+    ngps = [gp.Fs[0].shape[1] for gp in gplist]
+    allgp = sum(ngps)
+    offsets = [0] + list(np.cumsum(ngps))[:-1]
+
+    def _phi_params(gp):
+        return list(getattr(gp.Phi.getN, 'params', []))
+
+    def _is_2d(gp):
+        return getattr(gp.Phi.getN, 'type', None) is jax.Array
+
+    allparams = sorted(set().union(*[set(_phi_params(gp)) for gp in gplist])) if gplist else []
+
+    if all(not _is_2d(gp) for gp in gplist):
+        # all-diagonal global priors: interleave per-pulsar diagonal blocks
+        def priorfunc(params):
+            ret = jnp.zeros(npsr * allgp, 'd')
+            for gp, ngp, offset in zip(gplist, ngps, offsets):
+                phi = gp.Phi.getN(params)
+                for i in range(npsr):
+                    ret = ret.at[i*allgp+offset:i*allgp+offset+ngp].set(phi[i*ngp:(i+1)*ngp])
+            return ret
+        priorfunc.params = allparams
+
+        multigp = utils.GlobalVariableGP(kernels.NoiseMatrix1D_var(priorfunc), fmats)
+    else:
+        # dense (cross-pulsar) global priors, e.g. HD: place each gp's
+        # (npsr*ngp)^2 block matrix into the combined block-diagonal-by-gp layout.
+        def priorfunc(params):
+            ret = jnp.zeros((npsr*allgp, npsr*allgp), 'd')
+            for gp, ngp, offset in zip(gplist, ngps, offsets):
+                phi = gp.Phi.getN(params)
+                if phi.ndim == 1:
+                    phi = jnp.diag(phi)
+                for i in range(npsr):
+                    for j in range(npsr):
+                        ret = ret.at[i*allgp+offset:i*allgp+offset+ngp,
+                                     j*allgp+offset:j*allgp+offset+ngp].set(
+                            phi[i*ngp:(i+1)*ngp, j*ngp:(j+1)*ngp])
+            return ret
+        priorfunc.params = allparams
+        priorfunc.type = jax.Array
+
+        phiinvs = [gp.Phi_inv for gp in gplist]
+        if all(pi is not None for pi in phiinvs):
+            def invprior(params):
+                ret = jnp.zeros((npsr*allgp, npsr*allgp), 'd')
+                ps, ls = zip(*[pi(params) for pi in phiinvs])
+                for p, ngp, offset in zip(ps, ngps, offsets):
+                    pinv = jnp.diag(p) if p.ndim == 1 else p
+                    for i in range(npsr):
+                        for j in range(npsr):
+                            ret = ret.at[i*allgp+offset:i*allgp+offset+ngp,
+                                         j*allgp+offset:j*allgp+offset+ngp].set(
+                                pinv[i*ngp:(i+1)*ngp, j*ngp:(j+1)*ngp])
+                return ret, sum(ls)
+            invprior.params = allparams
+            invprior.type = jax.Array
+        else:
+            invprior = None
+
+        nm = kernels.NoiseMatrix2D_var(priorfunc)
+        nm.inv = invprior
+        multigp = utils.GlobalVariableGP(nm, fmats)
+        multigp.Phi_inv = invprior
+
+    index, cnt = {}, 0
+    for vars in zip(*[gp.index.items() for gp in gplist]):
+        for var, sli in vars:
+            width = sli.stop - sli.start
+            index[var] = slice(cnt, cnt + width)
+            cnt = cnt + width
+    multigp.index = index
+
+    return multigp
+
+
 # epoch-averaged covariance matrix from covfunc(t1, t2, *args)
 
 def epochavgbasis(psr, components, T=None, dt=1.0):

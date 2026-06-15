@@ -227,7 +227,7 @@ class PulsarLikelihood:
 class GlobalLikelihood:
     def __init__(self, psls, globalgp=None):
         self.psls = psls
-        self.globalgp = matrix.CompoundGlobalGP(globalgp) if isinstance(globalgp, list) else globalgp
+        self.globalgp = signals.CompoundGlobalGP(globalgp) if isinstance(globalgp, list) else globalgp
 
     # allow replacement of residuals
     def __setattr__(self, name, value):

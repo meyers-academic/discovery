@@ -16,15 +16,12 @@ import jax
 # through `utils` (`kh.X`) so that `config(backend=..., factor=...)` continues to
 # drive numpy-vs-jax, precision, and cholesky-vs-LU even in the metamath path.
 # The GP/Kernel marker types (`ConstantGP`, `VariableGP`, `Kernel`, ...) also
-# live in `utils`. Kernel constructors go through the `_kernels` factory; the
-# only one used here is `CompoundGlobalGP` (an untested edge case taking a list
-# of globalgps), which currently falls through to `matrix.CompoundGlobalGP` --
-# relocating/porting it to metamath is deferred to Phase 4.
+# live in `utils`. Combining a list of globalgps uses `signals.CompoundGlobalGP`,
+# which is backend-agnostic (builds metamath kernels in metamath mode).
 from . import signals
 from . import metamatrix
 from . import metamath
 from . import utils as kh
-from . import _kernels as kernels
 
 # Kernel
 #   ConstantKernel
@@ -213,7 +210,7 @@ class PulsarLikelihood:
 class GlobalLikelihood:
     def __init__(self, psls, globalgp=None):
         self.psls = psls
-        self.globalgp = kernels.CompoundGlobalGP(globalgp) if isinstance(globalgp, list) else globalgp
+        self.globalgp = signals.CompoundGlobalGP(globalgp) if isinstance(globalgp, list) else globalgp
 
     # allow replacement of residuals
     def __setattr__(self, name, value):

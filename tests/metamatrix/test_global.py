@@ -57,12 +57,28 @@ def _global_monopole(psrs):
     )
 
 
+def _global_compound(psrs):
+    """globalgp passed as a *list* of two global GPs (HD + monopole) →
+    exercises CompoundGlobalGP (combined cross-pulsar prior)."""
+    T = ds.getspan(psrs)
+    return ds.GlobalLikelihood(
+        [_psl(p, T) for p in psrs],
+        globalgp=[
+            ds.makeglobalgp_fourier(psrs, ds.powerlaw, ds.hd_orf,
+                                    components=14, T=T, name="gw"),
+            ds.makeglobalgp_fourier(psrs, ds.powerlaw, ds.monopole_orf,
+                                    components=14, T=T, name="gw_mono"),
+        ],
+    )
+
+
 # ---------- tables ----------
 
 LOGL_ROWS = [
     pytest.param(_no_global,       id="no_global"),
     pytest.param(_global_hd,       id="global_hd"),
     pytest.param(_global_monopole, id="global_monopole"),
+    pytest.param(_global_compound, id="global_compound"),
 ]
 
 
@@ -97,6 +113,7 @@ def test_logL(psrs, build):
 CONDITIONAL_ROWS = [
     pytest.param(_global_hd,       id="global_hd"),
     pytest.param(_global_monopole, id="global_monopole"),
+    pytest.param(_global_compound, id="global_compound"),
 ]
 
 

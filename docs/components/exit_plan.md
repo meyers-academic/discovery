@@ -225,12 +225,19 @@ carry-overs remain, both pinned for Phase 4:
   - **`CompoundGlobalGP`** — factory fallthrough to `matrix.py`; no metamath
     port; untested globalgp-as-list edge case.
 
-### Phase 4 — Close the carry-overs (no deletion)
+### Phase 4 — Close the carry-overs (no deletion) — **DONE**
 
 Make the metamath path feature-complete so nothing real depends on the matrix
 path's unique behavior — **without removing anything yet**. Both paths stay
 present and parity-tested; this is the checkpoint where others can exercise the
 metamath path on their own workflows before we commit to deletion in Phase 5.
+
+_Outcome: both carry-overs closed (see `phase3_coverage.md`). 4a — metamath
+`CompoundGP` builds a combined dense Phi for mixed marginalized compounds
+(`fourier_variance_fixed` passes, xfail removed). 4b — `CompoundGlobalGP`
+relocated to `signals.CompoundGlobalGP` (backend-agnostic) and routed by
+`global_compound`. No `xfail`s remain; full suite green (48 parity + 29
+matrix-path)._
 
 1. **All-constant 2D GP prior.** Port the path so metamath handles a constant
    (index-less) 2D GP prior (`metamath.CompoundGP._build_mixed_logprior`

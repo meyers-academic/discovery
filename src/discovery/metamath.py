@@ -7,8 +7,8 @@ decide what runs at trace time vs runtime. `mm.func` belongs at the outer
 boundary in `likelihood.py`, not inside methods here. `make_sample` is the
 one documented exception.
 
-See `docs/components/metamatrix_architecture.md` for the full conventions
-and porting guidance before adding new methods.
+See `dev_architecture/metamatrix/metamatrix_architecture.md` for the full
+conventions and porting guidance before adding new methods.
 """
 
 import functools

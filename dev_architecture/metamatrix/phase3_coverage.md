@@ -10,18 +10,32 @@ call sites, plus the builders invoked by `examples/*.ipynb` and
 
 ## Coverage table
 
-| Constructor | Emitted by | metamath-mapped? | Parity route | Status |
+Column meanings:
+- **Emitted by** — the `signals.py` / `measurement_noise.py` builder whose call
+  constructs this kernel.
+- **metamath-mapped?** — whether the `_kernels` factory resolves the constructor
+  to a metamath class in metamath mode (`_METAMATH` entry), or it's a collapsed
+  factory function that dispatches directly.
+- **Covering model (test builder)** — the model-builder function in
+  `tests/metamatrix/test_*.py` that assembles a model exercising this
+  constructor (on real pulsar data). Each such model is run through **all three
+  routes** in `_routes.build_routes` — `matrix` (oracle), `mh_patched`,
+  `mh_native` — and their logL / conditional / clogL are asserted equal. That
+  three-way equality is the "parity"; the builder is just the vehicle.
+
+| Constructor | Emitted by | metamath-mapped? | Covering model (test builder) | Status |
 |---|---|---|---|---|
-| `NoiseMatrix1D` (collapsed) | `makenoise_measurement*` | factory fn | `measurement_white`, … | ✅ |
-| `NoiseMatrixSM` (collapsed) | `makenoise_measurement(ecorr=True)` | factory fn | `ecorr_sm` | ✅ |
-| `NoiseMatrix1D_novar`/`_var` | `makegp_ecorr*`, `makegp_timing`, `makegp_improper` | ✅ | `ecorr_gp`, `timing`, … | ✅ |
-| `NoiseMatrix12D_var` (1D) | `makegp_fourier` (1D PSD) | ✅→`NoiseMatrix12D` | `full_rn`, … | ✅ |
+| `NoiseMatrix1D` (collapsed) | `makenoise_measurement*` | factory fn | `measurement_white`, `measurement_simple` | ✅ |
+| `NoiseMatrixSM` (collapsed) | `makenoise_measurement(ecorr=True)` | factory fn | `ecorr_sm+timing` | ✅ |
+| `NoiseMatrix1D_novar`/`_var` | `makegp_ecorr*`, `makegp_timing`, `makegp_improper` | ✅ | `measurement+ecorr_gp`, `…timing_svd`, `variable_timing` | ✅ |
+| `NoiseMatrix12D_var` (1D) | `makegp_fourier` (1D PSD) | ✅→`NoiseMatrix12D` | `full_rn`, `multi_vgp` | ✅ |
 | `NoiseMatrix2D_var` (2D) | `makegp_fftcov`/`avgcov`/`intcov` | ✅ | **`fftcov_2d` (added)** | ✅ closed |
 | `NoiseMatrix2D_novar` | `makegp_fourier_variance` (fixed) | ✅ (added) | **`fourier_variance_fixed`** | ✅ closed (Phase 4a) |
-| `VectorNoiseMatrix12D_var` | `makecommongp_fourier` | ✅ | `common_rn` | ✅ (closed Phase 1) |
+| `VectorNoiseMatrix12D_var` | `makecommongp_fourier` | ✅ | `common_rn`, `decenter+common_rn` | ✅ (closed Phase 1) |
 | `CompoundDelay` | `makedelay`/`makedelay_binary` | ✅ | **`delay` (added)** | ✅ closed |
-| `WoodburyKernel`, `CompoundGP`, `VectorCompoundGP`, `VectorWoodburyKernel_varP` | likelihood layer | ✅ | all model tests | ✅ |
-| `CompoundGlobalGP` | globalgp-as-list (CURN) | ✅ (Phase 4b) | **`global_compound`** | ✅ closed (Phase 4b) |
+| `WoodburyKernel`, `CompoundGP`, `VectorCompoundGP`, `VectorWoodburyKernel_varP` | likelihood layer | ✅ | all model builders | ✅ |
+| `CompoundGlobalGP` | globalgp-as-list (HD+monopole) | ✅ (Phase 4b) | **`global_compound`** | ✅ closed (Phase 4b) |
+| `ExtSignal` (CW) | `makecw_extsignal` | ✅ (marker in `utils`) | `extsignal_cw` | ✅ |
 
 PSD/ORF helpers (`powerlaw`, `freespectrum`, `brokenpowerlaw`,
 `make_combined_crn`, `makepowerlaw_crn`, `hd_orf`, …) are prior functions, not

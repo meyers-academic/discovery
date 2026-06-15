@@ -31,7 +31,7 @@ Column meanings:
 | `NoiseMatrix12D_var` (1D) | `makegp_fourier` (1D PSD) | ✅→`NoiseMatrix12D` | `full_rn`, `multi_vgp` | ✅ |
 | `NoiseMatrix2D_var` (2D) | `makegp_fftcov`/`avgcov`/`intcov` | ✅ | **`fftcov_2d` (added)** | ✅ closed |
 | `NoiseMatrix2D_novar` | `makegp_fourier_variance` (fixed) | ✅ (added) | **`fourier_variance_fixed`** | ✅ closed (Phase 4a) |
-| `VectorNoiseMatrix12D_var` | `makecommongp_fourier` | ✅ | `common_rn`, `decenter+common_rn` | ✅ (closed Phase 1) |
+| `VectorNoiseMatrix12D_var` | `makecommongp_fourier` | ✅ | `intrinsic_rn`, `decenter+intrinsic_rn` | ✅ (closed Phase 1) |
 | `CompoundDelay` | `makedelay`/`makedelay_binary` | ✅ | **`delay` (added)** | ✅ closed |
 | `WoodburyKernel`, `CompoundGP`, `VectorCompoundGP`, `VectorWoodburyKernel_varP` | likelihood layer | ✅ | all model builders | ✅ |
 | `CompoundGlobalGP` | globalgp-as-list (HD+monopole) | ✅ (Phase 4b) | **`global_compound`** | ✅ closed (Phase 4b) |

@@ -239,8 +239,10 @@ def no_common(psrs):
     ])
 
 
-def common_rn(psrs):
-    """A single shared-basis (uncorrelated) common red-noise process across pulsars."""
+def intrinsic_rn(psrs):
+    """Per-pulsar intrinsic red noise on a shared Fourier basis (vectorised; independent amplitudes per pulsar)."""
+    # NOTE: a `commongp` with no `common=[...]` params is *intrinsic* (per-pulsar)
+    # red noise, vectorised over the array — NOT a common/correlated process.
     T = ds.getspan(psrs)
     return ds.ArrayLikelihood(
         [_psl_skeleton(p) for p in psrs],
@@ -249,23 +251,23 @@ def common_rn(psrs):
     )
 
 
-def common_rn_and_crn(psrs):
-    """Two common GPs: per-pulsar red noise plus a common-spectrum process with shared params."""
+def intrinsic_plus_crn(psrs):
+    """Per-pulsar intrinsic red noise + a common-spectrum (CRN) process on one shared basis, via make_combined_crn."""
+    # The idiomatic way to put intrinsic RN and a common-spectrum process on the
+    # same basis: build a single combined PSD; CRN params (gw_*) are shared
+    # across pulsars (passed as `common`), intrinsic params stay per-pulsar.
     T = ds.getspan(psrs)
+    combined, crn_params = ds.make_combined_crn(14, ds.powerlaw, ds.powerlaw,
+                                                crn_prefix="gw_")
     return ds.ArrayLikelihood(
         [_psl_skeleton(p) for p in psrs],
-        commongp=[
-            ds.makecommongp_fourier(psrs, ds.powerlaw, components=30,
-                                    T=T, name="rednoise"),
-            ds.makecommongp_fourier(psrs, ds.powerlaw, components=14,
-                                    T=T, name="crn",
-                                    common=["crn_log10_A", "crn_gamma"]),
-        ],
+        commongp=ds.makecommongp_fourier(psrs, combined, components=30,
+                                         T=T, name="rednoise", common=crn_params),
     )
 
 
-def common_rn_plus_global_hd(psrs):
-    """Common red noise plus an HD-correlated global GW signal (the canonical PTA model)."""
+def intrinsic_rn_plus_global_hd(psrs):
+    """Per-pulsar intrinsic red noise plus an HD-correlated global GW signal (the canonical PTA model)."""
     T = ds.getspan(psrs)
     return ds.ArrayLikelihood(
         [_psl_skeleton(p) for p in psrs],
@@ -276,8 +278,8 @@ def common_rn_plus_global_hd(psrs):
     )
 
 
-def decenter_common_rn(psrs):
-    """common_rn built in a decentered (whitened-coefficient) parameterisation."""
+def decenter_intrinsic_rn(psrs):
+    """intrinsic_rn built in a decentered (whitened-coefficient) parameterisation."""
     T = ds.getspan(psrs)
     return ds.ArrayLikelihood(
         [_psl_skeleton(p) for p in psrs],
@@ -287,8 +289,8 @@ def decenter_common_rn(psrs):
     )
 
 
-def decenter_common_rn_global_hd(psrs):
-    """Decentered common red noise + HD global GP (decentered sampling of the full model)."""
+def decenter_intrinsic_rn_global_hd(psrs):
+    """Decentered intrinsic red noise + HD global GP (decentered sampling of the full model)."""
     T = ds.getspan(psrs)
     return ds.ArrayLikelihood(
         [_psl_skeleton(p) for p in psrs],
@@ -301,7 +303,7 @@ def decenter_common_rn_global_hd(psrs):
 
 
 def means_on_commongp(psrs):
-    """A common GP with a non-zero prior mean supplied by a `means` callable."""
+    """An (intrinsic-RN) common GP with a non-zero prior mean supplied by a `means` callable."""
     def my_means(f, df, mean_amp):
         return mean_amp * jnp.ones_like(f)
 
@@ -314,7 +316,7 @@ def means_on_commongp(psrs):
 
 
 def extsignal_cw(psrs):
-    """Common red noise plus a continuous-wave deterministic signal on its own basis."""
+    """Intrinsic red noise plus a continuous-wave deterministic signal on its own basis."""
     T = ds.getspan(psrs)
     return ds.ArrayLikelihood(
         [_psl_skeleton(p) for p in psrs],
@@ -339,6 +341,6 @@ SINGLE_PULSAR = [
 GLOBAL = [no_global, global_hd, global_monopole, global_compound]
 
 ARRAY = [
-    no_common, common_rn, common_rn_and_crn, common_rn_plus_global_hd,
-    decenter_common_rn, decenter_common_rn_global_hd, means_on_commongp, extsignal_cw,
+    no_common, intrinsic_rn, intrinsic_plus_crn, intrinsic_rn_plus_global_hd,
+    decenter_intrinsic_rn, decenter_intrinsic_rn_global_hd, means_on_commongp, extsignal_cw,
 ]

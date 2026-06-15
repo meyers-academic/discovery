@@ -26,9 +26,9 @@ import discovery.recipes as R
 
 LOGL_ROWS = [
     pytest.param(R.no_common,                id="no_common"),
-    pytest.param(R.common_rn,                id="common_rn"),
-    pytest.param(R.common_rn_and_crn,        id="common_rn+crn"),
-    pytest.param(R.common_rn_plus_global_hd, id="common_rn+global_hd"),
+    pytest.param(R.intrinsic_rn,                id="intrinsic_rn"),
+    pytest.param(R.intrinsic_plus_crn,        id="intrinsic_rn+crn"),
+    pytest.param(R.intrinsic_rn_plus_global_hd, id="intrinsic_rn+global_hd"),
 ]
 
 
@@ -63,8 +63,8 @@ def test_logL(psrs, build):
 # matrix.VectorWoodburyKernel_varP has no make_conditional, so this is a
 # *metamath-only* capability; we run it standalone (no parity check).
 CONDITIONAL_ROWS = [
-    pytest.param(R.common_rn,         id="common_rn"),
-    pytest.param(R.common_rn_and_crn, id="common_rn+crn"),
+    pytest.param(R.intrinsic_rn,         id="intrinsic_rn"),
+    pytest.param(R.intrinsic_plus_crn, id="intrinsic_rn+crn"),
 ]
 
 
@@ -116,8 +116,8 @@ def test_clogL(psrs, build):
 # ============================================================================
 
 NEW_CLOGL_ROWS = [
-    pytest.param(R.decenter_common_rn,            id="decenter+common_rn"),
-    pytest.param(R.decenter_common_rn_global_hd,  id="decenter+common_rn+global_hd"),
+    pytest.param(R.decenter_intrinsic_rn,            id="decenter+intrinsic_rn"),
+    pytest.param(R.decenter_intrinsic_rn_global_hd,  id="decenter+intrinsic_rn+global_hd"),
     pytest.param(R.means_on_commongp,             id="means_on_commongp"),
     pytest.param(R.extsignal_cw,                  id="extsignal_cw"),
 ]

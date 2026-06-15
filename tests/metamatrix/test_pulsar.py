@@ -137,7 +137,7 @@ def _fourier_variance_fixed(psr):
     # wrapping NoiseMatrix2D_novar (the fixed 2D noise constructor).
     comps = 10
     argname = f"{psr.name}_fourierGP_variance({comps*2},{comps*2})"
-    cov = np.diag(np.full(comps * 2, 1e-16))
+    cov = np.diag(np.full(comps * 2, 1e-4))
     return ds.PulsarLikelihood([
         psr.residuals,
         ds.makenoise_measurement(psr, psr.noisedict),
@@ -160,16 +160,7 @@ LOGL_ROWS = [
     pytest.param(_variable_timing,      id="variable_timing"),
     pytest.param(_fftcov_2d,            id="fftcov_2d"),
     pytest.param(_delay,                id="delay"),
-    pytest.param(
-        _fourier_variance_fixed, id="fourier_variance_fixed",
-        marks=pytest.mark.xfail(strict=True, reason=(
-            "Phase 3 known gap: an all-constant 2D GP prior (ConstantGP from "
-            "makegp_fourier_variance, NoiseMatrix2D_novar) is unsupported in the "
-            "metamath path -- metamath CompoundGP._build_mixed_logprior requires "
-            "gp.index, which a marginalized constant GP lacks. The kernel maps "
-            "(NoiseMatrix2D_novar -> mh.NoiseMatrix2D); the likelihood path does "
-            "not. Close in Phase 4; see docs/components/phase3_coverage.md.")),
-    ),
+    pytest.param(_fourier_variance_fixed, id="fourier_variance_fixed"),
 ]
 
 

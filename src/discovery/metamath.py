@@ -746,29 +746,41 @@ class CompoundGP:
             return x
         else:
             return super().__new__(cls)
+    @staticmethod
+    def _is_vector(gp):
+        # per-pulsar F: commongp exposes F as a tuple; globalgp carries Fs as a list.
+        if hasattr(gp, 'F') and isinstance(gp.F, tuple):
+            return True
+        if hasattr(gp, 'Fs') and isinstance(gp.Fs, (list, tuple)):
+            return True
+        return False
+
     def __init__(self, gplist):
         self.gplist = gplist
         # Mixed-Phi compound: at least one gp's Phi is dense (NoiseMatrix2D,
         # e.g. HD globalgp) while another is per-pulsar diagonal
         # (NoiseMatrix1D, e.g. commongp). The Phi.N arrays can't be concat'd
-        # into a single batched Phi — instead, the joint prior decomposes as
-        # a sum of per-GP contributions, supplied as a graph leaf.
+        # into a single batched Phi.
         phi_kinds = {('2D' if isinstance(gp.Phi, NoiseMatrix2D) else '1D')
                      for gp in gplist}
         self._mixed_phi = len(phi_kinds) > 1
-        if self._mixed_phi:
+
+        # The per-GP coefficient log-prior (with Phi=None) is only for the
+        # vector / decentered path — commongp/globalgp whose coefficients are
+        # sampled (clogL), where the joint prior decomposes as a sum of per-GP
+        # contributions. A mixed compound of *marginalized* GPs (e.g. a constant
+        # timing GP + a constant fourier-variance GP in a single PulsarLikelihood)
+        # has no `.index`; it instead needs a real combined Phi (see `Phi`).
+        self._mixed_vector = (self._mixed_phi
+                              and all(hasattr(gp, 'index') for gp in gplist)
+                              and all(self._is_vector(gp) for gp in gplist))
+        if self._mixed_vector:
             self.prior = self._build_mixed_logprior(gplist)
         if all(hasattr(gp, 'index') for gp in gplist):
             # vector commongp (per-pulsar F tuples) or commongp + globalgp
             # (the globalgp carries Fs as a list). Either way → list-of-dicts,
             # one per pulsar, matching matrix.VectorCompoundGP.
-            def _is_vector(gp):
-                if hasattr(gp, 'F') and isinstance(gp.F, tuple):
-                    return True
-                if hasattr(gp, 'Fs') and isinstance(gp.Fs, (list, tuple)):
-                    return True
-                return False
-            if all(_is_vector(gp) for gp in gplist):
+            if all(self._is_vector(gp) for gp in gplist):
                 self.index = [dict(g) for g in
                               zip(*[gp.index.items() for gp in gplist])]
             else:
@@ -850,14 +862,45 @@ class CompoundGP:
         b.named(logpr, 'logpr')
         return b.graph
 
+    def _mixed_dense_Phi(self):
+        """Combined dense Phi for a mixed 1D/2D *marginalized* compound.
+
+        Promotes each per-pulsar-diagonal (1D) block to a dense diagonal and
+        block-diagonals everything into one dense covariance, mirroring
+        matrix.CompoundGP's mixed-const / mixed-var handling. Handles constant
+        (static arrays) and variable (callables) Phi blocks.
+        """
+        parts = [(_materialize(gp.Phi.N), isinstance(gp.Phi, NoiseMatrix2D))
+                 for gp in self.gplist]
+
+        if all(fn is None for (const, fn), _ in parts):
+            blocks = [const if is2d else jnp.diag(const)
+                      for (const, fn), is2d in parts]
+            return NoiseMatrix2D(jsp.linalg.block_diag(*blocks))
+
+        def getN(params):
+            blocks = []
+            for (const, fn), is2d in parts:
+                v = const if fn is None else fn(params=params)
+                blocks.append(v if is2d else jnp.diag(v))
+            return jsp.linalg.block_diag(*blocks)
+        getN.params = sorted(set().union(
+            *[set(fn.params) for (const, fn), _ in parts if fn is not None]))
+        getN.type = jax.Array
+        return NoiseMatrix2D(getN)
+
     @property
     def Phi(self):
-        if self._mixed_phi:
-            # Mixed-Phi has no single combined Phi; the prior lives on
-            # `self.prior` instead and is consumed via VectorWoodburyKernel's
-            # `prior` branch. likelihood.py threads this None through to the
-            # kernel as P, and never calls P.make_inv when self.prior is set.
+        if self._mixed_vector:
+            # Vector / decentered path: no single combined Phi; the prior lives
+            # on `self.prior` and is consumed via VectorWoodburyKernel's `prior`
+            # branch. likelihood.py threads this None through as P and never
+            # calls P.make_inv when self.prior is set.
             return None
+        if self._mixed_phi:
+            # mixed 1D/2D but marginalized (no sampled coefficients): build a
+            # real combined dense Phi for the Woodbury.
+            return self._mixed_dense_Phi()
         N = self._concat([gp.Phi.N for gp in self.gplist])
         nm = NoiseMatrix(N)
 

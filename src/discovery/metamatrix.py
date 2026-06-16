@@ -16,10 +16,28 @@ import jax.scipy as jsp
 from sympy import Matrix
 
 from . import prior
+from . import utils
 
 Array = jax.Array
 
 keepgraph = False
+
+
+def _cast_working(x):
+    """Stage-1 single-precision: downcast floating arrays to the working dtype
+    at materialization. Non-float values (integer indices, etc.) pass through.
+
+    This is the *blanket, no-pins* baseline of the graph precision pass (README
+    'Precision in the metamath graph'): everything goes to the working dtype,
+    including the would-be f64 pins (ytNmy, logdets). It exists to measure where
+    f32 actually hurts on real data before we add the backward-pass f64 pins.
+    Default working dtype is float64, so this is an exact no-op unless
+    utils.config(working=float32) is active.
+    """
+    dt = getattr(x, "dtype", None)
+    if dt is not None and jnp.issubdtype(dt, jnp.floating):
+        return jnp.asarray(x, dtype=utils.working_dtype())
+    return x
 
 # ===== Graph library =====
 
@@ -250,23 +268,28 @@ def build_callable_from_graph(graph: Graph):
         else:
             raise TypeError(f"Unknown node type for {name}")
 
+    # Capture the precision regime at materialization (func() is called once, at
+    # the likelihood boundary). Default float64 -> _cast is identity.
+    _cast = _cast_working if utils.single_precision else (lambda x: x)
+
     def f(*args, params={}) -> Array:
         env: Dict[str, Array] = {}
 
         # Get arguments
         for arg, val in zip(arg_leaves, args):
-            env[arg] = val
+            env[arg] = _cast(val)
 
         # Fill constants
-        env.update(const_values)
+        for name, val in const_values.items():
+            env[name] = _cast(val)
 
         # Evaluate functions
         for name, fn in func_leaves.items():
-            env[name] = fn(params=params)
+            env[name] = _cast(fn(params=params))
 
         for name, fn in graph_leaves.items():
             if not fn.args:
-                env[name] = fn(params=params)
+                env[name] = _cast(fn(params=params))
 
         # Evaluate internal nodes in (given) topological order
         for name, node in nodes.items():

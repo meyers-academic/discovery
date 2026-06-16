@@ -851,14 +851,14 @@ def make_powerlaw(*, gamma=None, scale=1.0, low_clip=-18.0, high_clip=-9.0):
         def powerlaw(f, df, log10_A, gamma):
             log10_phi = (2.0 * log10_A + (gamma - 3.0) * _LOG10_FYR
                          - gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM + _s2)
-            return 10.0 ** jnp.clip(log10_phi, low_clip, high_clip)
+            return utils.to_working(10.0 ** jnp.clip(log10_phi, low_clip, high_clip))
     else:
         _g = float(gamma)
         _g_term = (_g - 3.0) * _LOG10_FYR
         def powerlaw(f, df, log10_A):
             log10_phi = (2.0 * log10_A + _g_term
                          - _g * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM + _s2)
-            return 10.0 ** jnp.clip(log10_phi, low_clip, high_clip)
+            return utils.to_working(10.0 ** jnp.clip(log10_phi, low_clip, high_clip))
 
     return powerlaw
 
@@ -905,7 +905,7 @@ def make_brokenpowerlaw(*, gamma=None, scale=1.0, low_clip=-18.0, high_clip=-9.0
             log10_phi = (2.0 * log10_A + (gamma - 3.0) * _LOG10_FYR
                          - gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM
                          + _KAPPA * gamma * jnp.logaddexp(0.0, z) / _LN10 + _s2)
-            return 10.0 ** jnp.clip(log10_phi, low_clip, high_clip)
+            return utils.to_working(10.0 ** jnp.clip(log10_phi, low_clip, high_clip))
     else:
         _g = float(gamma)
         _g_term = (_g - 3.0) * _LOG10_FYR
@@ -915,7 +915,7 @@ def make_brokenpowerlaw(*, gamma=None, scale=1.0, low_clip=-18.0, high_clip=-9.0
             log10_phi = (2.0 * log10_A + _g_term
                          - _g * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM
                          + _kg * jnp.logaddexp(0.0, z) / _LN10 + _s2)
-            return 10.0 ** jnp.clip(log10_phi, low_clip, high_clip)
+            return utils.to_working(10.0 ** jnp.clip(log10_phi, low_clip, high_clip))
 
     return brokenpowerlaw
 
@@ -953,7 +953,7 @@ def make_freespectrum(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
 
     def freespectrum(f, df, log10_rho: typing.Sequence):
         log10_phi = 2.0 * log10_rho + _s2
-        return jnp.repeat(10.0 ** jnp.clip(log10_phi, low_clip, high_clip), 2)
+        return utils.to_working(jnp.repeat(10.0 ** jnp.clip(log10_phi, low_clip, high_clip), 2))
 
     return freespectrum
 
@@ -1132,7 +1132,7 @@ def makepowerlaw_crn(components, crn_gamma='variable', *, scale=1.0, low_clip=-1
             log10_crn = (2.0 * crn_log10_A + (crn_gamma - 3.0) * _LOG10_FYR
                          - crn_gamma * jnp.log10(f[:2*components])
                          + jnp.log10(df[:2*components]) + _LOG10_NORM + _s2)
-            return phi.at[:2*components].add(10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
+            return utils.to_working(phi.at[:2*components].add(10.0 ** jnp.clip(log10_crn, low_clip, high_clip)))
     elif utils.jnp == np:
         def powerlaw_crn(f, df, log10_A, gamma, crn_log10_A, crn_gamma):
             phi = (10.0**(2.0 * log10_A)) / 12.0 / np.pi**2 * const.fyr ** (gamma - 3.0) * f ** (-gamma) * df
@@ -1181,8 +1181,8 @@ def make_powerlaw_brokencrn(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
         log10_crn = (2.0 * crn_log10_A + (crn_gamma - 3.0) * _LOG10_FYR
                      - crn_gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM
                      + _KAPPA * crn_gamma * jnp.logaddexp(0.0, z_crn) / _LN10 + _s2)
-        return (10.0 ** jnp.clip(log10_irn, low_clip, high_clip)
-                + 10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
+        return utils.to_working(10.0 ** jnp.clip(log10_irn, low_clip, high_clip)
+                                + 10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
 
     return powerlaw_brokencrn
 
@@ -1228,8 +1228,8 @@ def make_brokenpowerlaw_brokencrn(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
         log10_crn = (2.0 * crn_log10_A + (crn_gamma - 3.0) * _LOG10_FYR
                      - crn_gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM
                      + _KAPPA * crn_gamma * jnp.logaddexp(0.0, z_crn) / _LN10 + _s2)
-        return (10.0 ** jnp.clip(log10_irn, low_clip, high_clip)
-                + 10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
+        return utils.to_working(10.0 ** jnp.clip(log10_irn, low_clip, high_clip)
+                                + 10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
 
     return brokenpowerlaw_brokencrn
 
@@ -1271,7 +1271,7 @@ def makefreespectrum_crn(components, *, scale=1.0, low_clip=-18.0, high_clip=-9.
         def freespectrum_crn(f, df, log10_rho: typing.Sequence, crn_log10_rho: typing.Sequence):
             phi = jnp.repeat(10.0 ** jnp.clip(2.0 * log10_rho + _s2, low_clip, high_clip), 2)
             crn = jnp.repeat(10.0 ** jnp.clip(2.0 * crn_log10_rho + _s2, low_clip, high_clip), 2)
-            return phi.at[:2*components].add(crn)
+            return utils.to_working(phi.at[:2*components].add(crn))
     elif utils.jnp == np:
         def freespectrum_crn(f, df, log10_rho: typing.Sequence, crn_log10_rho: typing.Sequence):
             phi = np.repeat(10.0**(2.0 * log10_rho), 2)

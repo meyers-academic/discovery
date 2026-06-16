@@ -1,6 +1,7 @@
 import os
 import re
 import inspect
+import math as _math
 import types
 import typing
 from collections.abc import Iterable
@@ -806,19 +807,158 @@ def makeglobalgp_intcov(psr, prior, orf, components, T, timeinterpbasis=timeinte
                                 components, T, fourierbasis=timeinterpbasis, exclude=['t1', 't2', 'tau'], name=name)
 
 
-# single powerlaws
+# log-space PSD constants (computed once at module load)
+_LOG10_FYR  = _math.log10(const.fyr)
+_LOG10_NORM = -_math.log10(12.0) - 2.0 * _math.log10(_math.pi)
+_LN10       = _math.log(10.0)
+_KAPPA      = 0.1  # fixed transition smoothness of the broken power-law model form
 
-def powerlaw(f, df, log10_A, gamma):
-    return (10.0**(2.0 * log10_A)) / 12.0 / jnp.pi**2 * const.fyr ** (gamma - 3.0) * f ** (-gamma) * df
 
-def brokenpowerlaw(f, df, log10_A, gamma, log10_fb):
-    kappa = 0.1 # smoothness of transition
+# single power laws
 
-    return (10.0**(2.0 * log10_A)) / 12.0 / jnp.pi**2 * const.fyr ** (gamma - 3.0) * f ** (-gamma) * df * \
-        (1.0 + (f / 10.0**log10_fb) ** (1.0 / kappa)) ** (kappa * gamma)
+def make_powerlaw(*, gamma=None, scale=1.0, low_clip=-18.0, high_clip=-9.0):
+    r"""Power-law PSD factory.
 
-def freespectrum(f, df, log10_rho: typing.Sequence):
-    return jnp.repeat(10.0**(2.0 * log10_rho), 2)
+    Returns a function evaluating
+
+    .. math::
+
+        \Phi(f) = \frac{A^2}{12\pi^2}\, f_{\rm yr}^{\gamma-3}\, f^{-\gamma}\, \Delta f
+
+    where :math:`A = 10^{\log_{10}A}`.  Evaluated in log-space; output
+    clipped to :math:`[10^{\rm low\_clip},\, 10^{\rm high\_clip}]` s\ :sup:`2`.
+
+    Parameters
+    ----------
+    gamma : float or None
+        Fixed spectral index.  If None (default), ``gamma`` is a sampled
+        parameter of the returned function.
+    scale : float
+        Multiplies :math:`\Phi` by ``scale**2``.
+    low_clip : float
+        Log10 floor of output in s\ :sup:`2` (default -18).
+    high_clip : float
+        Log10 ceiling of output in s\ :sup:`2` (default -9).
+
+    Returns
+    -------
+    callable
+        ``powerlaw(f, df, log10_A[, gamma])``
+    """
+    _s2 = 2.0 * _math.log10(scale)
+
+    if gamma is None:
+        def powerlaw(f, df, log10_A, gamma):
+            log10_phi = (2.0 * log10_A + (gamma - 3.0) * _LOG10_FYR
+                         - gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM + _s2)
+            return 10.0 ** jnp.clip(log10_phi, low_clip, high_clip)
+    else:
+        _g = float(gamma)
+        _g_term = (_g - 3.0) * _LOG10_FYR
+        def powerlaw(f, df, log10_A):
+            log10_phi = (2.0 * log10_A + _g_term
+                         - _g * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM + _s2)
+            return 10.0 ** jnp.clip(log10_phi, low_clip, high_clip)
+
+    return powerlaw
+
+
+powerlaw = make_powerlaw()
+
+
+def make_brokenpowerlaw(*, gamma=None, scale=1.0, low_clip=-18.0, high_clip=-9.0):
+    r"""Broken power-law PSD factory.
+
+    Returns a function evaluating
+
+    .. math::
+
+        \Phi(f) = \frac{A^2}{12\pi^2}\, f_{\rm yr}^{\gamma-3}\, f^{-\gamma}
+                  \left(1 + \left(\frac{f}{f_b}\right)^{1/\kappa}\right)^{\kappa\gamma}
+                  \Delta f
+
+    where :math:`f_b = 10^{\log_{10}f_b}` and :math:`\kappa = 0.1`.
+    The broken factor is computed via ``logaddexp`` to avoid float32 overflow.
+    Output clipped to :math:`[10^{\rm low\_clip},\, 10^{\rm high\_clip}]` s\ :sup:`2`.
+
+    Parameters
+    ----------
+    gamma : float or None
+        Fixed spectral index.  If None (default), ``gamma`` is sampled.
+    scale : float
+        Multiplies :math:`\Phi` by ``scale**2``.
+    low_clip : float
+        Log10 floor in s\ :sup:`2` (default -18).
+    high_clip : float
+        Log10 ceiling in s\ :sup:`2` (default -9).
+
+    Returns
+    -------
+    callable
+        ``brokenpowerlaw(f, df, log10_A[, gamma], log10_fb)``
+    """
+    _s2 = 2.0 * _math.log10(scale)
+
+    if gamma is None:
+        def brokenpowerlaw(f, df, log10_A, gamma, log10_fb):
+            z = (jnp.log(f) - log10_fb * _LN10) / _KAPPA
+            log10_phi = (2.0 * log10_A + (gamma - 3.0) * _LOG10_FYR
+                         - gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM
+                         + _KAPPA * gamma * jnp.logaddexp(0.0, z) / _LN10 + _s2)
+            return 10.0 ** jnp.clip(log10_phi, low_clip, high_clip)
+    else:
+        _g = float(gamma)
+        _g_term = (_g - 3.0) * _LOG10_FYR
+        _kg = _KAPPA * _g
+        def brokenpowerlaw(f, df, log10_A, log10_fb):
+            z = (jnp.log(f) - log10_fb * _LN10) / _KAPPA
+            log10_phi = (2.0 * log10_A + _g_term
+                         - _g * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM
+                         + _kg * jnp.logaddexp(0.0, z) / _LN10 + _s2)
+            return 10.0 ** jnp.clip(log10_phi, low_clip, high_clip)
+
+    return brokenpowerlaw
+
+
+brokenpowerlaw = make_brokenpowerlaw()
+
+
+def make_freespectrum(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
+    r"""Free-spectrum PSD factory.
+
+    Returns a function evaluating
+
+    .. math::
+
+        \Phi_i = 10^{2\rho_i}
+
+    repeated for sine/cosine pairs.  Output clipped to
+    :math:`[10^{\rm low\_clip},\, 10^{\rm high\_clip}]` s\ :sup:`2`.
+
+    Parameters
+    ----------
+    scale : float
+        Multiplies :math:`\Phi` by ``scale**2``.
+    low_clip : float
+        Log10 floor in s\ :sup:`2` (default -18).
+    high_clip : float
+        Log10 ceiling in s\ :sup:`2` (default -9).
+
+    Returns
+    -------
+    callable
+        ``freespectrum(f, df, log10_rho)``
+    """
+    _s2 = 2.0 * _math.log10(scale)
+
+    def freespectrum(f, df, log10_rho: typing.Sequence):
+        log10_phi = 2.0 * log10_rho + _s2
+        return jnp.repeat(10.0 ** jnp.clip(log10_phi, low_clip, high_clip), 2)
+
+    return freespectrum
+
+
+freespectrum = make_freespectrum()
 
 
 def make_combined_crn(components, irn_psd, crn_psd, crn_prefix: typing.Optional[str] = 'crn_'):
@@ -949,15 +1089,50 @@ def make_combined_crn(components, irn_psd, crn_psd, crn_prefix: typing.Optional[
 
 # combined red_noise + crn
 
-# this is a factory because it needs to specify a different number of components for the CRN
-# note that the preferred way to fix gamma is for the user to use utils.partial directly
-def makepowerlaw_crn(components, crn_gamma='variable'):
+def makepowerlaw_crn(components, crn_gamma='variable', *, scale=1.0, low_clip=-18.0, high_clip=-9.0):
+    r"""Combined IRN + CRN power-law PSD factory.
+
+    Returns a function evaluating
+
+    .. math::
+
+        \Phi(f) = \Phi_{\rm pl}(f;\, A, \gamma)
+                  + \Phi_{\rm pl}(f_{1:2N_c};\, A_{\rm crn}, \gamma_{\rm crn})
+
+    where :math:`N_c` = ``components`` and both terms use the standard
+    power-law form.
+
+    Parameters
+    ----------
+    components : int
+        Number of CRN Fourier components; CRN is added to the first
+        ``2 * components`` frequency bins.
+    crn_gamma : float, 'variable', or None
+        Fixed CRN spectral index.  ``'variable'`` or ``None`` makes it a
+        sampled parameter of the returned function.
+    scale : float
+        Multiplies :math:`\Phi` by ``scale**2`` for both components.
+    low_clip : float
+        Log10 floor in s\ :sup:`2` (default -18).
+    high_clip : float
+        Log10 ceiling in s\ :sup:`2` (default -9).
+
+    Returns
+    -------
+    callable
+        ``powerlaw_crn(f, df, log10_A, gamma, crn_log10_A[, crn_gamma])``
+    """
+    _s2 = 2.0 * _math.log10(scale)
+
     if utils.jnp == jnp:
         def powerlaw_crn(f, df, log10_A, gamma, crn_log10_A, crn_gamma):
-            phi = (10.0**(2.0 * log10_A)) / 12.0 / jnp.pi**2 * const.fyr ** (gamma - 3.0) * f ** (-gamma) * df
-            phi = phi.at[:2*components].add((10.0**(2.0 * crn_log10_A)) / 12.0 / jnp.pi**2 *
-                                            const.fyr ** (crn_gamma - 3.0) * f[:2*components] ** (-crn_gamma) * df[:2*components])
-            return phi
+            log10_phi = (2.0 * log10_A + (gamma - 3.0) * _LOG10_FYR
+                         - gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM + _s2)
+            phi = 10.0 ** jnp.clip(log10_phi, low_clip, high_clip)
+            log10_crn = (2.0 * crn_log10_A + (crn_gamma - 3.0) * _LOG10_FYR
+                         - crn_gamma * jnp.log10(f[:2*components])
+                         + jnp.log10(df[:2*components]) + _LOG10_NORM + _s2)
+            return phi.at[:2*components].add(10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
     elif utils.jnp == np:
         def powerlaw_crn(f, df, log10_A, gamma, crn_log10_A, crn_gamma):
             phi = (10.0**(2.0 * log10_A)) / 12.0 / np.pi**2 * const.fyr ** (gamma - 3.0) * f ** (-gamma) * df
@@ -965,36 +1140,142 @@ def makepowerlaw_crn(components, crn_gamma='variable'):
                                    const.fyr ** (crn_gamma - 3.0) * f[:2*components] ** (-crn_gamma) * df[:2*components])
             return phi
 
-    if crn_gamma != 'variable':
+    if crn_gamma not in ('variable', None):
         return utils.partial(powerlaw_crn, crn_gamma=crn_gamma)
     else:
         return powerlaw_crn
 
-def powerlaw_brokencrn(f, df, log10_A, gamma, crn_log10_A, crn_gamma, crn_log10_fb):
-    kappa = 0.1 # smoothness of transition
 
-    phi = (10.0**(2.0 * log10_A)) / 12.0 / jnp.pi**2 * const.fyr ** (gamma - 3.0) * f ** (-gamma) * df
-    return phi + (10.0**(2.0 * crn_log10_A)) / 12.0 / jnp.pi**2 * const.fyr ** (crn_gamma - 3.0) * f ** (-crn_gamma) * df * \
-        (1 + (f / 10**crn_log10_fb) ** (1 / kappa)) ** (kappa * crn_gamma)
+def make_powerlaw_brokencrn(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
+    r"""IRN power-law + CRN broken power-law PSD factory.
 
-def brokenpowerlaw_brokencrn(f, df, log10_A, gamma, log10_fb, crn_log10_A, crn_gamma, crn_log10_fb):
-    kappa = 0.1 # smoothness of transition
+    Returns a function evaluating
 
-    phi = (10.0**(2.0 * log10_A)) / 12.0 / jnp.pi**2 * const.fyr ** (gamma - 3.0) * f ** (-gamma) * df * \
-        (1 + (f / 10**log10_fb) ** (1 / kappa)) ** (kappa * gamma)
-    return phi + (10.0**(2.0 * crn_log10_A)) / 12.0 / jnp.pi**2 * const.fyr ** (crn_gamma - 3.0) * f ** (-crn_gamma) * df * \
-        (1 + (f / 10**crn_log10_fb) ** (1 / kappa)) ** (kappa * crn_gamma)
+    .. math::
 
-def makefreespectrum_crn(components):
+        \Phi(f) = \Phi_{\rm pl}(f;\, A, \gamma)
+                  + \Phi_{\rm bpl}(f;\, A_{\rm crn}, \gamma_{\rm crn}, f_{b,{\rm crn}})
+
+    Clip applied per-component before summing.
+
+    Parameters
+    ----------
+    scale : float
+        Multiplies :math:`\Phi` by ``scale**2`` for both components.
+    low_clip : float
+        Log10 floor in s\ :sup:`2` (default -18).
+    high_clip : float
+        Log10 ceiling in s\ :sup:`2` (default -9).
+
+    Returns
+    -------
+    callable
+        ``powerlaw_brokencrn(f, df, log10_A, gamma, crn_log10_A, crn_gamma, crn_log10_fb)``
+    """
+    _s2 = 2.0 * _math.log10(scale)
+
+    def powerlaw_brokencrn(f, df, log10_A, gamma, crn_log10_A, crn_gamma, crn_log10_fb):
+        log10_irn = (2.0 * log10_A + (gamma - 3.0) * _LOG10_FYR
+                     - gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM + _s2)
+        z_crn = (jnp.log(f) - crn_log10_fb * _LN10) / _KAPPA
+        log10_crn = (2.0 * crn_log10_A + (crn_gamma - 3.0) * _LOG10_FYR
+                     - crn_gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM
+                     + _KAPPA * crn_gamma * jnp.logaddexp(0.0, z_crn) / _LN10 + _s2)
+        return (10.0 ** jnp.clip(log10_irn, low_clip, high_clip)
+                + 10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
+
+    return powerlaw_brokencrn
+
+
+powerlaw_brokencrn = make_powerlaw_brokencrn()
+
+
+def make_brokenpowerlaw_brokencrn(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
+    r"""IRN broken power-law + CRN broken power-law PSD factory.
+
+    Returns a function evaluating
+
+    .. math::
+
+        \Phi(f) = \Phi_{\rm bpl}(f;\, A, \gamma, f_b)
+                  + \Phi_{\rm bpl}(f;\, A_{\rm crn}, \gamma_{\rm crn}, f_{b,{\rm crn}})
+
+    Clip applied per-component before summing.
+
+    Parameters
+    ----------
+    scale : float
+        Multiplies :math:`\Phi` by ``scale**2`` for both components.
+    low_clip : float
+        Log10 floor in s\ :sup:`2` (default -18).
+    high_clip : float
+        Log10 ceiling in s\ :sup:`2` (default -9).
+
+    Returns
+    -------
+    callable
+        ``brokenpowerlaw_brokencrn(f, df, log10_A, gamma, log10_fb, crn_log10_A, crn_gamma, crn_log10_fb)``
+    """
+    _s2 = 2.0 * _math.log10(scale)
+
+    def brokenpowerlaw_brokencrn(f, df, log10_A, gamma, log10_fb,
+                                 crn_log10_A, crn_gamma, crn_log10_fb):
+        z_irn = (jnp.log(f) - log10_fb * _LN10) / _KAPPA
+        log10_irn = (2.0 * log10_A + (gamma - 3.0) * _LOG10_FYR
+                     - gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM
+                     + _KAPPA * gamma * jnp.logaddexp(0.0, z_irn) / _LN10 + _s2)
+        z_crn = (jnp.log(f) - crn_log10_fb * _LN10) / _KAPPA
+        log10_crn = (2.0 * crn_log10_A + (crn_gamma - 3.0) * _LOG10_FYR
+                     - crn_gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM
+                     + _KAPPA * crn_gamma * jnp.logaddexp(0.0, z_crn) / _LN10 + _s2)
+        return (10.0 ** jnp.clip(log10_irn, low_clip, high_clip)
+                + 10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
+
+    return brokenpowerlaw_brokencrn
+
+
+brokenpowerlaw_brokencrn = make_brokenpowerlaw_brokencrn()
+
+
+def makefreespectrum_crn(components, *, scale=1.0, low_clip=-18.0, high_clip=-9.0):
+    r"""Combined IRN + CRN free-spectrum PSD factory.
+
+    Returns a function evaluating
+
+    .. math::
+
+        \Phi(f) = \Phi_{\rm fs}(f;\, \boldsymbol{\rho})
+                  + \Phi_{\rm fs}(f_{1:2N_c};\, \boldsymbol{\rho}_{\rm crn})
+
+    where :math:`N_c` = ``components``.
+
+    Parameters
+    ----------
+    components : int
+        Number of CRN components; CRN added to first ``2 * components`` bins.
+    scale : float
+        Multiplies :math:`\Phi` by ``scale**2`` for both components.
+    low_clip : float
+        Log10 floor in s\ :sup:`2` (default -18).
+    high_clip : float
+        Log10 ceiling in s\ :sup:`2` (default -9).
+
+    Returns
+    -------
+    callable
+        ``freespectrum_crn(f, df, log10_rho, crn_log10_rho)``
+    """
+    _s2 = 2.0 * _math.log10(scale)
+
     if utils.jnp == jnp:
         def freespectrum_crn(f, df, log10_rho: typing.Sequence, crn_log10_rho: typing.Sequence):
-            phi = jnp.repeat(10.0**(2.0 * log10_rho), 2)
-            phi = phi.at[:2*components].add(jnp.repeat(10.0**(2.0 * crn_log10_rho), 2))
-            return phi
+            phi = jnp.repeat(10.0 ** jnp.clip(2.0 * log10_rho + _s2, low_clip, high_clip), 2)
+            crn = jnp.repeat(10.0 ** jnp.clip(2.0 * crn_log10_rho + _s2, low_clip, high_clip), 2)
+            return phi.at[:2*components].add(crn)
     elif utils.jnp == np:
         def freespectrum_crn(f, df, log10_rho: typing.Sequence, crn_log10_rho: typing.Sequence):
-            phi = jnp.repeat(10.0**(2.0 * log10_rho), 2)
-            phi[:2*components] += jnp.repeat(10.0**(2.0 * crn_log10_rho), 2)
+            phi = np.repeat(10.0**(2.0 * log10_rho), 2)
+            phi[:2*components] += np.repeat(10.0**(2.0 * crn_log10_rho), 2)
             return phi
 
     return freespectrum_crn

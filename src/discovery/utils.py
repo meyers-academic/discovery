@@ -41,7 +41,7 @@ import jax.tree_util
 def config(**kwargs):
     global jnp, jsp, jnparray, jnpzeros, intarray, jnpkey, jnpsplit, jnpnormal
     global matrix_factor, matrix_solve, matrix_norm, partial, SM_algorithm, regularize_FtNmF
-    global single_precision
+    global single_precision, _working_dtype
 
     np.logdet = lambda a: np.sum(np.log(np.abs(a)))
     jax.numpy.logdet = lambda a: jax.numpy.sum(jax.numpy.log(jax.numpy.abs(a)))
@@ -64,11 +64,21 @@ def config(**kwargs):
         jnpkey    = lambda seed: np.random.default_rng(seed)
         jnpsplit  = lambda gen: (gen, gen)
         jnpnormal = lambda gen, shape: gen.normal(size=shape)
+        _working_dtype = np.float64
         single_precision = False
         partial = functools.partial
     elif backend == 'jax':
         jnp, jsp = jax.numpy, jax.scipy
-        single_precision = not jax.config.x64_enabled
+
+        _wd = kwargs.get('working', jax.numpy.float64)
+        if _wd == jax.numpy.float32 and not jax.config.x64_enabled:
+            raise AssertionError(
+                "config(working=float32) requires x64 enabled; "
+                "call jax.config.update('jax_enable_x64', True) first."
+            )
+        _working_dtype = _wd
+        single_precision = (_working_dtype == jax.numpy.float32)
+
         jnparray = lambda a: jnp.array(a, dtype=jnp.float64 if jax.config.x64_enabled else jnp.float32)
         jnpzeros = lambda a: jnp.zeros(a, dtype=jnp.float64 if jax.config.x64_enabled else jnp.float32)
         intarray = lambda a: jnp.array(a, dtype=jnp.int64)
@@ -97,6 +107,12 @@ config(backend='jax', factor='cholesky')
 
 def rngkey(seed):
     return jnpkey(seed)
+
+def working_dtype():
+    return _working_dtype
+
+def to_working(a):
+    return jnp.asarray(a, dtype=_working_dtype)
 
 # CG solver and Lanczos-Hutchinson logdet estimator, need matfree and jaxopt
 try:

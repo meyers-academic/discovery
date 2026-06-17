@@ -70,9 +70,33 @@ class OS:
             cs = [matrix.jsp.linalg.cho_factor(matrix.jnp.diag(1.0 / Pvar(params)) + FFt) for Pvar, FFt in zip(Pvars, FFts)]
             Ss = [TTt - FTt.T @ matrix.jsp.linalg.cho_solve(c, FTt) for c, TTt, FTt in zip(cs, TTts, FTts)]
 
-            Ss = [0.5 * (S + S.T) for S in Ss]  # ensure symmetry
-            As = [matrix.jnp.linalg.cholesky(S + (1e-10 * matrix.jnp.trace(S) / S.shape[0]) * matrix.jnp.eye(S.shape[0]))
-                for S in Ss]
+            # Ss = [0.5 * (S + S.T) for S in Ss]  # ensure symmetry
+            # As = [matrix.jnp.linalg.cholesky(S + (1e-6 * matrix.jnp.trace(S) / S.shape[0]) * matrix.jnp.eye(S.shape[0]))
+            #     for S in Ss]
+
+            # loop to make matrix positive definite  
+            As = []
+            ridge_values = []
+            for k, S in enumerate(Ss):
+                S = 0.5 * (S + S.T)  # enforce symmetry
+
+                eigs = matrix.jnp.linalg.eigvalsh(S)
+                min_eig = matrix.jnp.min(eigs)
+                max_eig = matrix.jnp.max(matrix.jnp.abs(eigs))
+
+                # Safety scale
+                eps = 1e-12 * matrix.jnp.maximum(max_eig, 1.0)
+
+                # Add only what is needed to make the smallest eigenvalue positive
+                ridge = matrix.jnp.maximum(0.0, -min_eig) + eps
+
+                S_reg = S + ridge * matrix.jnp.eye(S.shape[0])
+
+                A = matrix.jnp.linalg.cholesky(S_reg)
+
+                As.append(A)
+                ridge_values.append(ridge)
+    
 
             Ds = [sPhi[:,matrix.jnp.newaxis] * S * sPhi[matrix.jnp.newaxis,:] for S in Ss]
             bs = [matrix.jnp.trace(Ds[i] @ Ds[j]) for (i,j) in self.pairs]
@@ -472,6 +496,7 @@ class OS:
 
     def gx2cdf(self, params, osxs, cutoff=1e-6, limit=100, epsabs=1e-6):
         Qmat = self.Q(params)
+
         eigx = matrix.jnp.linalg.eigh(Qmat)[0]
 
         return eig2cdf(osxs, eigx, cutoff=cutoff, limit=limit, epsabs=epsabs)
@@ -486,7 +511,7 @@ def imhof(u, x, eigs):
 
 def eig2cdf(osxs, eigs, cutoff=1e-6, limit=100, epsabs=1e-6):
     # cutoff by number of eigenvalues is more friendly to jitted imhof
-    eigs = eigs[:cutoff] if cutoff > 1 else eigs[matrix.jnp.abs(eigs) > cutoff]
+    eigs = eigs[:cutoff] if cutoff > 1 else eigs[matrix.jnp.abs(eigs) > cutoff* matrix.jnp.abs(eigs).max()]
 
     # jax.scipy.integrate is mostly not implemented. Could try quadax
     return np.array([0.5 - scipy.integrate.quad(lambda u: float(imhof(u, osx, eigs)),

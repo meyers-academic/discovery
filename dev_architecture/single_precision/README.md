@@ -255,6 +255,132 @@ genuinely load-bearing f64 is `ytNmy` (the pin), not `FtNmF`.
 The throttle decorator (Piece 1) is unaffected by all this — it sits at the PSD
 boundary in the signals layer, upstream of the kernel graph.
 
+## Graph precision: implementation (stages 1 and 2 landed)
+
+This section records how the precision-assignment above is actually built into
+`metamatrix.py`, in two stages. **Both are landed.** Stage 1 was a probe (blanket
+f32, no pins); stage 2 replaced it with op-level f64 pins via a dtype map +
+cast-on-read. The stage-1 subsection below is kept for the rationale trail.
+
+### Stage 1 — blanket working dtype at materialization (DONE)
+
+A single gated cast at the materialization boundary
+(`build_callable_from_graph`, reached via `func()` once at the likelihood
+boundary). When `utils.single_precision` is true, every floating leaf — args,
+constants, PSD/func-leaf outputs — is downcast to `utils.working_dtype()` as it
+enters the runtime env; everything downstream inherits via JAX promotion. The
+PSD factories (Piece 1) already cast their own output, so this extends the same
+working dtype to the data-derived arrays (`y`, `F`, `N`).
+
+- **Gated:** identity unless `working=float32`, so the float64 default is
+  byte-identical (metamatrix parity suite green).
+- **Runs at JIT runtime inside `f()`, not at fold time.** `fold_constants` is
+  untouched: CPU-side constant folding and refcount eviction are unaffected, and
+  nothing reaches the device earlier than before. Only post-prune/post-fold
+  constants are seen, so pruned nodes are never cast.
+- **Result:** the *entire* Woodbury (including the would-be f64 pins) runs in
+  the working dtype — a **no-pins baseline**. Empirically (B1855 single pulsar,
+  and a 3-pulsar array, fixed and variable WN): logL finite, accurate to
+  ~1e-8 relative; sampling-relevant Δ-logL error ~1e-3 on Δ-logL of O(100). So
+  blanket f32 is sampling-accurate at NANOGrav scale — no pin is *forced* here.
+  The `ytNmy` cancellation is a known failure on **larger datasets** (seen
+  elsewhere, not in our local data); the pin is required there regardless of
+  whether it bites at NG scale.
+
+Stage 1 was a **probe**, not the end state: it confirmed the mechanism works and
+that f32 is viable, but it pins nothing. Stage 2 replaces its leaf-cast wholesale.
+
+### Stage 2 — op-level pins via a dtype map + cast-on-read (DONE)
+
+**Goal:** pin `ytNmy` and the logdets to f64 **uniformly — constant or live.**
+We explicitly do *not* branch on fold status. Delineating "constant vs variable"
+is exactly the combinatorial path `matrix.py` took and that metamatrix exists to
+kill. Folding stays orthogonal: it decides *when* a value is computed (compile
+vs per-call), never *whether* it is pinned. A pinned node is f64 whether it folds
+to a constant or is recomputed every call. (That a fixed-WN `ytNmy` then happens
+to be a folded f64 constant at no runtime cost is a *consequence*, not a case we
+implement.)
+
+**The mixed-consumer obstacle.** `ytNmy = yᵀN⁻¹y` (pin, f64) and
+`FtNmF = FᵀN⁻¹F` (big op, want f32) share `N`. One dtype per value can't give
+both: any f64 `N` promotes `FtNmF` to f64 and kills the f32 win. So precision
+cannot be a per-*value* property — it must be per-*edge*.
+
+**Mechanism — move the cast from leaves to edges:**
+
+1. **Pin markers** on ops seed f64. `metamath.woodbury` tags `ytNmy` (i.e.
+   `g.dot(y, Nmy)`) and the logdet `ld`. This is graph *intent*, set where the
+   kernel math is written — not a `func()`/materialization call, so the house
+   rule (methods return graphs) holds.
+2. **Backward pass at materialization** → a per-node dtype map: a node is **f64
+   if it is in any pin's ancestor cone, else working dtype**. (`N` lands f64
+   because it feeds `ytNmy`.) Default target is the working dtype; f64 is
+   injected only by pins and propagated backward. This map is computed once, in
+   `func()`.
+3. **Cast on read, to the *consumer's* dtype.** Each node stores its result at
+   its own mapped dtype; when a node reads an input, the value is cast to *that
+   consuming node's* dtype. So `N` is born f64; the `ytNmy` op reads it f64; the
+   `FtNmF` op reads a **downcast f32 copy** of the same `N`. One producer, two
+   edges, two dtypes — the big Cholesky stays f32, `ytNmy` stays f64, **no
+   redundant solves**. Constants are simply born in their mapped dtype (a pinned
+   folded constant → f64; a working-dtype-consumed folded constant → f32).
+
+This **changes where casting happens**: stage 1 casts leaves once; stage 2 casts
+on every input read, driven by the dtype map. Stage 1's leaf cast is removed (it
+would otherwise clobber an f64-mapped folded constant).
+
+**What stays f32 deliberately.** `lS` — the logdet of the small `Φ⁻¹ + FtNmF`
+Cholesky — is left working dtype: its error is ~1e-5 (a sum of ~ngp logs), and
+forcing it f64 would mean an f64 Cholesky, defeating the point.
+
+**As built (the pin set).** Pinned f64: **`ytNmy`, `lN`, `lP`**. Working dtype:
+**`lS` and `ld`**. Note `ld` (= `lN + lP + lS`) is *not* pinned, a deliberate
+refinement of the earlier "`ld` = f64 sum of its parts" lean: pinning `ld` would
+put `lS` in its ancestor cone and force the small Cholesky to f64. So `ld` reads
+the f64 `lN`/`lP` *downcast* to f32 and sums in f32. This is consistent with the
+limitation below — pins protect *building* each quantity, not the final sum.
+
+**Code touchpoints (as built).** `Node` has a `pin: bool`; `GraphBuilder.pin_f64`
+sets it; `_dtype_map` is the backward pass (pin → its ancestor cone f64, else
+working); `build_callable_from_graph` casts each input on read to the consuming
+node's dtype (`_cast_to`), replacing the stage-1 leaf cast; `woodbury` adds the
+`g.pin_f64(...)` tags on `ytNmy`/`lN`/`lP`. Built in two steps, both green:
+**(2a)** dtype-map + cast-on-read with an empty pin set (reproduces stage-1
+numerics, parity suite green); **(2b)** the pins + tests. `visualize_graph` /
+`print_graph` colour nodes by their resolved dtype and tag the pins (pass
+`working=jnp.float32` to preview). Tests: `tests/single_precision/
+test_graph_precision.py` (dtype-map unit tests, live-WN white-box, the
+`test_pin_forces_f64_accumulation` cancellation proof, finiteness/accuracy).
+
+**Limitation — pins protect *building* a quantity, not the final logL.** This is
+the key thing to carry into Piece 2. A pin makes `ytNmy`/`lN`/`lP` *computed* in
+f64 (their internal accumulation over ntoa is accurate). But the final
+`logp = -0.5·(ytNmy − FtNmyᵀμ) − 0.5·ld` is assembled in **f32**, so:
+- the accurate f64 `ytNmy` is **downcast to f32 before** the `ytNmy − FtNmyᵀμ`
+  subtraction — the catastrophic cancellation in *that* subtraction is **not**
+  protected by the pin;
+- at logL ~ 1e6 one f32 step is ~0.01 (worse on bigger arrays), so the absolute
+  logL simply cannot hold the 1e-2/1e-3 precision we sample to — regardless of
+  cancellation.
+- **You cannot up-convert your way out of it.** Casting `FtNmyᵀμ` back to f64
+  doesn't recover bits it never had: `μ = chol_solve(cf, …)` is only f32-accurate
+  because `cf` is the f32 Cholesky, and making `cf` f64 means an f64 factorization
+  — the exact cost f32 was meant to avoid.
+
+The fix is **Piece 2 (reference + delta)**: never form the absolute logL in f32;
+compute `ΔlogL = logL(θ) − logL(θ_ref)` as a direct low-rank update so the huge
+θ-independent baseline cancels *analytically* and only the O(1) change is carried
+in f32. The pins are a **prerequisite** for that (the static baseline must be
+accurate to subtract against), not a substitute. The hard open case is sampled
+white noise, where the change is not low-rank — see "Piece 2" and
+`future_planned_development.md`.
+
+On our local data (B1855, 3-pulsar array) the pins are currently **inert**: f32
+has no meaningful `ytNmy` cancellation at NANOGrav single-pulsar scale, so pinned
+and blanket-f32 logL are bit-identical. The pins are insurance for larger arrays
+where the cancellation is real. `test_pin_forces_f64_accumulation` exhibits the
+behaviour on a constructed cancelling dot so it is actually exercised.
+
 ## Open decisions to pin (next session)
 
 1. **`jnparray` downcast helper** — finalize the name/signature

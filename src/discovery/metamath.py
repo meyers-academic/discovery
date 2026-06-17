@@ -67,12 +67,24 @@ def woodbury(g, y, Nsolve, F, Pinv):
     Pm, lP = Pinv # should be a call even without parameters
     cf, lS = g.cho_factor(Pm + FtNmF)
     mu = g.cho_solve(cf, FtNmy)
+
+    # Single-precision (stage 2): pin the white-noise logdet lN and the prior
+    # logdet lP to float64. lS (the small Phi^-1 + FtNmF Cholesky logdet) is left
+    # in the working dtype on purpose -- pinning it would force that Cholesky into
+    # float64, which is the cost we are avoiding. ld stays working dtype: it is the
+    # final sum, and protecting that sum is Piece 2's job, not the pins'.
+    g.pin_f64(lN)
+    g.pin_f64(lP)
     ld = g.node(lambda lN, lP, lS: lN + lP + lS, [lN, lP, lS], description=f'{lN.name} + {lP.name} + {lS.name}')
 
     cond = g.pair(mu, cf, name='cond')
     solve = g.pair(Nmy - NmF @ mu, ld, name='solve')
 
-    logp = -0.5 * (g.dot(y, Nmy) - g.dot(FtNmy, mu)) - 0.5 * ld
+    # ytNmy = y^T N^-1 y is the catastrophic-cancellation term: pin it to float64
+    # so its ntoa-long accumulation is built accurately even under a float32
+    # working dtype. (The result is converted down when logp consumes it.)
+    ytNmy = g.pin_f64(g.dot(y, Nmy))
+    logp = -0.5 * (ytNmy - g.dot(FtNmy, mu)) - 0.5 * ld
 
     # more readable, but doing this keeps y.T @ Nmy from being cached
     # logp = g.node(lambda y, Nmy, FtNmy, mu, ld: -0.5 * (y.T @ Nmy - FtNmy.T @ mu) - 0.5 * ld,

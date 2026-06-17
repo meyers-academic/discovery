@@ -23,21 +23,54 @@ Array = jax.Array
 keepgraph = False
 
 
-def _cast_working(x):
-    """Stage-1 single-precision: downcast floating arrays to the working dtype
-    at materialization. Non-float values (integer indices, etc.) pass through.
+def _cast_to(x, dtype):
+    """Convert a floating array to `dtype`. Non-float values (integer indices,
+    pairs/tuples, etc.) pass through untouched.
 
-    This is the *blanket, no-pins* baseline of the graph precision pass (README
-    'Precision in the metamath graph'): everything goes to the working dtype,
-    including the would-be f64 pins (ytNmy, logdets). It exists to measure where
-    f32 actually hurts on real data before we add the backward-pass f64 pins.
-    Default working dtype is float64, so this is an exact no-op unless
-    utils.config(working=float32) is active.
+    This is the per-edge cast of the stage-2 graph precision pass: when a node
+    reads one of its inputs, the input is converted to *the reading node's*
+    dtype. That is what lets one value (e.g. N) feed a float64 consumer (ytNmy)
+    and a float32 consumer (FtNmF) at the same time.
     """
     dt = getattr(x, "dtype", None)
     if dt is not None and jnp.issubdtype(dt, jnp.floating):
-        return jnp.asarray(x, dtype=utils.working_dtype())
+        return jnp.asarray(x, dtype=dtype)
     return x
+
+
+def _dtype_map(graph: Graph, working) -> Dict[str, Any]:
+    """Decide the float dtype of every node in the graph.
+
+    Default target is `working` (float32 in single precision). float64 is
+    injected only by pins: any node marked `pin=True`, and every node it depends
+    on (its ancestors), are float64 so the pinned value is built entirely in
+    float64. Everything else stays `working`.
+
+    Returns name -> dtype. When `working` is float64 every node maps to float64,
+    so the per-edge cast in build_callable_from_graph is a no-op. (Depends only on
+    `working`, not on global config, so visualize_graph can preview any regime;
+    in production working_dtype() is float64 exactly when not single precision.)
+    """
+    if working == jnp.float64:
+        return {name: jnp.float64 for name in graph}
+
+    pinned = [name for name, node in graph.items()
+              if isinstance(node, Node) and getattr(node, "pin", False)]
+
+    f64 = set()
+    q = deque(pinned)
+    while q:
+        name = q.popleft()
+        if name in f64:
+            continue
+        f64.add(name)
+        node = graph.get(name)
+        if isinstance(node, Node):
+            for inp in node.inputs:
+                if inp not in f64:
+                    q.append(inp)
+
+    return {name: (jnp.float64 if name in f64 else working) for name in graph}
 
 # ===== Graph library =====
 
@@ -68,6 +101,9 @@ class Node:
     op: Callable[..., Array]           # JAX-friendly op
     inputs: List[str]                  # names of upstream nodes
     description: Optional[str] = None  # optional description of the node
+    pin: bool = False                  # stage-2 single precision: keep this node
+                                       # (and everything it depends on) in float64
+                                       # even when the working dtype is float32.
 
 # Whole graph: name -> Leaf or Node - TODO: it may need to be its own class
 Graph = Dict[str, Union[Leaf, Node]]
@@ -268,41 +304,47 @@ def build_callable_from_graph(graph: Graph):
         else:
             raise TypeError(f"Unknown node type for {name}")
 
-    # Capture the precision regime at materialization (func() is called once, at
-    # the likelihood boundary). Default float64 -> _cast is identity.
-    _cast = _cast_working if utils.single_precision else (lambda x: x)
+    # Decide each node's float dtype once at materialization (func() is called
+    # once, at the likelihood boundary). float64 default / no pins -> every node
+    # is float64, so the per-edge cast below is the identity.
+    dtype_map = _dtype_map(graph, utils.working_dtype())
 
     def f(*args, params={}) -> Array:
         env: Dict[str, Array] = {}
 
+        # Leaves enter raw; precision is applied per-edge when each value is read
+        # by a consuming node (see the cast in the node loop below).
+
         # Get arguments
         for arg, val in zip(arg_leaves, args):
-            env[arg] = _cast(val)
+            env[arg] = val
 
         # Fill constants
         for name, val in const_values.items():
-            env[name] = _cast(val)
+            env[name] = val
 
         # Evaluate functions
         for name, fn in func_leaves.items():
-            env[name] = _cast(fn(params=params))
+            env[name] = fn(params=params)
 
         for name, fn in graph_leaves.items():
             if not fn.args:
-                env[name] = _cast(fn(params=params))
+                env[name] = fn(params=params)
 
-        # Evaluate internal nodes in (given) topological order
+        # Evaluate internal nodes in (given) topological order. Each input is
+        # converted to the reading node's dtype as it is read (cast-on-read).
         for name, node in nodes.items():
+            target = dtype_map[name]
             if node.op is Apply:
                 first = node.inputs[0]
 
                 if isinstance(graph[first], GraphLeaf):
-                    args = [env[input] for input in node.inputs[1:]]
+                    args = [_cast_to(env[input], target) for input in node.inputs[1:]]
                     env[name] = graph_leaves[first](*args, params=params)
                 else:
                     raise NotImplementedError(f"Should we apply {first}?")
             else:
-                args = [env[input] for input in node.inputs]
+                args = [_cast_to(env[input], target) for input in node.inputs]
                 env[name] = node.op(*args)
 
         return env[output_name]
@@ -356,7 +398,8 @@ def prune_graph(graph: Graph,
     return pruned
 
 
-def visualize_graph(graph: Graph, fold=False, format='svg', rankdir='TB'):
+def visualize_graph(graph: Graph, fold=False, format='svg', rankdir='TB',
+                    working=None):
     """
     Visualize a computational graph using Graphviz.
 
@@ -365,6 +408,15 @@ def visualize_graph(graph: Graph, fold=False, format='svg', rankdir='TB'):
         fold: If True, apply constant folding and pruning
         format: Output format ('svg', 'png', 'pdf', etc.)
         rankdir: Graph direction ('TB' top-to-bottom, 'LR' left-to-right)
+        working: working dtype to preview the single-precision pass with
+            (default: utils.working_dtype()). Pass jnp.float32 to see the f64
+            pins and the f64 cone they pull back, regardless of the active
+            config. With a float64 working dtype every node is float64 (the
+            precision pass is inert) so only the pin markers carry information.
+
+    Node colouring reflects the dtype the per-edge cast assigns each node:
+    float64 = light red, float32 = light green. Pinned nodes get a bold red
+    border and an "f64 PIN" tag.
 
     Returns:
         graphviz.Digraph object (displays automatically in Jupyter)
@@ -376,6 +428,9 @@ def visualize_graph(graph: Graph, fold=False, format='svg', rankdir='TB'):
 
     if fold:
         graph = fold_constants(graph)
+
+    working = utils.working_dtype() if working is None else working
+    dtypes = _dtype_map(graph, working)
 
     dot = graphviz.Digraph(comment='Computational Graph', format=format)
     dot.attr(rankdir=rankdir)
@@ -401,8 +456,16 @@ def visualize_graph(graph: Graph, fold=False, format='svg', rankdir='TB'):
             subgraphs[name] = node.graph
         elif isinstance(node, Node):
             op_name = node.description if node.description else getattr(node.op, '__name__', 'λ')
-            label = f"{name}\\n{op_name}"
-            dot.node(name, label, fillcolor='white')
+            dt = dtypes.get(name)
+            dt_name = getattr(dt, '__name__', str(dt))
+            is_f64 = dt is jnp.float64
+            fill = '#ffd6d6' if is_f64 else '#d6ffd6'      # red=f64, green=f32
+            label = f"{name}\\n{op_name}\\n[{dt_name}]"
+            if getattr(node, 'pin', False):
+                label = f"{name}\\n{op_name}\\n[{dt_name}] f64 PIN"
+                dot.node(name, label, fillcolor=fill, color='red', penwidth='3')
+            else:
+                dot.node(name, label, fillcolor=fill)
 
     # Add edges
     for name, node in graph.items():
@@ -424,12 +487,20 @@ def _print_array_summary(arr: Any) -> tuple[str, int]:
         return (f"{arr}", 0)
 
 
-def print_graph(graph: Graph, fold=False, name=None) -> None:
+def print_graph(graph: Graph, fold=False, name=None, working=None) -> None:
     """
     Pretty-print a computational graph, applying constant folding and pruning if simplify=True
+
+    Node lines are annotated with the dtype the single-precision pass assigns
+    them ([float32]/[float64]) and a "PIN" tag on pinned (f64) nodes. Pass
+    working=jnp.float32 to preview the single-precision regime; default is
+    utils.working_dtype().
     """
     if fold:
         graph = fold_constants(graph)
+
+    working = utils.working_dtype() if working is None else working
+    dtypes = _dtype_map(graph, working)
 
     print(f"## {'graph' if name is None else name}")
 
@@ -453,7 +524,11 @@ def print_graph(graph: Graph, fold=False, name=None) -> None:
             subgraphs[uname] = node.graph
             print(f"{name}: graph = subgraph {uname}")
         elif isinstance(node, Node):
-            print(f"{name}: node({', '.join(node.inputs)}) = {node.description if node.description else node.op}")
+            dt = dtypes.get(name)
+            dt_name = getattr(dt, '__name__', str(dt))
+            tag = f" [{dt_name}]" + (" PIN" if getattr(node, 'pin', False) else "")
+            print(f"{name}: node({', '.join(node.inputs)}) = "
+                  f"{node.description if node.description else node.op}{tag}")
         else:
             print(f"{name}: unknown node type {type(node)}")
 
@@ -461,7 +536,7 @@ def print_graph(graph: Graph, fold=False, name=None) -> None:
 
     for name, subgraph in subgraphs.items():
         print('', end='\n')
-        size = size + print_graph(subgraph, name=f"subgraph {name}")
+        size = size + print_graph(subgraph, name=f"subgraph {name}", working=working)
 
     return size
 
@@ -660,6 +735,21 @@ class GraphBuilder:
         input_names = [s.name for s in inputs]
         self.graph[name] = Node(op=op, inputs=input_names, description=description)
         return Sym(name=name, builder=self)
+
+    def pin_f64(self, symbol: Sym) -> Sym:
+        """Mark a node to be computed in float64 even under a float32 working
+        dtype (stage-2 single precision). Everything the node depends on is
+        pulled into float64 too, so the pinned value is built entirely in
+        float64; the result is converted to a consumer's dtype on read. This is
+        graph intent set where the kernel math is written -- not a func()/
+        materialization call -- so the house rule (methods return graphs) holds.
+        Returns the symbol so it can be used inline.
+        """
+        node = self.graph[symbol.name]
+        if not isinstance(node, Node):
+            raise TypeError(f"can only pin a Node, not {type(node).__name__} ({symbol.name})")
+        node.pin = True
+        return symbol
 
     def named(self, symbol: Sym, name: str) -> Sym:
         self.graph[name] = self.graph[symbol.name]

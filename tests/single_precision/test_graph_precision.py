@@ -125,3 +125,170 @@ def test_float64_default_unchanged(psr):
         p0 = _draw(m)
         L = float(m.logL(p0))
     assert np.isfinite(L)
+
+
+# --- Stage 2a: dtype-map + cast-on-read machinery (pins not wired in yet) ------
+#
+# 2a builds the per-edge precision mechanism with the pin set EMPTY. With no
+# pins it must behave exactly like stage 1 (blanket working dtype) -- the model
+# tests above already lock that. These unit tests lock the new helper directly.
+
+from collections import OrderedDict
+
+from discovery import metamatrix as mm
+
+
+def _toy_graph():
+    """a, b leaves -> c = a @ b -> d = c.sum(). Returns (graph, names)."""
+    g = mm.GraphBuilder()
+    a = g.leaf(None, name="a")
+    b = g.leaf(None, name="b")
+    c = g.node(lambda x, y: x @ y, [a, b], name="c")
+    d = g.node(lambda x: x.sum(), [c], name="d")
+    return g.graph, ("a", "b", "c", "d")
+
+
+def test_dtype_map_empty_pins_all_working():
+    """No pins -> every node maps to the working dtype (float32 in single mode)."""
+    graph, names = _toy_graph()
+    with metamath_working(jnp.float32):
+        dm = mm._dtype_map(graph, jnp.float32)
+    assert all(dm[n] is jnp.float32 for n in names)
+
+
+def test_dtype_map_float64_regime_is_identity():
+    """In the float64 default regime the map is all float64 (cast is a no-op)."""
+    graph, names = _toy_graph()
+    dm = mm._dtype_map(graph, jnp.float64)
+    assert all(dm[n] is jnp.float64 for n in names)
+
+
+def test_dtype_map_pin_marks_node_and_ancestors():
+    """Pinning a node forces it and everything it depends on to float64; nodes
+    that do not feed the pin stay working dtype."""
+    g = mm.GraphBuilder()
+    a = g.leaf(None, name="a")          # feeds pinned d
+    b = g.leaf(None, name="b")          # feeds pinned d
+    e = g.leaf(None, name="e")          # feeds only unpinned f
+    d = g.node(lambda x, y: x @ y, [a, b], name="d")
+    f = g.node(lambda x: x.sum(), [e], name="f")
+    g.pin_f64(d)
+
+    with metamath_working(jnp.float32):
+        dm = mm._dtype_map(g.graph, jnp.float32)
+
+    assert dm["d"] is jnp.float64                 # the pin
+    assert dm["a"] is jnp.float64 and dm["b"] is jnp.float64  # its ancestors
+    assert dm["e"] is jnp.float32 and dm["f"] is jnp.float32  # off the pin's path
+
+
+# --- Stage 2b: the woodbury pins (ytNmy, lN, lP) on a real model graph --------
+#
+# woodbury pins y^T N^-1 y and the white-noise / prior logdets to float64. Under
+# variable white noise these stay *live* (they don't fold to constants), so we
+# can read the materialized graph and check the dtype the per-edge cast assigns
+# each node. The small Phi^-1 + FtNmF Cholesky (and its logdet lS) must stay in
+# the working dtype -- pinning it would force an expensive float64 Cholesky.
+
+
+def build_live_wn(psr):
+    """Variable white noise (efac/equad sampled) -> N, ytNmy, FtNmF all live."""
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr),          # no noisedict -> sampled WN
+        ds.makegp_timing(psr, svd=True),
+        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
+    ])
+
+
+def _walk_dtypes(graph, working):
+    """Yield (qualified_name, node, dtype) for every Node in graph and its
+    subgraphs, computing the dtype map per (sub)graph exactly as
+    build_callable_from_graph does (it recurses into each GraphLeaf)."""
+    from discovery import metamatrix as mm
+    dm = mm._dtype_map(graph, working)
+    for name, node in graph.items():
+        if isinstance(node, mm.GraphLeaf):
+            yield from _walk_dtypes(node.graph, working)
+        elif isinstance(node, mm.Node):
+            yield name, node, dm[name]
+
+
+def test_woodbury_pins_are_f64_cholesky_is_f32(psr):
+    """On a live-WN model graph: every pinned node (ytNmy, lN, lP) is float64,
+    and every cho_factor node (the lS Cholesky) is the working float32."""
+    from discovery import metamatrix as mm
+
+    mm.keepgraph = True
+    try:
+        with metamath_working(jnp.float32):
+            m = build_live_wn(psr)
+            # Walk the dtype map *inside* the float32 context: _dtype_map reads
+            # the active single-precision config, so it must be computed here.
+            walked = list(_walk_dtypes(m.logL.graph, jnp.float32))
+    finally:
+        mm.keepgraph = False
+
+    pins = [(n, d) for n, node, d in walked if getattr(node, "pin", False)]
+    chos = [(n, d) for n, node, d in walked
+            if node.description and "cho_factor" in node.description]
+
+    assert pins, "no pinned nodes survived in the live-WN graph"
+    assert chos, "no cho_factor node found -- test is vacuous"
+    assert all(d is jnp.float64 for _, d in pins), \
+        f"a pinned node is not float64: {pins}"
+    assert all(d is jnp.float32 for _, d in chos), \
+        f"a cho_factor (lS Cholesky) is not the working float32: {chos}"
+
+
+def test_live_wn_logL_finite_and_close_with_pins(psr):
+    """Variable-WN logL under float32 (with pins) is finite, close to float64,
+    and has finite gradients (sampler safety)."""
+    with metamath_working(jnp.float64):
+        ref = build_live_wn(psr)
+        p0 = _draw(ref)
+        L64 = float(ref.logL(p0))
+    assert np.isfinite(L64)
+
+    with metamath_working(jnp.float32):
+        m = build_live_wn(psr)
+        L32 = float(m.logL(p0))
+        grads = jax.grad(lambda p: m.logL(p))(p0)
+
+    assert np.isfinite(L32), "live-WN float32 logL not finite"
+    np.testing.assert_allclose(L32, L64, rtol=1e-5,
+                               err_msg=f"live-WN float32 logL {L32} vs f64 {L64}")
+    assert all(np.isfinite(np.asarray(v)).all() for v in grads.values()), \
+        "live-WN float32 gradient not finite"
+
+
+def test_pin_forces_f64_accumulation():
+    """End-to-end proof that a pin actually changes the computed result, not
+    just the dtype map. A dot product with catastrophic cancellation in its sum
+    (1e8 + 1 - 1e8 = 1) loses everything in float32 but is recovered when the
+    node is pinned (the sum accumulates in float64, and 1.0 survives the downcast
+    to the float32 consumer). This is the load-bearing behaviour the whole stage
+    exists for; if the cast ever silently stops happening, this flips to 0.0."""
+    from discovery import metamatrix as mm
+
+    y = np.array([1e8, 1.0, -1e8])
+    Nmy = np.array([1.0, 1.0, 1.0])
+
+    def make(pin):
+        g = mm.GraphBuilder()
+        a = g.leaf(None, name="y")
+        b = g.leaf(None, name="Nmy")
+        d = g.dot(a, b)             # y^T Nmy -- the (optionally) pinned op
+        if pin:
+            g.pin_f64(d)
+        _ = 0.0 + d                 # a downstream working-dtype (f32) consumer
+        return mm.func(g.graph)
+
+    ds.config(kernels="metamath")
+    utils.config(backend="jax", working=jnp.float32)
+    try:
+        assert float(make(True)(y, Nmy)) == 1.0,  "pinned dot lost f64 accumulation"
+        assert float(make(False)(y, Nmy)) == 0.0, "unpinned f32 dot unexpectedly survived"
+    finally:
+        utils.config(backend="jax")
+        ds.config(kernels="matrix")

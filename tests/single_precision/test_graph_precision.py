@@ -194,6 +194,25 @@ def test_dtype_map_pin_marks_node_and_ancestors():
     assert dm["e"] is jnp.float32 and dm["f"] is jnp.float32  # off the pin's path
 
 
+def test_dtype_map_combine_f64_does_not_propagate():
+    """combine_f64 (Half A) marks ONLY its own node float64; its ancestors stay
+    working dtype -- the opposite of pin_f64, which propagates float64 backward.
+    This is what lets the final logL combination run in float64 while the
+    expensive upstream factorization stays float32."""
+    g = mm.GraphBuilder()
+    a = g.leaf(None, name="a")
+    b = g.leaf(None, name="b")
+    c = g.node(lambda x, y: x @ y, [a, b], name="c")   # an f32 ancestor of the combine
+    g.combine_f64(g.node(lambda x: -0.5 * x, [c], name="d"))
+
+    with metamath_working(jnp.float32):
+        dm = mm._dtype_map(g.graph, jnp.float32)
+
+    assert dm["d"] is jnp.float64                 # the combine node computes in f64
+    assert dm["c"] is jnp.float32                 # ancestor NOT pulled to f64 (vs pin)
+    assert dm["a"] is jnp.float32 and dm["b"] is jnp.float32
+
+
 # --- Stage 2b: the woodbury pins (ytNmy, lN, lP) on a real model graph --------
 #
 # woodbury pins y^T N^-1 y and the white-noise / prior logdets to float64. Under

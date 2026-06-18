@@ -82,9 +82,13 @@ def woodbury(g, y, Nsolve, F, Pinv):
 
     # ytNmy = y^T N^-1 y is the catastrophic-cancellation term: pin it to float64
     # so its ntoa-long accumulation is built accurately even under a float32
-    # working dtype. (The result is converted down when logp consumes it.)
+    # working dtype.
     ytNmy = g.pin_f64(g.dot(y, Nmy))
-    logp = -0.5 * (ytNmy - g.dot(FtNmy, mu)) - 0.5 * ld
+    # Half A: combine the final logL in float64 -- ytNmy/lN/lP are read in as f64
+    # (no loss), FtNmy.mu and lS are cast up -- so the O(1) result is not rounded
+    # to the float32 ulp of a ~1e6 term. The float32 Cholesky / mu upstream are
+    # untouched (that accuracy is Half B / reference+delta).
+    logp = g.combine_logp_f64(ytNmy, g.dot(FtNmy, mu), [lN, lP, lS])
 
     # more readable, but doing this keeps y.T @ Nmy from being cached
     # logp = g.node(lambda y, Nmy, FtNmy, mu, ld: -0.5 * (y.T @ Nmy - FtNmy.T @ mu) - 0.5 * ld,
@@ -175,7 +179,7 @@ def globalwoodbury(g, ys, Nsolves, Fs, Pinv):
 
     lP = g.pin_f64(lP.sum()) # g.node(lambda x: jnp.sum(x), inputs=[lP]) # should be an op
 
-    logp = -0.5 * (ytNmy - g.dot(FtNmy, g.cho_solve(cf, FtNmy))) - 0.5 * (lP + lS)
+    logp = g.combine_logp_f64(ytNmy, g.dot(FtNmy, g.cho_solve(cf, FtNmy)), [lP, lS])  # Half A: f64 final combine
 
 @mm.graph
 def globalwoodbury_fused(g, projected, Pinv):
@@ -191,7 +195,8 @@ def globalwoodbury_fused(g, projected, Pinv):
     # total_ld stay working dtype (pinning lS would force the global f64 Cholesky;
     # ytNmy is not pinned here because its cone reaches the inner Cholesky via
     # ytNmy_proj -- the raw accumulation is already pinned at source in jointsolve).
-    logp = -0.5 * (ytNmy - g.dot(FtNmy, g.cho_solve(cf, FtNmy))) - 0.5 * (g.pin_f64(lP.sum()) + total_ld + lS)
+    logp = g.combine_logp_f64(ytNmy, g.dot(FtNmy, g.cho_solve(cf, FtNmy)),
+                              [g.pin_f64(lP.sum()), total_ld, lS])  # Half A: f64 final combine
 
 
 @mm.graph
@@ -281,7 +286,7 @@ def vectorwoodbury(g, ys, Nsolves, Fs, Pinv):
     mu = g.cho_solve(cf, FtNmy)
 
     cond = g.pair(mu, cf, name='cond')
-    logp = -0.5 * (ytNmy - g.sum(FtNmy * mu)) - 0.5 * (g.pin_f64(lP.sum()) + lS.sum())
+    logp = g.combine_logp_f64(ytNmy, g.sum(FtNmy * mu), [g.pin_f64(lP.sum()), lS.sum()])  # Half A: f64 final combine
 
 
 @mm.graph
@@ -977,7 +982,7 @@ def woodburyfast(g, y, allsolve, F, Pinv):
     # cond = g.pair(mu, cf, name='cond')
     # solve = g.pair(Nmy - NmF @ mu, ld, name='solve')
 
-    logp = -0.5 * (ytNmy - g.dot(FtNmy, mu)) - 0.5 * ld
+    logp = g.combine_logp_f64(ytNmy, g.dot(FtNmy, mu), [lP, lS, lN])  # Half A: f64 final combine
 
 # yt Km y = yt Nm y - yt Nm F (Pinv + FtNmF)^-1 Ft Nm y
 # Tt Km y = Tt Nm y - Tt Nm F (Pinv + FtNmF)^-1 Ft Nm y

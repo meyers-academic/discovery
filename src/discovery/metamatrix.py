@@ -46,6 +46,11 @@ def _dtype_map(graph: Graph, working) -> Dict[str, Any]:
     on (its ancestors), are float64 so the pinned value is built entirely in
     float64. Everything else stays `working`.
 
+    A node marked `f64_combine=True` is *also* float64, but it does NOT propagate
+    backward: only that node computes in float64 (its inputs are cast up on read),
+    its ancestors keep the working dtype. This is the 'Half A' final-combination
+    boundary -- the opposite of a pin.
+
     Returns name -> dtype. When `working` is float64 every node maps to float64,
     so the per-edge cast in build_callable_from_graph is a no-op. (Depends only on
     `working`, not on global config, so visualize_graph can preview any regime;
@@ -70,7 +75,13 @@ def _dtype_map(graph: Graph, working) -> Dict[str, Any]:
                 if inp not in f64:
                     q.append(inp)
 
-    return {name: (jnp.float64 if name in f64 else working) for name in graph}
+    # f64_combine nodes are float64 too, but do NOT seed the backward pass: only
+    # the node itself is float64 (inputs cast up on read), ancestors stay working.
+    local = {name for name, node in graph.items()
+             if isinstance(node, Node) and getattr(node, "f64_combine", False)}
+
+    return {name: (jnp.float64 if (name in f64 or name in local) else working)
+            for name in graph}
 
 # ===== Graph library =====
 
@@ -104,6 +115,14 @@ class Node:
     pin: bool = False                  # stage-2 single precision: keep this node
                                        # (and everything it depends on) in float64
                                        # even when the working dtype is float32.
+    f64_combine: bool = False          # Piece 2 'Half A': compute THIS node in
+                                       # float64 (its inputs are cast *up* on read)
+                                       # WITHOUT pulling its ancestors into float64.
+                                       # The opposite of `pin` -- used for the final
+                                       # logL scalar combination so the O(1) result
+                                       # is not rounded to the float32 ulp of a ~1e6
+                                       # term, while the upstream factorization stays
+                                       # float32.
 
 # Whole graph: name -> Leaf or Node - TODO: it may need to be its own class
 Graph = Dict[str, Union[Leaf, Node]]
@@ -750,6 +769,45 @@ class GraphBuilder:
             raise TypeError(f"can only pin a Node, not {type(node).__name__} ({symbol.name})")
         node.pin = True
         return symbol
+
+    def combine_f64(self, symbol: Sym) -> Sym:
+        """Mark a node to be *computed* in float64 -- its inputs are cast up to
+        float64 as they are read -- WITHOUT pulling its ancestors into float64.
+        The opposite of `pin_f64`: a pin makes a value born f64 (propagating f64
+        back through everything it depends on); `combine_f64` keeps the upstream
+        graph in the working dtype and only does THIS node's arithmetic in float64.
+
+        This is Piece 2 'Half A': the final logL scalar combination. The big terms
+        (ytNmy ~1e6, FtNmy.mu ~1e6, the logdets) are subtracted in float64 so the
+        O(1) result is not rounded to the float32 ulp (~0.06 at 1e6) of those terms,
+        while the expensive factorization upstream stays float32. It does NOT make
+        FtNmy.mu itself accurate (mu is born from the float32 Cholesky) -- that is
+        Piece 2 'Half B' / reference+delta.
+        """
+        node = self.graph[symbol.name]
+        if not isinstance(node, Node):
+            raise TypeError(f"can only combine_f64 a Node, not {type(node).__name__} ({symbol.name})")
+        node.f64_combine = True
+        return symbol
+
+    def combine_logp_f64(self, ytNmy: Sym, quad: Sym, logdets: List[Sym],
+                         name: Optional[str] = None) -> Sym:
+        """Final marginal-likelihood combination, computed in float64 (`combine_f64`):
+
+            logp = -0.5 * (ytNmy - quad) - 0.5 * sum(logdets)
+
+        `quad` = FtNmy^T mu (float32; mu from the float32 Cholesky) and any float32
+        logdet terms are cast up on read; pinned float64 terms (ytNmy, lN, lP) are
+        read in without loss. Protects the final subtraction, not the building of mu.
+        """
+        def op(yt, q, *lds):
+            s = lds[0]
+            for x in lds[1:]:
+                s = s + x
+            return -0.5 * (yt - q) - 0.5 * s
+        node = self.node(op, [ytNmy, quad] + list(logdets), name=name,
+                         description='logp = -0.5(ytNmy - FtNmy.mu) - 0.5 sum(logdets) [f64 combine]')
+        return self.combine_f64(node)
 
     def named(self, symbol: Sym, name: str) -> Sym:
         self.graph[name] = self.graph[symbol.name]

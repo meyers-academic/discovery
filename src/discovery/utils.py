@@ -290,3 +290,36 @@ def smup_ind_correct(yp, Np, Uind, P):
 
 
 vsmup_ind_correct = jax.vmap(smup_ind_correct, in_axes=(0, None, None, None))
+
+
+# --- Sherman-Morrison whitening (apply K^{-1/2}, parallel to the solve above) ---
+# These give W x with W = K^{-1/2} for K = diag(N) + F_ec diag(P) F_ec^T (ECORR).
+# The ECORR indicators are orthogonal (one TOA per epoch), so K decouples per
+# epoch and K^{-1/2} has the closed form with per-epoch factor alpha_k below.
+# Used by the timing-model projection (float32-safe); see
+# dev_architecture/single_precision/docs/adr/0004-timing-model-projection.md.
+
+def smwhiten_ind(A, l, xdivA, ind):
+    """Per-epoch whitening correction: the rank-1 part of (K^{-1/2} x) for one epoch."""
+    inv_d = 1.0 / A[ind]
+    inv_sqrt_d = 1.0 / jnp.sqrt(A[ind])
+
+    vtAmu = l * jnp.sum(inv_d)        # u_k = P_k sum_{i in k} 1/N_i
+    vtAmb = l * jnp.sum(xdivA[ind])   # P_k sum_{i in k} x_i/N_i
+
+    alpha = jnp.where(vtAmu > 1e-14,
+                      (1.0 / jnp.sqrt(1.0 + vtAmu) - 1.0) / vtAmu,
+                      -0.5)
+    return inv_sqrt_d * (alpha * vtAmb)
+
+
+vsmwhiten_ind = jax.vmap(smwhiten_ind, in_axes=(None, 0, None, 0))
+
+
+def smwhiten_ind_correct(xp, Np, Uind, P):
+    """W x for a single vector. xp/Np are sentinel-padded (index 0); drop it with [1:]."""
+    corrections = vsmwhiten_ind(Np, P, xp / Np, Uind)
+    return (xp / jnp.sqrt(Np)).at[Uind.reshape(-1)].add(corrections.reshape(-1))[1:]
+
+
+vsmwhiten_ind_correct = jax.vmap(smwhiten_ind_correct, in_axes=(0, None, None, None))

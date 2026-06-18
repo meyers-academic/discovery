@@ -162,7 +162,7 @@ def makegp_ecorr(psr, noisedict={}, enterprise=False, scale=1.0, selection=selec
 
 # timing model
 
-def makegp_improper(psr, fmat, constant=1.0e40, name='improperGP', variable=False):
+def makegp_improper(psr, fmat, constant=1.0e40, name='improperGP', variable=False, project=False):
     if variable:
         phi = utils.jnparray(constant * np.ones(fmat.shape[1]))
 
@@ -177,10 +177,16 @@ def makegp_improper(psr, fmat, constant=1.0e40, name='improperGP', variable=Fals
 
     gp.name = psr.name
     gp.gpname = name
+    # `project=True` marks this improper GP to be marginalized by orthogonal
+    # projection (the exact flat-prior limit) rather than by feeding its huge
+    # prior variance through the Woodbury solve -- the float32-safe path. See
+    # dev_architecture/single_precision/docs/adr/0004-timing-model-projection.md.
+    # Off by default, so existing models are byte-identical.
+    gp.project = project
 
     return gp
 
-def makegp_timing(psr, constant=None, variance=None, svd=False, scale=1.0, variable=False):
+def makegp_timing(psr, constant=None, variance=None, svd=False, scale=1.0, variable=False, project=False):
     if svd:
         fmat, _, _ = np.linalg.svd(scale * psr.Mmat, full_matrices=False)
     else:
@@ -193,11 +199,11 @@ def makegp_timing(psr, constant=None, variance=None, svd=False, scale=1.0, varia
     else:
         if constant is None:
             constant = variance * psr.Mmat.shape[0] / psr.Mmat.shape[1]
-            return makegp_improper(psr, fmat, constant=constant, name='timingmodel', variable=variable)
+            return makegp_improper(psr, fmat, constant=constant, name='timingmodel', variable=variable, project=project)
         else:
             raise ValueError("signals.makegp_timing() can take a specification of _either_ `constant` or `variance`.")
 
-    return makegp_improper(psr, fmat, constant=constant, name='timingmodel', variable=variable)
+    return makegp_improper(psr, fmat, constant=constant, name='timingmodel', variable=variable, project=project)
 
 
 # Fourier GP

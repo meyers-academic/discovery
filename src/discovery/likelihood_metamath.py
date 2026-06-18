@@ -95,7 +95,26 @@ class PulsarLikelihood:
         noise, y = noise[0], y[0]
 
         if cgps:
-            if len(cgps) > 1 and concat:
+            # Timing-model projection (float32-safe, ADR 0004): any GP marked
+            # `project=True` (via makegp_timing(..., project=True)) is projected
+            # OUT rather than given a 1e40 prior; the remaining cgps stay ordinary
+            # Woodbury blocks. Off by default → byte-identical to the branch below.
+            proj_cgps = [g for g in cgps if getattr(g, 'project', False)]
+            keep_cgps = [g for g in cgps if not getattr(g, 'project', False)]
+
+            if proj_cgps:
+                if not keep_cgps:
+                    raise NotImplementedError(
+                        "timing-model projection currently requires at least one "
+                        "non-projected GP (e.g. ECORR) as the kept Woodbury block.")
+                # M = timing basis (concatenate if several projected GPs).
+                Mbases = [g.F for g in proj_cgps]
+                M = (Mbases[0] if len(Mbases) == 1
+                     else jax.numpy.concatenate([jax.numpy.asarray(b) for b in Mbases], axis=1))
+                kc = (metamath.CompoundGP(keep_cgps)
+                      if (len(keep_cgps) > 1 and concat) else keep_cgps[0])
+                csm = metamath.WoodburyProjKernel(noise, M, kc.F, kc.Phi)
+            elif len(cgps) > 1 and concat:
                 cgp = metamath.CompoundGP(cgps)
                 csm = metamath.WoodburyKernel(noise, cgp.F, cgp.Phi)
             else:

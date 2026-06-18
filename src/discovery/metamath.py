@@ -25,6 +25,8 @@ from .utils import (
     smup_ind_correct,
     vsmup_ind_correct,
     vsmdp_ind,
+    smwhiten_ind_correct,
+    vsmwhiten_ind_correct,
 )
 
 
@@ -93,6 +95,75 @@ def woodbury(g, y, Nsolve, F, Pinv):
     # more readable, but doing this keeps y.T @ Nmy from being cached
     # logp = g.node(lambda y, Nmy, FtNmy, mu, ld: -0.5 * (y.T @ Nmy - FtNmy.T @ mu) - 0.5 * ld,
     #               [y, Nmy, FtNmy, mu, ld], description=f'-0.5 * (y.T @ Nmy - FtNmy.T @ mu) - 0.5 * ld')
+
+
+@mm.graph
+def woodbury_proj(g, y, Nwhiten, M, F, Pinv):
+    """Marginal logL with the timing model M handled by *projection* instead of
+    a huge-variance prior (the float32-safe path; see
+    dev_architecture/single_precision/docs/adr/0004-timing-model-projection.md).
+
+    Same marginal likelihood as ``woodbury`` built from the combined basis
+    ``[M | F]`` with a flat (sigma^2 -> infinity) prior on the M coefficients,
+    but the flat-prior limit is taken analytically: we whiten by K = N + ECORR,
+    then orthogonally project the whitened data and Fourier basis out of the
+    span of the whitened timing basis. Nothing ever forms the 1e40 prior block
+    that overflows float32.
+
+    Inputs
+      y       : residuals (free leaf, applied later).
+      Nwhiten : `N.make_whiten` GraphLeaf, applies W = K^{-1/2} -> (W x, logdet K).
+      M       : timing-model design matrix (n_toa, m_tm) -- projected OUT.
+      F       : Fourier GP basis (n_toa, k)             -- kept.
+      Pinv    : GP prior inverse leaf -> (Phi^-1, logdet Phi) (GP block only,
+                NO timing block).
+
+    Whiten FIRST (ADR 0004, decision 3): forming M^T K^-1 M by un-whitened sums
+    re-introduces large-minus-large cancellation in the low-frequency Fourier
+    modes that overlap the timing polynomials -- catastrophic in float32.
+    """
+    yw, lN = Nwhiten(y).split()      # W y, logdet K  (lN used once)
+    A, _ = Nwhiten(M).split()        # W M  (whitened timing basis)
+    B, _ = Nwhiten(F).split()        # W F  (whitened Fourier basis)
+
+    # One factorization of the (well-conditioned) timing Gram A^T A = M^T K^-1 M.
+    # cho_factor hands back its logdet for free -> that IS the timing Jacobian
+    # logdet(M^T K^-1 M); no separate SVD-logdet precompute needed.
+    AtA = g.dot(A, A)
+    cfA, ldA = g.cho_factor(AtA)
+
+    # Orthogonally project y and F out of the (whitened) timing span:
+    #   r_perp = W y - W M (A^T A)^-1 A^T (W y)   = W (y - M eps_hat)   (GLS resid)
+    #   B_perp = W F - W M (A^T A)^-1 A^T (W F)
+    coeffy = g.cho_solve(cfA, g.dot(A, yw)); r_perp = yw - A @ coeffy
+    coeffB = g.cho_solve(cfA, g.dot(A, B));  B_perp = B - A @ coeffB
+
+    FtNmF = g.dot(B_perp, B_perp)    # F_perp^T K^-1 F_perp
+    FtNmy = g.dot(B_perp, r_perp)    # F_perp^T K^-1 r_perp
+    # ytNmy = r_perp^T K^-1 r_perp -- the catastrophic-cancellation term, pin f64.
+    ytNmy = g.pin_f64(g.dot(r_perp, r_perp))
+
+    Pm, lP = Pinv
+    cf, lS = g.cho_factor(Pm + FtNmF)
+    mu = g.cho_solve(cf, FtNmy)
+
+    # Mirror woodbury's pins: white-noise logdet lN and prior logdet lP to f64;
+    # the timing Jacobian ldA and the small-matrix logdet lS stay working dtype.
+    g.pin_f64(lN)
+    g.pin_f64(lP)
+    ld = g.node(lambda a, b, c, d: a + b + c + d, [lN, ldA, lP, lS],
+                description='logdetK + logdet(MtKmM) + lP + lS')
+
+    # TOA-space output (for make_solve / the fused array path): apply the
+    # timing-projected inverse operator A = W (P_perp - P_perp B (Pinv+B^T B)^-1 B^T P_perp) W
+    # to the input. r_perp = P_perp(Wy), B_perp = P_perp(WF); the kept-GP Woodbury
+    # correction is `B_perp @ mu`, and the trailing whitening W maps back to TOA
+    # space. Applied to the outer commongp/globalgp bases by the fused kernel,
+    # this propagates the timing projection through the whole array for free.
+    solve_w, _ = Nwhiten(r_perp - B_perp @ mu).split()
+    solve = g.pair(solve_w, ld, name='solve')
+
+    logp = g.combine_logp_f64(ytNmy, g.dot(FtNmy, mu), [lN, ldA, lP, lS])
 
 
 @mm.graph
@@ -501,6 +572,67 @@ def smsolve(g, y, N, Uind, P):
     result = g.pair(Kmy, logdet)
 
 
+def _sm_whiten_apply(y, Np, Uind, P):
+    """Apply the whitening W = K^{-1/2} to y for K = diag(N) + F P F^T.
+
+    Same exposure-indexed Sherman-Morrison structure and ndim dispatch as
+    ``_sm_apply``, but returns W y (not K^-1 y). Used by the timing-model
+    projection; see adr/0004-timing-model-projection.md.
+    """
+    if y.ndim == 1:
+        yp = jnp.pad(y, ((1, 0),), constant_values=0.0)
+        return smwhiten_ind_correct(yp, Np, Uind, P)
+    else:
+        Tp = jnp.pad(y.T, ((0, 0), (1, 0)), constant_values=0.0)
+        return vsmwhiten_ind_correct(Tp, Np, Uind, P).T
+
+
+@mm.graph
+def smwhiten(g, y, N, Uind, P):
+    """Whitening `W y` with `W = K^{-1/2}`, `K = diag(N) + F P F^T` (ECORR).
+
+    Parallel to ``smsolve`` but applies the inverse *square root* instead of the
+    inverse. Same fold structure (``logN``, ``Np``, ``log1pt`` bake when N / P are
+    pinned). Returns (Wy, logdet K). For diagonal-only noise this reduces to
+    ``y / sqrt(N)`` with ``logdet = sum(log N)`` (no epochs).
+    """
+    logN = g.node(lambda N_: jnp.sum(jnp.log(N_)),
+                  [N], description='sum(log N)')
+    Np = g.node(lambda N_: jnp.pad(N_, ((1, 0),), constant_values=jnp.inf),
+                [N], description='pad(N) with +inf at idx 0')
+    log1pt = g.node(lambda Np_, P_, U_: jnp.sum(vsmdp_ind(Np_, P_, U_)),
+                    [Np, P, Uind],
+                    description='sum log1p(P · F^T diag(1/N) F)')
+    logdet = logN + log1pt
+
+    Wy = g.node(_sm_whiten_apply, [y, Np, Uind, P], description='K^{-1/2} y')
+    result = g.pair(Wy, logdet)
+
+
+def _diag_whiten_apply(y, N):
+    """Apply W = diag(N)^{-1/2} to y (1d residual or 2d basis), ndim-dispatched
+    like ``_sm_whiten_apply`` so one node serves both call sites."""
+    s = jnp.sqrt(N)
+    if y.ndim == 1:
+        return y / s
+    else:
+        return y / s[:, None]
+
+
+@mm.graph
+def dwhiten(g, y, N):
+    """Whitening `W y` with `W = diag(N)^{-1/2}` for purely diagonal noise.
+
+    The diagonal counterpart of ``smwhiten`` (no ECORR epochs): returns
+    (y / sqrt(N), sum(log N)). Used by the timing-model projection for PTAs
+    without ECORR; see adr/0004-timing-model-projection.md.
+    """
+    logN = g.node(lambda N_: jnp.sum(jnp.log(N_)),
+                  [N], description='sum(log N)')
+    Wy = g.node(_diag_whiten_apply, [y, N], description='N^{-1/2} y')
+    result = g.pair(Wy, logN)
+
+
 class NoiseMatrixSM(Kernel):
     """metamath analog of matrix.NoiseMatrixSM_var.
 
@@ -517,6 +649,11 @@ class NoiseMatrixSM(Kernel):
     @property
     def make_solve(self):
         return smsolve(None, self.N, self.Uind, self.P)
+
+    @property
+    def make_whiten(self):
+        # K^{-1/2} applicator for the timing-model projection (ADR 0004).
+        return smwhiten(None, self.N, self.Uind, self.P)
 
     @property
     def make_inv(self):
@@ -578,6 +715,11 @@ class NoiseMatrix(Kernel):
     @property
     def make_solve(self):
         return noisesolve(None, self.N)
+
+    @property
+    def make_whiten(self):
+        # diag(N)^{-1/2} applicator for the timing-model projection (ADR 0004).
+        return dwhiten(None, self.N)
 
     @property
     def make_inv(self):
@@ -660,6 +802,42 @@ class WoodburyKernel(Kernel):
         getc.params = cvars
 
         return woodburylatent(y, self.N.make_solve, self.F, self.P.make_solve, getc)
+
+
+class WoodburyProjKernel(Kernel):
+    """Like ``WoodburyKernel`` but the improper timing model `M` is handled by
+    *projection* (the flat-prior / float32-safe path) instead of a huge-variance
+    (1e40) Gaussian prior. The remaining GP `F` (e.g. ECORR) is kept as an
+    ordinary Woodbury block. See `woodbury_proj` and ADR 0004.
+
+    Drop-in for the per-pulsar noise in the fused array path: its `make_solve`
+    returns the timing-projected inverse operator, so when the array kernel
+    applies it to the outer commongp/globalgp bases the projection propagates
+    through the whole likelihood — no 1e40 block is ever formed.
+
+      N : base white-noise kernel (must expose `make_whiten`).
+      M : timing design matrix (n_toa, m_tm) — projected OUT.
+      F : kept GP basis (e.g. ECORR exposure) and P its prior kernel.
+    """
+    def __init__(self, N, M, F, P):
+        self.N, self.M, self.F, self.P = N, M, F, P
+
+    @property
+    def make_solve(self):
+        return mm.prune_graph(
+            woodbury_proj(None, self.N.make_whiten, self.M, self.F, self.P.make_inv),
+            output='solve')
+
+    def make_kernelproduct(self, y):
+        return woodbury_proj(y, self.N.make_whiten, self.M, self.F, self.P.make_inv)
+
+    def make_sample(self):
+        # Sampling y under a flat (improper) timing prior is ill-defined; the
+        # projection only enters the likelihood. Fall back to the proper-prior
+        # Woodbury sample if a caller ever needs draws.
+        raise NotImplementedError(
+            "WoodburyProjKernel.make_sample: timing projection is likelihood-only; "
+            "use a proper-prior WoodburyKernel to draw samples.")
 
 
 class GlobalWoodburyKernel(Kernel):

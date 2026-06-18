@@ -159,14 +159,21 @@ def globalwoodbury(g, ys, Nsolves, Fs, Pinv):
             FtNmys.append(g.dot(F, Nmy))
             FtNmFs.append(g.dot(F, NmF))
 
-    ytNmy = g.sum_all(ytNmys)
+    # Single-precision (stage 2): pin the array-wide data term and prior logdet to
+    # float64, mirroring woodbury(). Each ytNmys element is (y^T N^-1 y + lN), so
+    # pinning the sum_all pulls every per-pulsar quadratic + white-noise logdet --
+    # and the y-path N -- into float64, where the cross-pulsar ytNmy cancellation
+    # actually bites. The separate Nsolve(F) path stays working dtype, so the big
+    # FtNmF Cholesky remains float32. lS is left working dtype on purpose (pinning
+    # it would force that Cholesky into float64).
+    ytNmy = g.pin_f64(g.sum_all(ytNmys))
     FtNmy = g.hstack(FtNmys)
     FtNmF = g.block_diag(FtNmFs)
 
     Pm, lP = Pinv
     cf, lS = g.cho_factor(Pm + FtNmF)
 
-    lP = lP.sum() # g.node(lambda x: jnp.sum(x), inputs=[lP]) # should be an op
+    lP = g.pin_f64(lP.sum()) # g.node(lambda x: jnp.sum(x), inputs=[lP]) # should be an op
 
     logp = -0.5 * (ytNmy - g.dot(FtNmy, g.cho_solve(cf, FtNmy))) - 0.5 * (lP + lS)
 
@@ -180,7 +187,11 @@ def globalwoodbury_fused(g, projected, Pinv):
     FtNmF = g.node(lambda x: jsp.linalg.block_diag(*x), [FtNmF_proj])  # (1876, 1876)
     Pm, lP = Pinv
     cf, lS = g.cho_factor(Pm + FtNmF)
-    logp = -0.5 * (ytNmy - g.dot(FtNmy, g.cho_solve(cf, FtNmy))) - 0.5 * (lP.sum() + total_ld + lS)
+    # Outer (global GP) prior logdet -> float64. The outer Cholesky logdet lS and
+    # total_ld stay working dtype (pinning lS would force the global f64 Cholesky;
+    # ytNmy is not pinned here because its cone reaches the inner Cholesky via
+    # ytNmy_proj -- the raw accumulation is already pinned at source in jointsolve).
+    logp = -0.5 * (ytNmy - g.dot(FtNmy, g.cho_solve(cf, FtNmy))) - 0.5 * (g.pin_f64(lP.sum()) + total_ld + lS)
 
 
 @mm.graph
@@ -194,7 +205,10 @@ def vectorwoodburyjointsolve(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv):
         Nmy, lN = Nsolve(y)
         NmF_out, _ = Nsolve(F_out)
         NmF_in, _ = Nsolve(F_in)
-        lNs.append(lN)
+        # Single-precision (stage 2): pin the per-pulsar white-noise logdet to
+        # float64 at source (mirrors woodbury). The downstream combine into `ld`
+        # stays working dtype -- that is Piece 2's job, not the pins'.
+        lNs.append(g.pin_f64(lN))
         Nmys.append(Nmy)
         NmFs_out.append(NmF_out)
         NmFs_in.append(NmF_in)
@@ -205,6 +219,7 @@ def vectorwoodburyjointsolve(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv):
     FtNmF_in = g.array(FtNmFs_in)
 
     Pm, lP = Pinv
+    lP = g.pin_f64(lP)   # inner GP prior logdet -> float64 (pinned at source)
     cf, lS = g.cho_factor(Pm + FtNmF_in)
     mu_y = g.cho_solve(cf, FtNmy_in)
 
@@ -223,7 +238,10 @@ def vectorwoodburyjointsolve(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv):
     g.named(g.ntuple(solves), 'result')
 
     # --- Projected output (for globalwoodbury_fused) ---
-    ytNmy_consts = g.array([g.dot(ys[i], Nmys[i]) for i in range(len(ys))])          # (67,)
+    # Pin each per-pulsar raw y^T N^-1 y to float64 at source (mirrors woodbury's
+    # ytNmy pin). Cone = Nsolve(y) -> N only; the inner Cholesky cf is the *other*
+    # operand of the ytNmy_proj subtraction, not an ancestor, so it stays float32.
+    ytNmy_consts = g.array([g.pin_f64(g.dot(ys[i], Nmys[i])) for i in range(len(ys))])  # (67,)
     FtNmy_out = g.array([g.dot(Fs_outer[i], Nmys[i]) for i in range(len(ys))])       # (67, 28)
     FtNmF_cross_out = g.array([g.dot(Fs_outer[i], NmFs_in[i]) for i in range(len(ys))])  # (67, 28, 60)
     FtNmF_out = g.array([g.dot(Fs_outer[i], NmFs_out[i]) for i in range(len(ys))])   # (67, 28, 28)
@@ -250,7 +268,11 @@ def vectorwoodbury(g, ys, Nsolves, Fs, Pinv):
         FtNmys.append(F.T @ Nmy)
         FtNmFs.append(F.T @ NmF)
 
-    ytNmy = g.sum_all(ytNmys)
+    # Single-precision (stage 2): same pins as globalwoodbury(). Each ytNmys
+    # element is (y^T N^-1 y + lN); pin the array sum_all to float64 (the
+    # cross-pulsar cancellation term) and the prior logdet sum. lS stays working
+    # dtype so the batched FtNmF Cholesky remains float32.
+    ytNmy = g.pin_f64(g.sum_all(ytNmys))
     FtNmy = g.array(FtNmys)
     FtNmF = g.array(FtNmFs)
 
@@ -259,7 +281,7 @@ def vectorwoodbury(g, ys, Nsolves, Fs, Pinv):
     mu = g.cho_solve(cf, FtNmy)
 
     cond = g.pair(mu, cf, name='cond')
-    logp = -0.5 * (ytNmy - g.sum(FtNmy * mu)) - 0.5 * (lP.sum() + lS.sum())
+    logp = -0.5 * (ytNmy - g.sum(FtNmy * mu)) - 0.5 * (g.pin_f64(lP.sum()) + lS.sum())
 
 
 @mm.graph

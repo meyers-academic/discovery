@@ -32,10 +32,22 @@ from discovery import utils
 DATA = Path(__file__).resolve().parents[2] / "data"
 B1855 = DATA / "v1p1_de440_pint_bipm2019-B1855+09.feather"
 
+# Three long-baseline pulsars for the array/fused-path test.
+ARRAY_FEATHERS = [
+    "v1p1_de440_pint_bipm2019-B1855+09.feather",
+    "v1p1_de440_pint_bipm2019-B1937+21.feather",
+    "v1p1_de440_pint_bipm2019-J1909-3744.feather",
+]
+
 
 @pytest.fixture(scope="module")
 def psr():
     return ds.Pulsar.read_feather(B1855)
+
+
+@pytest.fixture(scope="module")
+def psrs():
+    return [ds.Pulsar.read_feather(DATA / f) for f in ARRAY_FEATHERS]
 
 
 @contextlib.contextmanager
@@ -292,3 +304,103 @@ def test_pin_forces_f64_accumulation():
     finally:
         utils.config(backend="jax")
         ds.config(kernels="matrix")
+
+
+# --- Stage 2c: the array / fused likelihood path in float32 --------------------
+#
+# THIS is the coverage gap the array+fused pins were added to protect. Everything
+# above runs either the single-pulsar woodbury or the dtype-map helper in
+# isolation. An ArrayLikelihood with BOTH a commongp (shared Fourier basis) and a
+# globalgp (correlated HD GP, Phi a NoiseMatrix) routes through
+# GlobalWoodburyKernel.make_kernelproduct -> the fused branch
+# (vectorwoodburyjointsolve + globalwoodbury_fused) -- exactly where this
+# session's new pins live and had never been exercised in float32.
+#
+# Two things are checked: (1) the f32 logL is finite, close to f64, and has finite
+# gradients (sampler safety -- the real array data point); (2) the dtype-map
+# structure on the fused graph is correct: every pinned node (raw per-pulsar
+# y^T N^-1 y, lN, lP) is float64, and every cho_factor (inner per-pulsar + outer
+# global Cholesky, the lS terms) stays the working float32. The white-box check is
+# the real payoff: it locks the "pin the raw y^T N^-1 y at source, NOT the
+# projected ytNmy_proj" decision -- pinning the projected term would silently drag
+# the inner Cholesky to f64 and kill the f32 speed win.
+
+
+def _array_fused(psrs, fixed_wn):
+    """ArrayLikelihood hitting the fused path (commongp + globalgp).
+
+    fixed_wn=True  -> white noise pinned to the realistic noisedict: a well-
+                      conditioned N, robust across prior draws. The f64 pins fold
+                      to constants here (still computed in f64 at fold time), so
+                      they do their job but are invisible in the dtype map.
+    fixed_wn=False -> sampled white noise: keeps the pins LIVE so they appear in
+                      the dtype map. NOTE: sample_uniform draws physically extreme
+                      WN (efac up to ~10) that can badly scale N and overflow the
+                      f32 Cholesky -- so this variant is only used for the dtype
+                      structure check, not for a logL-closeness assertion."""
+    T = ds.getspan(psrs)
+    def noise(psr):
+        return (ds.makenoise_measurement(psr, psr.noisedict) if fixed_wn
+                else ds.makenoise_measurement(psr))
+    return ds.ArrayLikelihood(
+        [ds.PulsarLikelihood([psr.residuals,
+                              noise(psr),
+                              ds.makegp_ecorr(psr, psr.noisedict),
+                              ds.makegp_timing(psr, svd=True)]) for psr in psrs],
+        commongp=ds.makecommongp_fourier(psrs, ds.powerlaw, components=30, T=T,
+                                         name="rednoise"),
+        globalgp=ds.makeglobalgp_fourier(psrs, ds.powerlaw, ds.hd_orf,
+                                         components=14, T=T, name="gw"))
+
+
+def test_array_fused_logL_finite_and_close(psrs):
+    """3-pulsar fused-path logL under float32 is finite, close to float64, and has
+    finite gradients. First real data point on the array ytNmy cancellation -- at
+    3-pulsar scale (with realistic fixed white noise) it holds easily; the pins are
+    insurance for the full-array regime. This proves the fused f32 path runs and is
+    sane. (Sampled-WN draws can overflow the f32 Cholesky on physically extreme
+    efac/equad points -- a conditioning artifact of sample_uniform's broad priors,
+    not a fused-path precision failure; see _array_fused's note.)"""
+    with metamath_working(jnp.float64):
+        ref = _array_fused(psrs, fixed_wn=True)
+        p0 = _draw(ref)
+        L64 = float(ref.logL(p0))
+    assert np.isfinite(L64)
+
+    with metamath_working(jnp.float32):
+        m = _array_fused(psrs, fixed_wn=True)
+        L32 = float(m.logL(p0))
+        grads = jax.grad(lambda p: m.logL(p))(p0)
+
+    assert np.isfinite(L32), "array fused-path float32 logL not finite"
+    np.testing.assert_allclose(L32, L64, rtol=1e-5,
+                               err_msg=f"array fused float32 logL {L32} vs f64 {L64}")
+    assert all(np.isfinite(np.asarray(v)).all() for v in grads.values()), \
+        "array fused-path float32 gradient not finite"
+
+
+def test_array_fused_pins_are_f64_cholesky_is_f32(psrs):
+    """On the fused-path graph (incl. the nested vectorwoodburyjointsolve subgraph,
+    which _walk_dtypes recurses into): every pinned node is float64, every
+    cho_factor (inner per-pulsar + outer global Cholesky) is the working float32.
+    Sampled WN (fixed_wn=False) keeps the pins live so they show in the map."""
+    from discovery import metamatrix as mm
+
+    mm.keepgraph = True
+    try:
+        with metamath_working(jnp.float32):
+            m = _array_fused(psrs, fixed_wn=False)
+            walked = list(_walk_dtypes(m.logL.graph, jnp.float32))
+    finally:
+        mm.keepgraph = False
+
+    pins = [(n, d) for n, node, d in walked if getattr(node, "pin", False)]
+    chos = [(n, d) for n, node, d in walked
+            if node.description and "cho_factor" in node.description]
+
+    assert pins, "no pinned nodes survived in the fused-path graph"
+    assert chos, "no cho_factor node found -- fused path not exercised?"
+    assert all(d is jnp.float64 for _, d in pins), \
+        f"a pinned node is not float64: {pins}"
+    assert all(d is jnp.float32 for _, d in chos), \
+        f"a cho_factor (lS Cholesky) is not the working float32: {chos}"

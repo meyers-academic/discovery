@@ -1,5 +1,11 @@
 # Single-precision-safe calculations — design notes
 
+> **Note on audience.** Patrick (the author/owner of this work) is a physicist, not
+> a software engineer. Keep these notes and any discussion in plain language:
+> explain software jargon when it is unavoidable, prefer the math/physics framing,
+> and don't assume familiarity with software-engineering vocabulary. If a sentence
+> only makes sense to a software engineer, rewrite it or add a plain-language gloss.
+
 Working notes for making Discovery's likelihood evaluation safe and efficient in
 single precision. Target use cases: **large multi-pulsar analyses** and
 **variable-white-noise single-pulsar runs with rich noise models** — i.e. the

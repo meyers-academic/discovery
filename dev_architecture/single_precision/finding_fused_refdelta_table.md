@@ -39,13 +39,19 @@ both priors at the **chain median**, frozen f64; test points θ from the m3a cha
    a growing GW block. The refdelta path stays **bounded at ~0.01–0.09** throughout, so the
    gain *grows* with scale (≈8–15× by 24–45 psr), which is where it matters.
 
-3. **The refdelta f32 floor tracks the *increment* size, not |logL|.** Unlike the
-   single-level table (flat ~1e-4), here the floor is ~1e-2 and noisy (the 12-psr row is a
-   draw-luck dip, only 5 draws / max-error). This is expected: ΔlogL is carried in f32, and
-   its error is ~f32-eps × |ΔlogL|. These draws span the **whole** m3a chain, so |ΔlogL|
-   (distance from the frozen median reference) is large for tail draws. A reference closer
-   to the sampled bulk (e.g. a per-walker or running reference) tightens the floor further;
-   the median reference already keeps it ~10–60× below the direct path's blow-up.
+3. **The refdelta f32 floor is set by intermediate matrix ops, not by the increment size,
+   and there is ~3 decades of headroom left.** Measured directly: |ΔlogL| = |logL(θ) −
+   logL(θ_ref)| is only **~3–15** across these draws (≈6 orders of magnitude below
+   |logL|~1e6). So the *catastrophic* |logL|-scale cancellation is gone — that is the win.
+   But the ideal floor for an O(10) increment carried in f32 is ~f32-eps×10 ≈ **1e-5**,
+   whereas we see **~1e-2** — about 1000× above ideal. The gap is f32 roundoff in the
+   matrix ops that *assemble* the increment, whose operands span a huge dynamic range
+   (the GW-block Φ⁻¹ ~ 1e10, covariances ~1e-12): `dD_gw = −Pm·ΔΦ_gw·Pmr`, the dense
+   outer `inv`, and the outer cross-term `cho_solve(cf, …)`. None of these is the big
+   *inner* batched Cholesky we deliberately keep in f32; the **outer GW block is small
+   (≤ npsr·14, ~630×630 at 45 psr)**, so pinning its increment-assembly to f64 is cheap
+   and should recover most of that ~3 decades. (The 12-psr row is also a draw-luck
+   max-error dip — only 5 draws.) **This is the obvious next step (see Takeaways).**
 
 ## Takeaways
 
@@ -54,11 +60,11 @@ both priors at the **chain median**, frozen f64; test points θ from the m3a cha
   single-precision Half B for the Hellings-Downs (globalgp) case. Both regimes are now
   covered: single-level (`vectorwoodbury_refdelta`, CURN/IRN) and fused two-level
   (HD/CURN-with-IRN).
-- The gain is more modest and noisier than the no-HD single-level table because the fused
-  path's Half-A combine is already strong and the residual f32 cost is the *increment* of
-  a two-level solve. The decisive property is that refdelta stays **bounded** while the
-  direct path's error grows ~unbounded with array size.
-- Practical lever: the f32 floor follows reference-distance, so the closer Φ_ref sits to
-  the sampled region, the tighter the increment. The frozen chain-median reference is a
-  safe default; a running/per-walker reference is the obvious next refinement if more
-  headroom is wanted.
+- The decisive property is that refdelta stays **bounded** (~0.01–0.09) while the direct
+  fused path's error grows ~unbounded with array size (→0.75 at 45 psr). The win is that
+  the |logL|-scale cancellation is removed; the increment itself is tiny (~10).
+- **Next step (cheap, ~3 decades on the table):** pin the *outer* increment-assembly ops
+  to f64 — `dD_gw`, the dense outer `inv`/`ΔΦ_gw` products, and the outer cross-term
+  `cho_solve`. The outer GW block is small, so this is nearly free, and the floor today is
+  ~1000× above the f32-eps×|increment| ideal, so there is real room. The big *inner*
+  batched Cholesky stays f32 (that is the speed win and must not be pinned).

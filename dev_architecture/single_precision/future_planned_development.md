@@ -42,4 +42,53 @@ config knob + one test. Default-preserving.
 **Pairs with** the graph visualization (below): once pins have labels, the
 visualization can show *which* pin each float64 region traces back to.
 
+## 2. Unify the two paths — make the reference "impotent" when none is supplied
+
+**What.** Today every refdelta kernel has a *twin*: `vectorwoodbury` vs
+`vectorwoodbury_refdelta`, `globalwoodbury_fused` vs
+`globalwoodbury_fused_refdelta`, and the kernels branch on whether a frozen
+`P_ref` is present (ADR 0003 opt-in). That is two code paths to maintain.
+
+**Why.** When `reference=None` there is no reason we cannot just construct a
+reference covariance that is *impotent* — i.e. set Φ_ref ≡ Φ (the live prior) so
+every increment is identically zero and logL = logL_ref exactly. If the
+no-reference case is expressible as "refdelta with a self-cancelling reference",
+the **non-refdelta paths can be deleted**: one kernel per level instead of two.
+
+**How (sketch).**
+- When no reference is supplied, feed the refdelta graph `Pinv_ref = Pinv` (the
+  *same* live leaf, not a frozen constant). Then ΔΦ = Φ − Φ_ref = 0, ΔD = 0, all
+  Δ-quantities vanish, and `logL_ref` carries the whole answer.
+- Care needed: with Φ_ref = Φ live, `logL_ref` no longer folds to an f64 constant
+  (it now depends on params), so the f64/f32 dtype intent has to be re-checked —
+  the reference solve must run at working dtype in that mode, and we lose the
+  "reference folds to f64" trick. So this is a *code-simplification* refactor, not
+  a free precision win; verify it stays byte-identical to today's non-refdelta path
+  (the parity tests in `tests/metamatrix/` are the guard).
+- If the dtype story gets awkward, an alternative is keeping one kernel that
+  *internally* skips the increment branch when ref is the live leaf — still one
+  function, one set of tests.
+
+**Cost.** A focused refactor of the four kernels + their routing in
+`likelihood_metamath.py`; the payoff is roughly halving the kernel surface area.
+
+## 3. Pin the outer increment-assembly to f64 (tighten the HD floor ~3 decades)
+
+**What.** `finding_fused_refdelta_table.md` shows the fused-HD refdelta f32 floor
+sits at ~1e-2, while the increment itself is only ~10 (≈6 orders below |logL|), so
+the ideal floor is ~f32-eps×10 ≈ 1e-5. The ~1000× gap is f32 roundoff in the
+*outer* increment-assembly matrix ops, whose operands span a huge dynamic range
+(GW-block Φ⁻¹ ~ 1e10, covariances ~1e-12).
+
+**Why.** The outer GW block is small (≤ npsr·14, ~630×630 at 45 psr), so pinning
+its increment assembly to f64 is nearly free, and there are ~3 decades on the
+table. The big *inner* batched Cholesky stays f32 (that is the speed win — must
+not be pinned).
+
+**How (sketch).** In `globalwoodbury_fused_refdelta`, `combine_f64`/`pin_f64` the
+outer-only nodes: `dD_gw = −Pm·ΔΦ_gw·Pmr`, the dense outer `inv`/`ΔΦ_gw`, and the
+outer cross-term `cho_solve(cf, dbt − dK·nu_ref)`. Measure with
+`harness_fused_refdelta.py`; pairs naturally with item 1 (configurable pin set) so
+the outer-pin policy is a knob, not hardcoded.
+
 ## (add future items below as they come up)

@@ -61,7 +61,7 @@ def _refdelta(m, phi_in, phi_in_ref):
         m["ys"], m["Fs_out"], [N.make_solve for N in m["Ns"]], m["Fs_in"],
         P.make_inv, Pr.make_inv)
     out = mm.func(mm.prune_graph(g, output='refdelta'))(params={})
-    keys = ['aref_sum', 'dA', 'ld_in_ref', 'd_ld_in', 'btil_ref', 'dbtil', 'Gtil_ref', 'dGtil']
+    keys = ['aref_sum', 'dA', 'ld_in_ref', 'd_ld_in', 'btil_ref', 'dbtil', 'Gtil_ref', 'dGtil', 'lN_sum']
     return {k: np.asarray(v) for k, v in zip(keys, out)}
 
 

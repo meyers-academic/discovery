@@ -531,18 +531,42 @@ class GlobalLikelihood:
 
 class ArrayLikelihood:
     def __init__(self, psls, *, commongp=None, globalgp=None, transform=None,
-                 decenter=False, extsignals=None):
+                 decenter=False, extsignals=None, reference=None):
         self.psls = psls
         self.commongp = commongp
         self.globalgp = globalgp
         self.transform = transform
         self.decenter = decenter
+        # reference+delta (single-precision Half B, ADR 0001/0003): an optional
+        # single central params dict theta_ref. When given, each GP level's prior
+        # covariance Phi is frozen ONCE at theta_ref in float64 (the "thin top
+        # layer", `_freeze_reference`) and the marginal logL is evaluated as
+        # logL_ref + Delta logL so float32 holds the O(1) increment. theta_ref is
+        # consumed entirely here -- only the frozen Phi_ref constant leaves reach
+        # the kernels/graphs (hard guardrail). reference=None -> today's path.
+        self.reference = reference
         # extsignals: deterministic signals on their OWN basis (utils.ExtSignal),
         # for signals needing higher frequencies than the GP bases reach (e.g. a
         # CW); see discovery.deterministic.makecw_extsignal. For same-basis
         # deterministic Fourier signals, use makecommongp_fourier(..., means=...)
         # instead.
         self.extsignals = extsignals
+
+    def _freeze_reference(self, Phi):
+        """Thin top layer: evaluate a GP level's prior covariance Phi at the
+        reference params self.reference (theta_ref) ONCE, in float64, and return
+        it as a frozen constant leaf (a metamath.NoiseMatrix). Its .make_inv
+        folds to a float64 (Phi_ref^-1, logdet Phi_ref) constant -- the reference
+        baseline the refdelta graphs expand around. The covariance (not the
+        inverse) is frozen (ADR 0001), so a non-sampled sub-component
+        self-cancels (Delta = 0). theta_ref is consumed entirely here; only the
+        frozen leaf reaches the kernels/graphs (hard guardrail).
+        """
+        getN = getattr(Phi, 'getN', None)
+        if getN is None:
+            getN = Phi.N
+        arr = getN(self.reference) if callable(getN) else getN
+        return metamath.NoiseMatrix(kh.jnp.asarray(arr))
 
     @functools.cached_property
     def conditional(self):
@@ -693,12 +717,23 @@ class ArrayLikelihood:
         self.vsm.index = getattr(commongp, 'index', None)
         self.vsm.means = getattr(commongp, 'means', None)
 
+        # reference+delta opt-in: freeze the inner (commongp) prior at theta_ref.
+        # The kernel routes to the refdelta twin only when this leaf is present.
+        if self.reference is not None:
+            self.vsm.P_ref = self._freeze_reference(commongp.Phi)
+
         if self.globalgp is None:
             loglike = ffunc(self.vsm.make_kernelproduct(self.ys))
         else:
             if isinstance(self.globalgp.Phi, metamath.NoiseMatrix):
                 Ns, self.ys = zip(*[(psl.N, psl.y) for psl in self.psls])
                 self.gsm = metamath.GlobalWoodburyKernel(self.vsm, self.globalgp.Fs, self.globalgp.Phi)
+
+                # reference+delta opt-in: freeze the outer (globalgp) prior too.
+                # With both inner (self.vsm.P_ref) and outer references present the
+                # fused kernel routes to the two-level refdelta twins.
+                if self.reference is not None:
+                    self.gsm.P_ref = self._freeze_reference(self.globalgp.Phi)
 
                 loglike = ffunc(self.gsm.make_kernelproduct(self.ys))
             else:

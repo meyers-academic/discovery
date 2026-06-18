@@ -346,6 +346,107 @@ def globalwoodbury_fused(g, projected, Pinv):
 
 
 @mm.graph
+def globalwoodbury_fused_refdelta(g, refdelta, Pinv, Pinv_ref):
+    """Reference+delta twin of ``globalwoodbury_fused`` -- the OUTER half of the
+    fused two-level reference+delta (Piece 2 'Half B'; HD / CURN-with-IRN). See
+    dev_architecture/single_precision/research_note_nested_increment.md (sec. 4-5)
+    and piece2_fused_refdelta_plan.md (rung 2).
+
+    Consumes the 9-tuple emitted by ``vectorwoodburyjointsolve_refdelta``
+    (the inner rung):
+
+        refdelta = [aref_sum, dA, ld_in_ref, d_ld_in,
+                    btil_ref, dbtil, Gtil_ref, dGtil, lN_sum]
+
+    where each is, per the note:
+      * aref_sum  -- sum_i a~_ref,i  (reference projected leaf-quadratic, f64)
+      * dA        -- Delta A = sum_i Delta a~_i  (projection increment)
+      * ld_in_ref -- sum_i logdet(I + Phi_ref,in_i G_in,i)  (inner ref logdet)
+      * d_ld_in   -- inner logdet increment (sum_i slogdet(I + S0_in^-1 dPhi_in G_in))
+      * btil_ref  -- (npsr, m_out)            reference b~ per pulsar
+      * dbtil     -- (npsr, m_out)            its increment
+      * Gtil_ref  -- (npsr, m_out, m_out)     reference G~ per pulsar (block-diag stack)
+      * dGtil     -- (npsr, m_out, m_out)     its increment
+      * lN_sum    -- sum_i logdet N_i  (white-noise logdet, fixed -> f64)
+
+    Outer level (the cross-pulsar GW prior, dense for HD / block for CURN):
+      Pinv     : current  Phi_gw^-1 leaf -> (Phi_gw^-1, logdet Phi_gw)   (live)
+      Pinv_ref : reference Phi_ref,gw^-1 leaf (constant -> folds to f64)
+
+    Builds logL_ref ONCE in float64 (folds: all reference quantities are
+    constants under fixed white noise) and adds the small O(1) increment
+    Delta logL (note sec. 5), formed via the sec. 4 two-perturbation outer
+    update -- never a current-minus-reference subtraction of two large logLs.
+    The expensive *current* outer Cholesky stays in the working (float32) dtype;
+    only the final scalar combination is done in float64 (`combine_f64`).
+    """
+    (aref_sum, dA, ld_in_ref, d_ld_in,
+     btil_ref, dbtil, Gtil_ref, dGtil, lN_sum) = (
+        refdelta[0], refdelta[1], refdelta[2], refdelta[3],
+        refdelta[4], refdelta[5], refdelta[6], refdelta[7], refdelta[8])
+
+    # stack the per-pulsar projected quantities into the outer (global) space:
+    # b~ -> (npsr*m_out,), G~ -> block-diag (npsr*m_out, npsr*m_out).
+    flat = lambda v: g.node(lambda x: x.reshape(-1), [v])
+    bd   = lambda M: g.node(lambda x: jsp.linalg.block_diag(*x), [M])
+    btr  = flat(btil_ref)                     # reference b~ (stacked)
+    dbt  = flat(dbtil)                        # increment b~ (stacked)
+    Gtr  = bd(Gtil_ref)                       # reference G~ (block-diag)
+    dGt  = bd(dGtil)                          # increment G~ (block-diag)
+    btil = g.node(lambda a, b: a + b, [btr, dbt])   # current b~ = b~_ref + Delta b~
+    Gtil = g.node(lambda a, b: a + b, [Gtr, dGt])   # current G~ = G~_ref + Delta G~
+
+    Pm, lP = Pinv                # current  Phi_gw^-1, logdet Phi_gw
+    Pmr, lPr = Pinv_ref          # reference (constant leaf -> folds)
+
+    # outer covariances for the covariance-space increment dPhi_gw (well-conditioned
+    # prior; inverting Phi^-1 back is benign, mirrors woodbury_refdelta).
+    Phi, Phir = g.inv(Pm), g.inv(Pmr)
+    dPhi = g.node(lambda a, b: a - b, [Phi, Phir], description='dPhi_gw = Phi_gw - Phi_ref,gw')
+
+    # --- current outer solve -- the expensive Cholesky stays float32 ---
+    cf, _ = g.cho_factor(Pm + Gtil)
+    nu = g.cho_solve(cf, btil)                # nu = C_out^-1 b~
+
+    # --- reference outer solve + reference logL: all constant -> folds to f64 ---
+    cfr, lSr = g.cho_factor(Pmr + Gtr)
+    nu_ref = g.cho_solve(cfr, btr)            # nu_ref = C_ref,out^-1 b~_ref
+    quad_ref = g.dot(btr, nu_ref)             # b~_ref . nu_ref
+    # logL_ref = -0.5(a~_ref - b~_ref.nu_ref) - 0.5(lN + ld_in_ref + lP_ref,gw + lS_ref,gw)
+    logL_ref = g.combine_logp_f64(aref_sum, quad_ref,
+                                  [lN_sum, ld_in_ref, lPr, lSr])
+
+    # --- outer quadratic increment (note sec. 4, two-perturbation) ---
+    # dK_out = dD_gw + Delta G~,  dD_gw = -Pm dPhi_gw Pmr  (routed; no inverse-diff)
+    dD_gw = g.node(lambda P, dP, Pr: -P @ dP @ Pr, [Pm, dPhi, Pmr],
+                   description='dD_gw = -Pm dPhi_gw Pmr')
+    dK = g.node(lambda a, b: a + b, [dD_gw, dGt], description='dK_out = dD_gw + Delta G~')
+    # dQ_out = Delta b~ . nu + b~_ref . C_out^-1 (Delta b~ - dK nu_ref)
+    cross = g.cho_solve(cf, g.node(lambda db, K, nr: db - K @ nr, [dbt, dK, nu_ref],
+                                   description='Delta b~ - dK nu_ref'))
+    dQ = g.combine_f64(g.node(lambda db, nu_, br, cr: db @ nu_ + br @ cr,
+                              [dbt, nu, btr, cross],
+                              description='dQ_out = Delta b~.nu + b~_ref.C^-1(Delta b~ - dK nu_ref)'))
+
+    # --- outer logdet increment (note sec. 4): slogdet(I + S0o^-1 mid),
+    #     S0o = I + Phi_ref,gw G~_ref,  mid = Phi_ref,gw Delta G~ + dPhi_gw G~(current).
+    S0o = g.node(lambda Pr, Gr: jnp.eye(Gr.shape[0], dtype=Gr.dtype) + Pr @ Gr,
+                 [Phir, Gtr], description='S0_out = I + Phi_ref,gw G~_ref')
+    mid = g.node(lambda Pr, dG, dP, G: Pr @ dG + dP @ G, [Phir, dGt, dPhi, Gtil],
+                 description='Phi_ref,gw Delta G~ + dPhi_gw G~(current)')
+    d_ld_out = g.node(
+        lambda S, M: jnp.linalg.slogdet(jnp.eye(M.shape[0], dtype=M.dtype)
+                                        + jnp.linalg.solve(S, M))[1],
+        [S0o, mid], description='slogdet(I + S0_out^-1 mid)')
+
+    # --- assembly (note sec. 5): Delta logL = -0.5[(dA - dQ) + (d_ld_in + d_ld_out)] ---
+    dlnL = g.node(lambda da, q, ldi, ldo: -0.5 * ((da - q) + (ldi + ldo)),
+                  [dA, dQ, d_ld_in, d_ld_out], description='Delta logL')
+    logp = g.combine_f64(g.node(lambda r, dl: r + dl, [logL_ref, dlnL],
+                                description='logL_ref + Delta logL'))
+
+
+@mm.graph
 def vectorwoodburyjointsolve(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv):
     """Jointly solve — provides both TOA-space and projected outputs."""
     Nmys, NmFs_out, NmFs_in = [], [], []
@@ -436,11 +537,13 @@ def vectorwoodburyjointsolve_refdelta(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv, 
     """
     Nmys, NmFs_out, NmFs_in = [], [], []
     FtNmys_in, FtNmFs_in = [], []
+    lNs = []
 
     for y, F_out, F_in, Nsolve in zip(ys, Fs_outer, Fs_inner, Nsolves):
-        Nmy, _ = Nsolve(y)
+        Nmy, lN = Nsolve(y)
         NmF_out, _ = Nsolve(F_out)
         NmF_in, _ = Nsolve(F_in)
+        lNs.append(g.pin_f64(lN))               # white-noise logdet (fixed -> f64)
         Nmys.append(Nmy)
         NmFs_out.append(NmF_out)
         NmFs_in.append(NmF_in)
@@ -511,7 +614,11 @@ def vectorwoodburyjointsolve_refdelta(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv, 
             + jnp.linalg.solve(S, dp[:, :, None] * G))[1]),
         [S0_in, dphi, G_in], description='sum_i slogdet(I + S0_in^-1 dPhi_in G_in)'))
 
-    g.named(g.ntuple([aref_sum, dA, ld_in_ref, d_ld_in, btil_ref, dbtil, Gtil_ref, dGtil]),
+    # white-noise logdet (fixed; cancels in Delta logL but needed once so the
+    # outer rung can build the absolute logL_ref that matches globalwoodbury_fused).
+    lN_sum = g.pin_f64(g.sum_all(lNs))
+
+    g.named(g.ntuple([aref_sum, dA, ld_in_ref, d_ld_in, btil_ref, dbtil, Gtil_ref, dGtil, lN_sum]),
             'refdelta')
 
 
@@ -1103,7 +1210,21 @@ class GlobalWoodburyKernel(Kernel):
             # old path: list of per-pulsar noise kernels
             return globalwoodbury(ys, [N.make_solve for N in self.Ns], self.Fs, self.P.make_inv)
         elif hasattr(self.Ns, 'Ns'):
-            # compound kernel: vectorized path
+            # compound kernel: vectorized fused two-level path.
+            # Reference+delta (single-precision Half B) opt-in (ADR 0003): when
+            # BOTH frozen references are present -- the inner Phi_ref,in on the
+            # inner kernel (self.Ns.P_ref) and the outer Phi_ref,gw on this kernel
+            # (self.P_ref) -- route to the refdelta twins. Absent -> today's graph,
+            # byte-identical. The references are frozen f64 covariance leaves built
+            # once at the ArrayLikelihood boundary; theta_ref never reaches here.
+            P_ref_in = getattr(self.Ns, 'P_ref', None)
+            P_ref_out = getattr(self, 'P_ref', None)
+            if P_ref_in is not None and P_ref_out is not None:
+                joint_graph = vectorwoodburyjointsolve_refdelta(
+                    ys, self.Fs, [N.make_solve for N in self.Ns.Ns],
+                    self.Ns.Fs, self.Ns.P.make_inv, P_ref_in.make_inv)
+                rd_graph = mm.prune_graph(joint_graph, output='refdelta')
+                return globalwoodbury_fused_refdelta(rd_graph, self.P.make_inv, P_ref_out.make_inv)
             joint_graph = vectorwoodburyjointsolve(
                 ys, self.Fs, [N.make_solve for N in self.Ns.Ns],
                 self.Ns.Fs, self.Ns.P.make_inv)
@@ -1125,6 +1246,13 @@ class VectorWoodburyKernel(Kernel):
                                    self.Fs, self.P.make_inv)
 
     def make_kernelproduct(self, ys):
+        # Reference+delta opt-in (ADR 0003): a frozen inner Phi_ref leaf in
+        # self.P_ref routes to the batched single-level refdelta twin (CURN/IRN,
+        # no Hellings-Downs). Absent -> today's vectorwoodbury, byte-identical.
+        P_ref = getattr(self, 'P_ref', None)
+        if P_ref is not None:
+            return vectorwoodbury_refdelta(ys, [N.make_solve for N in self.Ns],
+                                           self.Fs, self.P.make_inv, P_ref.make_inv)
         return vectorwoodbury(ys, [N.make_solve for N in self.Ns], self.Fs, self.P.make_inv)
 
     def make_conditional(self, ys):

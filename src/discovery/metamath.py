@@ -407,6 +407,114 @@ def vectorwoodburyjointsolve(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv):
 
     g.named(g.ntuple([ytNmy_proj, ld, FtNmy_proj, FtNmF_proj]), 'projected')
 
+
+@mm.graph
+def vectorwoodburyjointsolve_refdelta(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv, Pinv_ref):
+    """Reference+delta twin of ``vectorwoodburyjointsolve`` -- the INNER half of the
+    fused two-level reference+delta (Piece 2 'Half B'; HD / CURN-with-IRN). See
+    dev_architecture/single_precision/research_note_nested_increment.md (sec. 2-3)
+    and piece2_fused_refdelta_plan.md.
+
+    Same per-pulsar inner intrinsic-red-noise (IRN) solve as
+    ``vectorwoodburyjointsolve``, but off a frozen inner reference covariance
+    Phi_ref,in (``Pinv_ref``) it emits, for the outer level (``globalwoodbury_fused_refdelta``):
+
+      * the REFERENCE projected quantities (a~_ref summed, b~_ref stacked,
+        G~_ref) -- constant under fixed white noise, so they fold to float64;
+      * the per-call INCREMENTS (Delta a~, Delta b~, Delta G~) formed DIRECTLY via
+        the resolvent identity Delta mu = -C^-1 Delta D mu_ref (NEVER as a
+        current-minus-reference subtraction of two large numbers -- that is the
+        catastrophic float32 cancellation reference+delta exists to avoid);
+      * the inner reference logdet (sum_i logdet(I + Phi_ref,in_i G_in_i)) and its
+        per-call increment (sum_i slogdet(I + S0_in^-1 dPhi_in G_in)).
+
+    Inner Phi is diagonal (power-law IRN), so Delta D is formed per mode as
+    -dphi/(phi phi_ref) -- no inverse-difference cancellation (note sec. 2, sec. 5).
+
+    Inputs mirror ``vectorwoodburyjointsolve`` plus ``Pinv_ref`` (frozen inner
+    reference Phi_ref,in^-1 leaf -> folds to float64 constants).
+    """
+    Nmys, NmFs_out, NmFs_in = [], [], []
+    FtNmys_in, FtNmFs_in = [], []
+
+    for y, F_out, F_in, Nsolve in zip(ys, Fs_outer, Fs_inner, Nsolves):
+        Nmy, _ = Nsolve(y)
+        NmF_out, _ = Nsolve(F_out)
+        NmF_in, _ = Nsolve(F_in)
+        Nmys.append(Nmy)
+        NmFs_out.append(NmF_out)
+        NmFs_in.append(NmF_in)
+        FtNmys_in.append(g.dot(F_in, Nmy))      # b_in,i  (fixed)
+        FtNmFs_in.append(g.dot(F_in, NmF_in))   # G_in,i  (fixed)
+
+    FtNmy_in = g.array(FtNmys_in)               # (npsr, m_in)        = b_in
+    G_in = g.array(FtNmFs_in)                   # (npsr, m_in, m_in)  = G_in
+    H = g.array([g.dot(F_in, NmF_out) for F_in, NmF_out in zip(Fs_inner, NmFs_out)])  # (npsr, m_in, m_out)
+
+    # fixed per-pulsar leaf data terms / outer-basis consts (no Phi dependence)
+    a_leaf = g.pin_f64(g.sum_all([g.pin_f64(g.dot(ys[i], Nmys[i])) for i in range(len(ys))]))  # sum_i a_i
+    FtNmy_out = g.array([g.dot(Fs_outer[i], Nmys[i]) for i in range(len(ys))])        # (npsr, m_out)        = b_out
+    Ht = g.array([g.dot(Fs_outer[i], NmFs_in[i]) for i in range(len(ys))])            # (npsr, m_out, m_in)  = H^T
+    FtNmF_out = g.array([g.dot(Fs_outer[i], NmFs_out[i]) for i in range(len(ys))])    # (npsr, m_out, m_out) = G_out
+
+    # --- current inner solve (the expensive batched Cholesky stays float32) ---
+    Pm, lP = Pinv
+    cf, _ = g.cho_factor(Pm + G_in)
+
+    # --- reference inner solve (all constant -> folds to a float64 constant) ---
+    Pmr, _ = Pinv_ref
+    cfr, _ = g.cho_factor(Pmr + G_in)
+    mu_y_ref = g.cho_solve(cfr, FtNmy_in)       # (npsr, m_in)        = C_ref^-1 b_in
+    mu_F_ref = g.cho_solve(cfr, H)              # (npsr, m_in, m_out) = C_ref^-1 H
+
+    # --- safe inner Delta D (per mode; diagonal inner Phi) and dphi ---
+    # Pm, Pmr are batched diagonal matrices (npsr, m, m); work on their diagonals.
+    diag = lambda M: jnp.diagonal(M, axis1=-2, axis2=-1)
+    phi = g.node(lambda P: 1.0 / diag(P), [Pm], description='inner phi = 1/diag(Pm)')        # (npsr, m_in)
+    phir = g.node(lambda P: 1.0 / diag(P), [Pmr], description='inner phi_ref = 1/diag(Pmr)')
+    dphi = g.node(lambda a, b: a - b, [phi, phir], description='inner dphi = phi - phi_ref')  # safe (covariance space)
+    dD = g.node(lambda dp, a, b: -dp / (a * b), [dphi, phi, phir],
+                description='inner Delta D = 1/phi - 1/phi_ref (safe, per mode)')             # (npsr, m_in)
+
+    # inner increments via the resolvent: Delta mu = -C^-1 (Delta D mu_ref)  (Delta D diagonal)
+    dDmu_y = g.node(lambda d, m: d * m, [dD, mu_y_ref], description='dD mu_y_ref')             # (npsr, m_in)
+    dDmu_F = g.node(lambda d, m: d[:, :, None] * m, [dD, mu_F_ref], description='dD mu_F_ref')  # (npsr, m_in, m_out)
+    dmu_y = g.node(lambda x: -x, [g.cho_solve(cf, dDmu_y)],
+                   description='inner Delta mu_y = -C^-1 dD mu_y_ref')                         # (npsr, m_in)
+    dmu_F = g.node(lambda x: -x, [g.cho_solve(cf, dDmu_F)],
+                   description='inner Delta mu_F = -C^-1 dD mu_F_ref')                         # (npsr, m_in, m_out)
+
+    # --- reference projected quantities (fold to f64) ---  (note sec. 0 projection)
+    aref = g.node(lambda b, m: jnp.einsum('pi,pi->p', b, m), [FtNmy_in, mu_y_ref])            # b_in . mu_y_ref
+    aref_sum = g.combine_f64(g.node(lambda al, x: al - jnp.sum(x), [a_leaf, aref],
+                                    description='sum_i a~_ref,i = sum_i (a_i - b_in.mu_y_ref)'))
+    btil_ref = g.node(lambda bo, A, m: bo - jnp.einsum('pij,pj->pi', A, m), [FtNmy_out, Ht, mu_y_ref])   # (npsr, m_out)
+    Gtil_ref = g.node(lambda Go, A, m: Go - jnp.einsum('pij,pjk->pik', A, m), [FtNmF_out, Ht, mu_F_ref])  # (npsr, m_out, m_out)
+
+    # --- projected increments (formed from the inner Delta mu; no big-minus-big) --- (note sec. 3)
+    dA = g.combine_f64(g.node(lambda b, dm: -jnp.sum(jnp.einsum('pi,pi->p', b, dm)), [FtNmy_in, dmu_y],
+                              description='Delta A = sum_i Delta a~_i = -sum_i b_in . Delta mu_y'))
+    dbtil = g.node(lambda A, dm: -jnp.einsum('pij,pj->pi', A, dm), [Ht, dmu_y],
+                   description='Delta b~ = -H^T Delta mu_y')                                   # (npsr, m_out)
+    dGtil = g.node(lambda A, dm: -jnp.einsum('pij,pjk->pik', A, dm), [Ht, dmu_F],
+                   description='Delta G~ = -H^T Delta mu_F')                                   # (npsr, m_out, m_out)
+
+    # --- inner logdet: reference (folds f64) + increment --- (note sec. 4, batched per pulsar)
+    # S0_in,i = I + Phi_ref,in_i G_in,i (Phi_ref diagonal -> phir[:, :, None] * G_in)
+    S0_in = g.node(lambda pr, G: jnp.eye(G.shape[-1], dtype=G.dtype) + pr[:, :, None] * G,
+                   [phir, G_in], description='inner S0 = I + Phi_ref,in G_in')                 # (npsr, m_in, m_in)
+    ld_in_ref = g.pin_f64(g.node(lambda S: jnp.sum(jnp.linalg.slogdet(S)[1]), [S0_in],
+                                 description='sum_i logdet(I + Phi_ref,in G_in)'))
+    d_ld_in = g.combine_f64(g.node(
+        lambda S, dp, G: jnp.sum(jnp.linalg.slogdet(
+            jnp.eye(G.shape[-1], dtype=G.dtype)
+            + jnp.linalg.solve(S, dp[:, :, None] * G))[1]),
+        [S0_in, dphi, G_in], description='sum_i slogdet(I + S0_in^-1 dPhi_in G_in)'))
+
+    g.named(g.ntuple([aref_sum, dA, ld_in_ref, d_ld_in, btil_ref, dbtil, Gtil_ref, dGtil]),
+            'refdelta')
+
+
 @mm.graph
 def vectorwoodbury(g, ys, Nsolves, Fs, Pinv):
     ytNmys, FtNmys, FtNmFs = [], [], []
@@ -433,6 +541,77 @@ def vectorwoodbury(g, ys, Nsolves, Fs, Pinv):
 
     cond = g.pair(mu, cf, name='cond')
     logp = g.combine_logp_f64(ytNmy, g.sum(FtNmy * mu), [g.pin_f64(lP.sum()), lS.sum()])  # Half A: f64 final combine
+
+
+@mm.graph
+def vectorwoodbury_refdelta(g, ys, Nsolves, Fs, Pinv, Pinv_ref):
+    """Reference+delta twin of ``vectorwoodbury`` -- single GP level, batched over
+    pulsars (Piece 2 'Half B'). The production form of the validated scalar
+    ``woodbury_refdelta`` for **no-Hellings-Downs array analyses** (per-pulsar IRN,
+    CURN, IRN+CURN via ``make_combined_crn``): each pulsar carries one red-noise GP
+    with a diagonal Phi and there is no cross-pulsar coupling, so the array
+    likelihood factorises, logL = sum_i logL_i. We therefore expand each pulsar's
+    logL about a frozen reference covariance Phi_ref,i and sum:
+
+        logL(theta) = sum_i logL_ref,i  +  sum_i Delta logL,i,
+
+    with sum_i logL_ref,i computed ONCE in float64 (folds, fixed white noise) and
+    only the O(1) increment per call. The increment is formed directly (note sec.
+    2-3) -- never as the float32 cancellation of two ~1e6 numbers -- and the
+    expensive batched GP-block Cholesky stays float32 (the speed win).
+
+    Inputs mirror ``vectorwoodbury`` plus ``Pinv_ref`` (frozen reference Phi_ref^-1
+    leaf -> folds to float64 constants). See research_note_on_split_with_reference.md
+    (sec. 2-3), docs/adr/0001,0003, and the HD/coupled case in
+    ``vectorwoodburyjointsolve_refdelta`` + ``globalwoodbury_fused_refdelta``.
+    """
+    ytNmys, FtNmys, FtNmFs = [], [], []
+    for y, F, Nsolve in zip(ys, Fs, Nsolves):
+        Nmy, lN = Nsolve(y)
+        NmF, _ = Nsolve(F)
+        ytNmys.append(y.T @ Nmy + lN)        # folds lN in, mirroring vectorwoodbury
+        FtNmys.append(g.dot(F, Nmy))         # b_i = F^T N^-1 y
+        FtNmFs.append(g.dot(F, NmF))         # G_i = F^T N^-1 F
+
+    # ytNmy = sum_i (y^T N^-1 y + lN) -- the cross-pulsar cancellation term, pin f64.
+    ytNmy = g.pin_f64(g.sum_all(ytNmys))
+    v = g.array(FtNmys)                       # (npsr, m)
+    G = g.array(FtNmFs)                       # (npsr, m, m)
+
+    Pm, _ = Pinv                              # current  Phi^-1 (batched diagonal), live
+    Pmr, lPr = Pinv_ref                       # reference Phi_ref^-1 (constant -> folds f64)
+
+    # covariance-space increment dPhi = Phi - Phi_ref (prior well-conditioned -> benign)
+    Phi, Phir = g.inv(Pm), g.inv(Pmr)
+    dPhi = g.node(lambda a, b: a - b, [Phi, Phir], description='dPhi = Phi - Phi_ref')
+
+    # current solve -- the batched GP-block Cholesky stays float32.
+    cf, _ = g.cho_factor(Pm + G)
+    u = g.cho_solve(cf, v)
+    w = g.node(lambda P, x: jnp.einsum('pij,pj->pi', P, x), [Pm, u], description='w = Phi^-1 u')
+
+    # reference solve + reference logL: all constant -> folds to an f64 constant.
+    cfr, lSr = g.cho_factor(Pmr + G)
+    ur = g.cho_solve(cfr, v)
+    wr = g.node(lambda P, x: jnp.einsum('pij,pj->pi', P, x), [Pmr, ur], description='w_ref = Phi_ref^-1 u_ref')
+    logL_ref = g.combine_logp_f64(ytNmy, g.sum(v * ur), [g.pin_f64(lPr.sum()), lSr.sum()])
+
+    # quadratic increment dQ = sum_i w_i^T dPhi_i w_ref_i, accumulated in f64.
+    dQ = g.combine_f64(g.node(lambda W, D, Wr: jnp.sum(jnp.einsum('pi,pij,pj->p', W, D, Wr)),
+                              [w, dPhi, wr], description='dQ = sum_i w dPhi w_ref'))
+
+    # logdet increment sum_i slogdet(I + S0_i^-1 dPhi_i G_i),  S0 = I + Phi_ref G.
+    S0 = g.node(lambda P, GG: jnp.eye(GG.shape[-1], dtype=GG.dtype) + P @ GG, [Phir, G],
+                description='S0 = I + Phi_ref G')
+    dPhiG = g.node(lambda D, GG: D @ GG, [dPhi, G], description='dPhi G')
+    dLdet = g.combine_f64(g.node(
+        lambda S, DG: jnp.sum(jnp.linalg.slogdet(
+            jnp.eye(DG.shape[-1], dtype=DG.dtype) + jnp.linalg.solve(S, DG))[1]),
+        [S0, dPhiG], description='sum_i slogdet(I + S0^-1 dPhi G)'))
+
+    dlnL = g.node(lambda q, d: 0.5 * q - 0.5 * d, [dQ, dLdet], description='0.5 dQ - 0.5 dLdet')
+    logp = g.combine_f64(g.node(lambda r, dl: r + dl, [logL_ref, dlnL],
+                                description='logL_ref + dlnL'))
 
 
 @mm.graph

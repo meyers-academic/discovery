@@ -167,6 +167,81 @@ def woodbury_proj(g, y, Nwhiten, M, F, Pinv):
 
 
 @mm.graph
+def woodbury_refdelta(g, y, Nsolve, F, Pinv, Pinv_ref):
+    """Marginal logL as a *reference + delta* expansion (Piece 2 'Half B'; the
+    single-level test rung). See
+    dev_architecture/single_precision/research_note_on_split_with_reference.md
+    (sec. 2-3) and docs/adr/0001,0003.
+
+    Instead of computing logL(theta) directly -- a catastrophic float32
+    cancellation `ytNmy - FtNmy.mu` of two ~1e6 numbers giving an O(1) result --
+    we write
+
+        logL(theta) = logL_ref + Delta logL,        Delta logL = 1/2 dQ - 1/2 dLdet,
+
+    with logL_ref computed ONCE in float64 at a frozen reference covariance
+    Phi_ref, and only the small O(1) increment per call. `ytNmy`, logdet N, and
+    n*log2pi cancel exactly in the difference (fixed white noise), so they never
+    enter Delta logL. The increment lives entirely in the small n_gp space and is
+    formed WITHOUT subtracting two large numbers, so float32 holds it to ~f32-eps
+    of an O(1) value (~1e-7) rather than the ~1e-2 floor of the direct path.
+
+    Inputs mirror ``woodbury`` plus one frozen reference:
+      Pinv     : current  Phi^-1 leaf -> (Phi^-1, logdet Phi)        (live).
+      Pinv_ref : reference Phi_ref^-1 leaf (constant -> folds to f64).
+
+    Math (companion note):
+      v = F^T N^-1 y,  G = F^T N^-1 F   (both fixed under fixed WN);
+      C = Phi^-1 + G,  u = C^-1 v,  w = Phi^-1 u   (and _ref at Phi_ref);
+      dPhi = Phi - Phi_ref               (benign covariance-space increment);
+      dQ    = w^T dPhi w_ref             (sec. 2, f64-accumulated);
+      dLdet = slogdet(I + S0^-1 dPhi G), S0 = I + Phi_ref G   (sec. 3).
+    """
+    Nmy, lN = Nsolve(y)
+    NmF, _ = Nsolve(F)
+    v = g.dot(NmF, y)            # FtNmy  (fixed)
+    G = g.dot(F, NmF)            # FtNmF  (fixed)
+    # ytNmy cancels in Delta logL but is needed once to build logL_ref; pin f64.
+    ytNmy = g.pin_f64(g.dot(y, Nmy))
+    g.pin_f64(lN)
+
+    Pm, lP = Pinv               # current  Phi^-1 (dense), logdet Phi
+    Pmr, lPr = Pinv_ref         # reference (constant leaf -> folds)
+
+    # forward covariances for the covariance-space increment dPhi (prior is
+    # well-conditioned, so inverting Phi^-1 back is benign).
+    Phi, Phir = g.inv(Pm), g.inv(Pmr)
+    dPhi = Phi - Phir
+
+    # current solve -- the expensive Cholesky stays in the working (float32) dtype.
+    cf, lS = g.cho_factor(Pm + G)
+    u = g.cho_solve(cf, v)
+    w = Pm @ u                  # Phi^-1 u
+
+    # reference solve + reference logL: all constant -> folds to an f64 constant.
+    cfr, lSr = g.cho_factor(Pmr + G)
+    ur = g.cho_solve(cfr, v)
+    wr = Pmr @ ur
+    logL_ref = g.combine_logp_f64(ytNmy, g.dot(v, ur), [lN, lPr, lSr])
+
+    # quadratic increment dQ = w^T dPhi w_ref, accumulated in f64.
+    dQ = g.combine_f64(g.dot(w, dPhi @ wr))
+
+    # logdet increment dLdet = slogdet(I + S0^-1 dPhi G),  S0 = I + Phi_ref G.
+    S0 = g.node(lambda P, GG: jnp.eye(GG.shape[0], dtype=GG.dtype) + P @ GG,
+                [Phir, G], description='I + Phi_ref G')
+    dLdet = g.node(
+        lambda S, DG: jnp.linalg.slogdet(
+            jnp.eye(DG.shape[0], dtype=DG.dtype) + jnp.linalg.solve(S, DG))[1],
+        [S0, dPhi @ G], description='slogdet(I + S0^-1 dPhi G)')
+
+    dlnL = g.node(lambda q, d: 0.5 * q - 0.5 * d, [dQ, dLdet],
+                  description='0.5 dQ - 0.5 dLdet')
+    logp = g.combine_f64(g.node(lambda r, dl: r + dl, [logL_ref, dlnL],
+                                description='logL_ref + dlnL'))
+
+
+@mm.graph
 def woodburykernelsolve(g, y, T, Nsolve, F, Pinv):
     """Return (T^T Σ^-1 y, T^T Σ^-1 T) for Σ = N + F P F^T.
 

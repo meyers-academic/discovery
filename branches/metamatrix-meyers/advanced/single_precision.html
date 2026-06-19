@@ -42,6 +42,8 @@
     <script src="../_static/documentation_options.js?v=db78e746"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'advanced/single_precision';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -567,14 +569,14 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="single-precision-likelihoods-and-the-reference-delta-trick">
+  <section class="tex2jax_ignore mathjax_ignore" id="single-precision-likelihoods-and-the-reference-delta-trick">
 <h1>Single-precision likelihoods (and the reference–delta trick)<a class="headerlink" href="#single-precision-likelihoods-and-the-reference-delta-trick" title="Link to this heading">#</a></h1>
 <p>GPUs run <em>much</em> faster in single precision (<code class="docutils literal notranslate"><span class="pre">float32</span></code>) than in double (<code class="docutils literal notranslate"><span class="pre">float64</span></code>),
 and they use half the memory. But a PTA marginal likelihood is a difference of
-large numbers – a quadratic form $\sim 10^6$ and log-determinants $\sim 10^4$ whose
-<em>physically interesting</em> part is an $O(1)$ residual. Rounded at the <code class="docutils literal notranslate"><span class="pre">float32</span></code> ulp of
-a $10^6$-scale number ($\approx 0.06$), that residual is swamped: a blanket <code class="docutils literal notranslate"><span class="pre">float32</span></code>
-likelihood can be wrong by $0.1$–$1$ in $\ln L$, which is fatal for sampling.</p>
+large numbers – a quadratic form <span class="math notranslate nohighlight">\(\sim 10^6\)</span> and log-determinants <span class="math notranslate nohighlight">\(\sim 10^4\)</span> whose
+<em>physically interesting</em> part is an <span class="math notranslate nohighlight">\(O(1)\)</span> residual. Rounded at the <code class="docutils literal notranslate"><span class="pre">float32</span></code> ulp of
+a <span class="math notranslate nohighlight">\(10^6\)</span>-scale number (<span class="math notranslate nohighlight">\(\approx 0.06\)</span>), that residual is swamped: a blanket <code class="docutils literal notranslate"><span class="pre">float32</span></code>
+likelihood can be wrong by <span class="math notranslate nohighlight">\(0.1\)</span>–<span class="math notranslate nohighlight">\(1\)</span> in <span class="math notranslate nohighlight">\(\ln L\)</span>, which is fatal for sampling.</p>
 <p>Discovery offers three flavors of the same Hellings–Downs model so you can see the
 trade-off directly:</p>
 <div class="pst-scrollable-table-container"><table class="table">
@@ -685,7 +687,7 @@ helper that sets the context first.</p>
 <section id="parameters-draws-and-a-reference-point">
 <h2>Parameters: draws and a reference point<a class="headerlink" href="#parameters-draws-and-a-reference-point" title="Link to this heading">#</a></h2>
 <p>We grab the parameter names from the model, draw a few points from the chain to test at,
-and take the chain <strong>median</strong> as the reference point $\theta_{\rm ref}$ for the
+and take the chain <strong>median</strong> as the reference point <span class="math notranslate nohighlight">\(\theta_{\rm ref}\)</span> for the
 reference–delta flavor.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -711,23 +713,26 @@ reference–delta flavor.</p>
 <h2>How reference–delta splits the likelihood<a class="headerlink" href="#how-reference-delta-splits-the-likelihood" title="Link to this heading">#</a></h2>
 <p>The reference–delta path never asks <code class="docutils literal notranslate"><span class="pre">float32</span></code> to hold a big number. It freezes the
 prior covariance once at the reference point and expands the likelihood around it.</p>
-<p>Freeze the prior covariance at $\theta_{\rm ref}$ (done once, in <code class="docutils literal notranslate"><span class="pre">float64</span></code>) and write the
+<p>Freeze the prior covariance at <span class="math notranslate nohighlight">\(\theta_{\rm ref}\)</span> (done once, in <code class="docutils literal notranslate"><span class="pre">float64</span></code>) and write the
 current covariance as that constant plus a small change:</p>
-<p>$$
-\Phi(\theta) ;=; \underbrace{\Phi(\theta_{\rm ref})}_{\text{frozen, float64}} ;+; \Delta\Phi(\theta).
-$$</p>
-<p>The log-likelihood then splits into a constant reference value plus an $O(1)$ increment:</p>
-<p>$$
-\ln L(\theta) ;=; \underbrace{\ln L_{\rm ref}}_{\text{computed once in float64}} ;+; \Delta!\ln L(\theta),
-$$</p>
-<p>and the increment is built <strong>directly</strong> from $\Delta\Phi$ (a resolvent/perturbation
+<div class="math notranslate nohighlight">
+\[
+\Phi(\theta) \;=\; \underbrace{\Phi(\theta_{\rm ref})}_{\text{frozen, float64}} \;+\; \Delta\Phi(\theta).
+\]</div>
+<p>The log-likelihood then splits into a constant reference value plus an <span class="math notranslate nohighlight">\(O(1)\)</span> increment:</p>
+<div class="math notranslate nohighlight">
+\[
+\ln L(\theta) \;=\; \underbrace{\ln L_{\rm ref}}_{\text{computed once in float64}} \;+\; \Delta\!\ln L(\theta),
+\]</div>
+<p>and the increment is built <strong>directly</strong> from <span class="math notranslate nohighlight">\(\Delta\Phi\)</span> (a resolvent/perturbation
 identity), <em>not</em> by subtracting two large likelihoods:</p>
-<p>$$
-\Delta!\ln L(\theta) ;=; -\tfrac12\big[(\Delta\tilde a - \Delta Q) + \Delta\mathcal{L}_{\det}\big]
-;=; O(1).
-$$</p>
-<p>Because $\ln L_{\rm ref}$ carries the large $\sim 10^6$ pieces (in <code class="docutils literal notranslate"><span class="pre">float64</span></code>) and the
-expensive current factorisation only ever touches the $O(1)$ increment, <code class="docutils literal notranslate"><span class="pre">float32</span></code> holds a
+<div class="math notranslate nohighlight">
+\[
+\Delta\!\ln L(\theta) \;=\; -\tfrac12\big[(\Delta\tilde a - \Delta Q) + \Delta\mathcal{L}_{\det}\big]
+\;=\; O(1).
+\]</div>
+<p>Because <span class="math notranslate nohighlight">\(\ln L_{\rm ref}\)</span> carries the large <span class="math notranslate nohighlight">\(\sim 10^6\)</span> pieces (in <code class="docutils literal notranslate"><span class="pre">float64</span></code>) and the
+expensive current factorisation only ever touches the <span class="math notranslate nohighlight">\(O(1)\)</span> increment, <code class="docutils literal notranslate"><span class="pre">float32</span></code> holds a
 small, well-conditioned number – so its limited precision no longer matters.</p>
 <p>(The full derivation lives in the developer notes; here we only need the shape of it.)</p>
 </section>
@@ -835,18 +840,18 @@ small, well-conditioned number – so its limited precision no longer matters.</
 <section id="takeaway">
 <h2>Takeaway<a class="headerlink" href="#takeaway" title="Link to this heading">#</a></h2>
 <ul class="simple">
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">float64</span></code></strong> agrees with the trusted baseline to $\sim!10^{-8}$ – machine precision.</p></li>
-<li><p><strong>Blanket <code class="docutils literal notranslate"><span class="pre">float32</span></code></strong> is off by $\sim!10^{-1}$: the big cancellation lands below its ulp.
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">float64</span></code></strong> agrees with the trusted baseline to <span class="math notranslate nohighlight">\(\sim\!10^{-8}\)</span> – machine precision.</p></li>
+<li><p><strong>Blanket <code class="docutils literal notranslate"><span class="pre">float32</span></code></strong> is off by <span class="math notranslate nohighlight">\(\sim\!10^{-1}\)</span>: the big cancellation lands below its ulp.
 Fast and memory-light, but too imprecise to sample with at this array size, and it gets
 <em>worse</em> as the array grows.</p></li>
-<li><p><strong>Reference–delta <code class="docutils literal notranslate"><span class="pre">float32</span></code></strong> recovers most of the precision – error $\sim!10^{-3}$ –
+<li><p><strong>Reference–delta <code class="docutils literal notranslate"><span class="pre">float32</span></code></strong> recovers most of the precision – error <span class="math notranslate nohighlight">\(\sim\!10^{-3}\)</span> –
 while staying in single precision, because the large pieces are handled once in <code class="docutils literal notranslate"><span class="pre">float64</span></code>
-and <code class="docutils literal notranslate"><span class="pre">float32</span></code> only ever holds the $O(1)$ increment.</p></li>
+and <code class="docutils literal notranslate"><span class="pre">float32</span></code> only ever holds the <span class="math notranslate nohighlight">\(O(1)\)</span> increment.</p></li>
 </ul>
 <p>So on a GPU you get (most of) the <code class="docutils literal notranslate"><span class="pre">float32</span></code> speed and memory savings without the precision
 collapse: the reference–delta path is the one to reach for on large arrays.</p>
 <blockquote>
-<div><p>On the GPU, the <code class="docutils literal notranslate"><span class="pre">float32</span></code> floor is set by TF32 matrix multiplies (~$10^{-2}$) rather than
+<div><p>On the GPU, the <code class="docutils literal notranslate"><span class="pre">float32</span></code> floor is set by TF32 matrix multiplies (~<span class="math notranslate nohighlight">\(10^{-2}\)</span>) rather than
 the cancellation; <code class="docutils literal notranslate"><span class="pre">jax.config.update(&quot;jax_default_matmul_precision&quot;,</span> <span class="pre">&quot;highest&quot;)</span></code> trades
 some speed to recover it.</p>
 </div></blockquote>

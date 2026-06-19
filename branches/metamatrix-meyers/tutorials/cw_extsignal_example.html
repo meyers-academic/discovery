@@ -567,7 +567,7 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="sampling-a-continuous-wave-signal-on-its-own-fourier-basis">
+  <section class="tex2jax_ignore mathjax_ignore" id="sampling-a-continuous-wave-signal-on-its-own-fourier-basis">
 <h1>Sampling a continuous-wave signal on its own Fourier basis<a class="headerlink" href="#sampling-a-continuous-wave-signal-on-its-own-fourier-basis" title="Link to this heading">#</a></h1>
 <p>This tutorial builds a pulsar-timing-array model that contains a <strong>continuous-wave (CW) source carried on its own Fourier basis</strong> – “Route A” – and samples it with NUTS.</p>
 <p>The CW is added to a Hellings-Downs (HD) gravitational-wave-background model through <code class="docutils literal notranslate"><span class="pre">ArrayLikelihood(...,</span> <span class="pre">extsignals=[...])</span></code>. Unlike a Gaussian process, the CW has no prior: its Fourier coefficients are a deterministic function of a few physical parameters. Because it lives on its own basis it can use <em>more</em> frequency components than the red-noise / GWB GPs, so it reaches the higher frequencies a CW search needs (the bin spacing is fixed at <code class="docutils literal notranslate"><span class="pre">1/T_obs</span></code> for every Fourier basis).</p>

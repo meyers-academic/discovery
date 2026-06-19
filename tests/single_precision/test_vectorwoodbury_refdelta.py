@@ -60,9 +60,15 @@ def _refdelta(m, phi_in, phi_in_ref):
     g = mh.vectorwoodburyjointsolve_refdelta(
         m["ys"], m["Fs_out"], [N.make_solve for N in m["Ns"]], m["Fs_in"],
         P.make_inv, Pr.make_inv)
-    out = mm.func(mm.prune_graph(g, output='refdelta'))(params={})
-    keys = ['aref_sum', 'dA', 'ld_in_ref', 'd_ld_in', 'btil_ref', 'dbtil', 'Gtil_ref', 'dGtil', 'lN_sum']
-    return {k: np.asarray(v) for k, v in zip(keys, out)}
+    # rung 1 now emits two separate outputs: 'refconst' (constant reference
+    # quantities, fold) and 'refincr' (live increments). Prune each and merge.
+    const = mm.func(mm.prune_graph(g, output='refconst'))(params={})
+    incr = mm.func(mm.prune_graph(g, output='refincr'))(params={})
+    out = {k: np.asarray(v) for k, v in
+           zip(['aref_sum', 'ld_in_ref', 'btil_ref', 'Gtil_ref', 'lN_sum'], const)}
+    out.update({k: np.asarray(v) for k, v in
+                zip(['dA', 'd_ld_in', 'dbtil', 'dGtil'], incr)})
+    return out
 
 
 def _inner_logdet_numpy(m, phi_in):

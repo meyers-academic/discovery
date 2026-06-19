@@ -346,28 +346,29 @@ def globalwoodbury_fused(g, projected, Pinv):
 
 
 @mm.graph
-def globalwoodbury_fused_refdelta(g, refdelta, Pinv, Pinv_ref):
+def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref):
     """Reference+delta twin of ``globalwoodbury_fused`` -- the OUTER half of the
     fused two-level reference+delta (Piece 2 'Half B'; HD / CURN-with-IRN). See
     dev_architecture/single_precision/research_note_nested_increment.md (sec. 4-5)
     and piece2_fused_refdelta_plan.md (rung 2).
 
-    Consumes the 9-tuple emitted by ``vectorwoodburyjointsolve_refdelta``
-    (the inner rung):
+    Consumes TWO separate graphs from ``vectorwoodburyjointsolve_refdelta`` (the
+    inner rung) -- kept separate ON PURPOSE so the constant group folds away (see
+    the note at the rung-1 emit site):
 
-        refdelta = [aref_sum, dA, ld_in_ref, d_ld_in,
-                    btil_ref, dbtil, Gtil_ref, dGtil, lN_sum]
+        refconst = [aref_sum, ld_in_ref, btil_ref, Gtil_ref, lN_sum]   # all CONSTANT
+        refincr  = [dA, d_ld_in, dbtil, dGtil]                         # all LIVE
 
     where each is, per the note:
       * aref_sum  -- sum_i a~_ref,i  (reference projected leaf-quadratic, f64)
-      * dA        -- Delta A = sum_i Delta a~_i  (projection increment)
       * ld_in_ref -- sum_i logdet(I + Phi_ref,in_i G_in,i)  (inner ref logdet)
-      * d_ld_in   -- inner logdet increment (sum_i slogdet(I + S0_in^-1 dPhi_in G_in))
       * btil_ref  -- (npsr, m_out)            reference b~ per pulsar
-      * dbtil     -- (npsr, m_out)            its increment
       * Gtil_ref  -- (npsr, m_out, m_out)     reference G~ per pulsar (block-diag stack)
-      * dGtil     -- (npsr, m_out, m_out)     its increment
       * lN_sum    -- sum_i logdet N_i  (white-noise logdet, fixed -> f64)
+      * dA        -- Delta A = sum_i Delta a~_i  (projection increment)
+      * d_ld_in   -- inner logdet increment (sum_i slogdet(I + S0_in^-1 dPhi_in G_in))
+      * dbtil     -- (npsr, m_out)            increment b~ per pulsar
+      * dGtil     -- (npsr, m_out, m_out)     increment G~ per pulsar
 
     Outer level (the cross-pulsar GW prior, dense for HD / block for CURN):
       Pinv     : current  Phi_gw^-1 leaf -> (Phi_gw^-1, logdet Phi_gw)   (live)
@@ -380,10 +381,10 @@ def globalwoodbury_fused_refdelta(g, refdelta, Pinv, Pinv_ref):
     The expensive *current* outer Cholesky stays in the working (float32) dtype;
     only the final scalar combination is done in float64 (`combine_f64`).
     """
-    (aref_sum, dA, ld_in_ref, d_ld_in,
-     btil_ref, dbtil, Gtil_ref, dGtil, lN_sum) = (
-        refdelta[0], refdelta[1], refdelta[2], refdelta[3],
-        refdelta[4], refdelta[5], refdelta[6], refdelta[7], refdelta[8])
+    (aref_sum, ld_in_ref, btil_ref, Gtil_ref, lN_sum) = (
+        refconst[0], refconst[1], refconst[2], refconst[3], refconst[4])
+    (dA, d_ld_in, dbtil, dGtil) = (
+        refincr[0], refincr[1], refincr[2], refincr[3])
 
     # stack the per-pulsar projected quantities into the outer (global) space:
     # b~ -> (npsr*m_out,), G~ -> block-diag (npsr*m_out, npsr*m_out).
@@ -618,8 +619,17 @@ def vectorwoodburyjointsolve_refdelta(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv, 
     # outer rung can build the absolute logL_ref that matches globalwoodbury_fused).
     lN_sum = g.pin_f64(g.sum_all(lNs))
 
-    g.named(g.ntuple([aref_sum, dA, ld_in_ref, d_ld_in, btil_ref, dbtil, Gtil_ref, dGtil, lN_sum]),
-            'refdelta')
+    # Emit the reference (constant) and increment (live) quantities as TWO
+    # SEPARATE named outputs, NOT one bundled tuple. This is load-bearing for
+    # performance: the outer rung consumes each as its own graph. If they share a
+    # single output tuple (hence a single GraphLeaf), then because the increments
+    # are live the *whole* leaf is live, and the outer fold_constants can no longer
+    # see that the reference quantities (Gtil_ref, btil_ref, ...) are constant ->
+    # the outer reference Cholesky / inv never fold and get recomputed every call,
+    # scaling with n_psr. Split, the `refconst` graph has only constant outputs, so
+    # it folds wholesale to frozen leaves the outer graph reads as constants.
+    g.named(g.ntuple([aref_sum, ld_in_ref, btil_ref, Gtil_ref, lN_sum]), 'refconst')
+    g.named(g.ntuple([dA, d_ld_in, dbtil, dGtil]), 'refincr')
 
 
 @mm.graph
@@ -1223,8 +1233,14 @@ class GlobalWoodburyKernel(Kernel):
                 joint_graph = vectorwoodburyjointsolve_refdelta(
                     ys, self.Fs, [N.make_solve for N in self.Ns.Ns],
                     self.Ns.Fs, self.Ns.P.make_inv, P_ref_in.make_inv)
-                rd_graph = mm.prune_graph(joint_graph, output='refdelta')
-                return globalwoodbury_fused_refdelta(rd_graph, self.P.make_inv, P_ref_out.make_inv)
+                # Two separate prunes: the reference graph has only constant
+                # outputs (folds wholesale -> the outer reference solve folds), the
+                # increment graph is live. Bundling them would keep the constant
+                # reference solve live and scaling with n_psr (see rung-1 emit note).
+                refconst_graph = mm.prune_graph(joint_graph, output='refconst')
+                refincr_graph = mm.prune_graph(joint_graph, output='refincr')
+                return globalwoodbury_fused_refdelta(
+                    refconst_graph, refincr_graph, self.P.make_inv, P_ref_out.make_inv)
             joint_graph = vectorwoodburyjointsolve(
                 ys, self.Fs, [N.make_solve for N in self.Ns.Ns],
                 self.Ns.Fs, self.Ns.P.make_inv)

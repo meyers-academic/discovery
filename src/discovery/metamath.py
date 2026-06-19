@@ -346,7 +346,7 @@ def globalwoodbury_fused(g, projected, Pinv):
 
 
 @mm.graph
-def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref):
+def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref, Pcov):
     """Reference+delta twin of ``globalwoodbury_fused`` -- the OUTER half of the
     fused two-level reference+delta (Piece 2 'Half B'; HD / CURN-with-IRN). See
     dev_architecture/single_precision/research_note_nested_increment.md (sec. 4-5)
@@ -373,6 +373,8 @@ def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref):
     Outer level (the cross-pulsar GW prior, dense for HD / block for CURN):
       Pinv     : current  Phi_gw^-1 leaf -> (Phi_gw^-1, logdet Phi_gw)   (live)
       Pinv_ref : reference Phi_ref,gw^-1 leaf (constant -> folds to f64)
+      Pcov     : current  Phi_gw covariance leaf, DIRECT (live) -- avoids inverting
+                 Pm back to Phi_gw (make_inv already inverted it once). See dPhi.
 
     Builds logL_ref ONCE in float64 (folds: all reference quantities are
     constants under fixed white noise) and adds the small O(1) increment
@@ -400,9 +402,13 @@ def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref):
     Pm, lP = Pinv                # current  Phi_gw^-1, logdet Phi_gw
     Pmr, lPr = Pinv_ref          # reference (constant leaf -> folds)
 
-    # outer covariances for the covariance-space increment dPhi_gw (well-conditioned
-    # prior; inverting Phi^-1 back is benign, mirrors woodbury_refdelta).
-    Phi, Phir = g.inv(Pm), g.inv(Pmr)
+    # Current outer covariance Phi_gw for the covariance-space increment dPhi_gw.
+    # Take it DIRECTLY from the prior leaf (Pcov) rather than inv(Pm): make_inv
+    # already inverted Phi_gw to build Pm, so inv(Pm) would invert a SECOND time --
+    # a dense (npsr*m_gw)^3 op every call (the dominant refdelta FLOP cost). The
+    # reference Phir stays inv(Pmr): it folds to a constant (free).
+    Phi = Pcov                                                # current Phi_gw, direct
+    Phir = g.inv(Pmr)                                         # reference -> folds
     dPhi = g.node(lambda a, b: a - b, [Phi, Phir], description='dPhi_gw = Phi_gw - Phi_ref,gw')
 
     # --- current outer solve -- the expensive Cholesky stays float32 ---
@@ -418,9 +424,14 @@ def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref):
                                   [lN_sum, ld_in_ref, lPr, lSr])
 
     # --- outer quadratic increment (note sec. 4, two-perturbation) ---
-    # dK_out = dD_gw + Delta G~,  dD_gw = -Pm dPhi_gw Pmr  (routed; no inverse-diff)
-    dD_gw = g.node(lambda P, dP, Pr: -P @ dP @ Pr, [Pm, dPhi, Pmr],
-                   description='dD_gw = -Pm dPhi_gw Pmr')
+    # dK_out = dD_gw + Delta G~. The note routes dD_gw = -Pm dPhi_gw Pmr, but with
+    # dPhi_gw = Phi_gw - Phi_ref,gw = Pm^-1 - Pmr^-1 that collapses ALGEBRAICALLY to
+    #   -Pm (Pm^-1 - Pmr^-1) Pmr = -(Pm Pm^-1) Pmr + Pm (Pmr^-1 Pmr) = Pm - Pmr,
+    # turning two dense (npsr*m_gw)^3 matmuls into one subtraction. The product form
+    # existed only to dodge the Pm-Pmr cancellation (both ~1e10); we recover that
+    # safety by doing the subtraction in f64 (combine_f64, operands cast up on read).
+    dD_gw = g.combine_f64(g.node(lambda P, Pr: P - Pr, [Pm, Pmr],
+                                 description='dD_gw = Pm - Pmr (= -Pm dPhi_gw Pmr)'))
     dK = g.node(lambda a, b: a + b, [dD_gw, dGt], description='dK_out = dD_gw + Delta G~')
     # dQ_out = Delta b~ . nu + b~_ref . C_out^-1 (Delta b~ - dK nu_ref)
     cross = g.cho_solve(cf, g.node(lambda db, K, nr: db - K @ nr, [dbt, dK, nu_ref],
@@ -1240,7 +1251,8 @@ class GlobalWoodburyKernel(Kernel):
                 refconst_graph = mm.prune_graph(joint_graph, output='refconst')
                 refincr_graph = mm.prune_graph(joint_graph, output='refincr')
                 return globalwoodbury_fused_refdelta(
-                    refconst_graph, refincr_graph, self.P.make_inv, P_ref_out.make_inv)
+                    refconst_graph, refincr_graph, self.P.make_inv, P_ref_out.make_inv,
+                    self.P.getN)   # Phi_gw direct -> no inv(Pm) round-trip
             joint_graph = vectorwoodburyjointsolve(
                 ys, self.Fs, [N.make_solve for N in self.Ns.Ns],
                 self.Ns.Fs, self.Ns.P.make_inv)

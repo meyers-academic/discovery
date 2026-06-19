@@ -56,10 +56,19 @@ PSR_FILES = sorted(DATA.glob("v1p1_de440_pint_bipm2019-*.feather"))
 CHAIN = DATA / "NG15yr-m3a-chain.feather"
 
 # (name, kernels-backend, working dtype, uses-reference)
+#   matrix_f64       legacy closure path, double precision (trusted baseline/truth)
+#   metamath_f64     graph path, normal fused kernel, double precision
+#   metamath_f32     graph path, normal fused kernel, BLANKET single precision
+#                    (reference=None) -- the FAST f32 path: same work as f64, half
+#                    the bytes. Accuracy floor grows with array size.
+#   metamath_f32refd graph path, reference+delta fused kernel, single precision
+#                    -- the ACCURATE f32 path: bounded floor, but ~2x the linear
+#                    algebra (reference solve + increment), so slower than f32raw.
 CONFIGS = [
-    ("matrix_f64",   "matrix",   jnp.float64, False),
-    ("metamath_f64", "metamath", jnp.float64, False),
-    ("metamath_f32", "metamath", jnp.float32, True),
+    ("matrix_f64",       "matrix",   jnp.float64, False),
+    ("metamath_f64",     "metamath", jnp.float64, False),
+    ("metamath_f32",     "metamath", jnp.float32, False),
+    ("metamath_f32refd", "metamath", jnp.float32, True),
 ]
 
 
@@ -101,34 +110,55 @@ def _mem_mb():
         return (float("nan"), float("nan"))
 
 
-def _time_call(logL, pts, n_repeat=10):
-    """Median ms per call. Warms up (JIT compile) on pts[0], then times each draw
-    n_repeat times, blocking on the device so we time real compute."""
-    jax.block_until_ready(logL(pts[0]))
+def _time_call(jlogL, args, n_repeat=50):
+    """Median ms per call. Assumes already-warmed (compiled). Times each input
+    n_repeat times, blocking on the device so we time real compute, not async
+    dispatch. n_repeat is large because a warm jitted call can be sub-ms: with a
+    handful of draws x n_repeat we want a few hundred samples so the median is
+    stable against GC pauses / dispatch jitter."""
     ts = []
-    for pt in pts:
+    for a in args:
         for _ in range(n_repeat):
             t0 = time.perf_counter()
-            jax.block_until_ready(logL(pt))
+            jax.block_until_ready(jlogL(a))
             ts.append(time.perf_counter() - t0)
     return float(np.median(ts) * 1e3)
 
 
-def _build_eval(psrs, pts, kernels, dtype, reference):
+def _build_eval(psrs, pts, kernels, dtype, reference, paramtype="flat", n_repeat=50):
     """Build the model INSIDE the (kernels, dtype) context -- both the backend and
     the working dtype are baked in at construction (mm.func materialization), so a
     model built under one and reused under another would silently run the wrong
-    thing. Returns (logL values, ms/call)."""
+    thing.
+
+    The likelihood is JIT-compiled (jax.jit) -- this is how it is actually used in
+    sampling, and it is also the only regime where the Params single-leaf container
+    helps: under jit a parameter *dict* becomes one pytree leaf per name (~136 for a
+    full PTA), and marshalling those leaves dominates the per-call time; Params packs
+    them into ONE flat-array leaf. paramtype='flat' uses Params; paramtype='dict'
+    uses the raw dict, so the two runs isolate the marshalling cost.
+
+    Returns (logL values, ms/call).
+    """
     ds.config(kernels=kernels)
     utils.config(backend="jax", working=dtype)
     model = _model(psrs, reference=reference)
     logL = model.logL
-    vals = np.array([float(logL(pt)) for pt in pts])
-    ms = _time_call(logL, pts)
+    names = logL.params
+
+    if paramtype == "flat":
+        args = [ds.Params.from_dict(pt, names=names) for pt in pts]
+    else:
+        args = list(pts)
+
+    jlogL = jax.jit(logL)
+    # warmup / compile (excluded from timing); also collects the values
+    vals = np.array([float(jax.block_until_ready(jlogL(a))) for a in args])
+    ms = _time_call(jlogL, args, n_repeat=n_repeat)
     return vals, ms
 
 
-def measure(n, only=None, n_draws=5, seed=0):
+def measure(n, only=None, n_draws=5, seed=0, paramtype="flat", n_repeat=50):
     import pandas as pd
     chain = pd.read_feather(CHAIN)
     psrs = [ds.Pulsar.read_feather(f) for f in PSR_FILES[:n]]
@@ -150,7 +180,8 @@ def measure(n, only=None, n_draws=5, seed=0):
         if only is not None and name != only:
             continue
         reference = theta_med if uses_ref else None
-        vals, ms = _build_eval(psrs, pts, kernels, dtype, reference)
+        vals, ms = _build_eval(psrs, pts, kernels, dtype, reference,
+                               paramtype=paramtype, n_repeat=n_repeat)
         cur, peak = _mem_mb()
         if name == "matrix_f64":
             truth = vals
@@ -167,16 +198,25 @@ def main():
                     help="measure a single config (clean per-config GPU peak)")
     ap.add_argument("--n", type=int, default=None,
                     help="single pulsar count (shorthand for one N)")
+    ap.add_argument("--paramtype", choices=["flat", "dict"], default="flat",
+                    help="flat = Params single-leaf container (fast, default); "
+                         "dict = raw parameter dict (one pytree leaf per name). "
+                         "Run both and diff to see the marshalling cost.")
+    ap.add_argument("--repeat", type=int, default=50,
+                    help="timed calls per draw (x5 draws). Larger = stabler median "
+                         "for fast jitted calls.")
     args = ap.parse_args()
     ns = [args.n] if args.n is not None else args.ns
 
     dev = jax.local_devices()[0]
-    print(f"device: {dev.platform} {dev.device_kind}")
-    print(f"{'Npsr':>5} {'Ntoa':>8} {'config':>14} | {'ms/call':>9} "
+    print(f"device: {dev.platform} {dev.device_kind}  |  jit=on  "
+          f"paramtype={args.paramtype}  repeat={args.repeat}/draw")
+    print(f"{'Npsr':>5} {'Ntoa':>8} {'config':>16} | {'ms/call':>9} "
           f"{'cur_MB':>8} {'peak_MB':>8} | {'acc_vs_matrix':>13}")
     for n in ns:
-        for r in measure(n, only=args.only):
-            print(f"{r['n']:>5} {r['ntoa']:>8} {r['config']:>14} | {r['ms']:>9.3f} "
+        for r in measure(n, only=args.only, paramtype=args.paramtype,
+                         n_repeat=args.repeat):
+            print(f"{r['n']:>5} {r['ntoa']:>8} {r['config']:>16} | {r['ms']:>9.3f} "
                   f"{r['cur']:>8.1f} {r['peak']:>8.1f} | {r['acc']:>13.3g}")
         print()
 

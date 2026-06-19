@@ -6,6 +6,7 @@ jax.config.update("jax_enable_x64", True)
 
 from .const import *
 from .matrix import *
+from .params import *
 from .prior import *
 from .signals import *
 from .likelihood import *

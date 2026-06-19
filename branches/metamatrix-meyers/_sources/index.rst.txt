@@ -11,6 +11,7 @@ Discovery is a next-generation PTA data analysis package built on JAX.
 
    tutorials/curn_example
    guide/overview
+   guide/model_summary
    installation
 
 .. toctree::

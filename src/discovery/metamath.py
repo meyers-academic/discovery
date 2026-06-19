@@ -373,15 +373,19 @@ def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref, Pcov):
     Outer level (the cross-pulsar GW prior, dense for HD / block for CURN):
       Pinv     : current  Phi_gw^-1 leaf -> (Phi_gw^-1, logdet Phi_gw)   (live)
       Pinv_ref : reference Phi_ref,gw^-1 leaf (constant -> folds to f64)
-      Pcov     : current  Phi_gw covariance leaf, DIRECT (live) -- avoids inverting
-                 Pm back to Phi_gw (make_inv already inverted it once). See dPhi.
+      Pcov     : UNUSED under route (b) (kept in the signature for now; prunes away).
+                 It supplied the current Phi_gw covariance for the old two-perturbation
+                 outer-logdet form; that form is gone (see the outer-logdet block).
 
     Builds logL_ref ONCE in float64 (folds: all reference quantities are
     constants under fixed white noise) and adds the small O(1) increment
-    Delta logL (note sec. 5), formed via the sec. 4 two-perturbation outer
-    update -- never a current-minus-reference subtraction of two large logLs.
-    The expensive *current* outer Cholesky stays in the working (float32) dtype;
-    only the final scalar combination is done in float64 (`combine_f64`).
+    Delta logL (note sec. 5). The quadratic increment uses the sec. 4 two-perturbation
+    form (dD_gw = Pm - Pmr); the outer LOGDET increment is formed by reusing the
+    current/reference Cholesky logdets directly, (lP + lS_cf) - (lPr + lSr) -- NOT the
+    note's slogdet(I + S0_out^-1 mid) (route b; see that block). Never a
+    current-minus-reference subtraction of two large logLs. The expensive *current*
+    outer Cholesky stays in the working (float32) dtype; the big-minus-big logdet
+    subtraction and the final scalar combination are done in float64 (`combine_f64`).
     """
     (aref_sum, ld_in_ref, btil_ref, Gtil_ref, lN_sum) = (
         refconst[0], refconst[1], refconst[2], refconst[3], refconst[4])
@@ -399,20 +403,21 @@ def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref, Pcov):
     btil = g.node(lambda a, b: a + b, [btr, dbt])   # current b~ = b~_ref + Delta b~
     Gtil = g.node(lambda a, b: a + b, [Gtr, dGt])   # current G~ = G~_ref + Delta G~
 
-    Pm, lP = Pinv                # current  Phi_gw^-1, logdet Phi_gw
-    Pmr, lPr = Pinv_ref          # reference (constant leaf -> folds)
+    Pm, lP = Pinv                # current  Phi_gw^-1, logdet Phi_gw (lP live)
+    Pmr, lPr = Pinv_ref          # reference (constant leaf -> folds); lPr constant
 
-    # Current outer covariance Phi_gw for the covariance-space increment dPhi_gw.
-    # Take it DIRECTLY from the prior leaf (Pcov) rather than inv(Pm): make_inv
-    # already inverted Phi_gw to build Pm, so inv(Pm) would invert a SECOND time --
-    # a dense (npsr*m_gw)^3 op every call (the dominant refdelta FLOP cost). The
-    # reference Phir stays inv(Pmr): it folds to a constant (free).
-    Phi = Pcov                                                # current Phi_gw, direct
-    Phir = g.inv(Pmr)                                         # reference -> folds
-    dPhi = g.node(lambda a, b: a - b, [Phi, Phir], description='dPhi_gw = Phi_gw - Phi_ref,gw')
+    # NOTE (route b): the outer covariance Phi_gw (Pcov) and the explicit
+    # covariance-space perturbation dPhi_gw are no longer built. They existed only
+    # to feed the two-perturbation outer-logdet form (mid/S0_out/slogdet); that
+    # whole block is replaced below by reusing the current/reference Cholesky
+    # logdets directly. The quadratic increment routes through dD_gw = Pm - Pmr
+    # (see below), which needs neither Phi_gw nor inv(Pmr). So Pcov is now unused
+    # and prunes away, and inv(Pm)/inv(Pmr) never appear in the live cone.
 
     # --- current outer solve -- the expensive Cholesky stays float32 ---
-    cf, _ = g.cho_factor(Pm + Gtil)
+    # KEEP its logdet lS_cf (current outer capacitance logdet, was discarded):
+    # route (b) reuses it for the outer-logdet increment instead of a slogdet LU.
+    cf, lS_cf = g.cho_factor(Pm + Gtil)
     nu = g.cho_solve(cf, btil)                # nu = C_out^-1 b~
 
     # --- reference outer solve + reference logL: all constant -> folds to f64 ---
@@ -440,16 +445,22 @@ def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref, Pcov):
                               [dbt, nu, btr, cross],
                               description='dQ_out = Delta b~.nu + b~_ref.C^-1(Delta b~ - dK nu_ref)'))
 
-    # --- outer logdet increment (note sec. 4): slogdet(I + S0o^-1 mid),
-    #     S0o = I + Phi_ref,gw G~_ref,  mid = Phi_ref,gw Delta G~ + dPhi_gw G~(current).
-    S0o = g.node(lambda Pr, Gr: jnp.eye(Gr.shape[0], dtype=Gr.dtype) + Pr @ Gr,
-                 [Phir, Gtr], description='S0_out = I + Phi_ref,gw G~_ref')
-    mid = g.node(lambda Pr, dG, dP, G: Pr @ dG + dP @ G, [Phir, dGt, dPhi, Gtil],
-                 description='Phi_ref,gw Delta G~ + dPhi_gw G~(current)')
-    d_ld_out = g.node(
-        lambda S, M: jnp.linalg.slogdet(jnp.eye(M.shape[0], dtype=M.dtype)
-                                        + jnp.linalg.solve(S, M))[1],
-        [S0o, mid], description='slogdet(I + S0_out^-1 mid)')
+    # --- outer logdet increment (route b): reuse the Cholesky logdets ---
+    # The full outer logdet (cf. globalwoodbury_fused) is lP + lS, i.e.
+    #   logdet Phi_gw + logdet(Phi_gw^-1 + G~) = logdet(I + Phi_gw G~),
+    # so the increment is (lP + lS_cf) - (lPr + lSr): the live current pieces minus
+    # the (folded, constant) reference pieces. This DELETES the dense mid/S0_out
+    # matmuls and the dense slogdet LU -- the current outer factorization `cf` (which
+    # we already pay for `nu`) now supplies the logdet too, so refdelta's dense work
+    # collapses to ~the normal path's single Cholesky. Cost: this is a big-minus-big
+    # (each side ~1e4, increment O(1)) and lS_cf is only f32-accurate (born from the
+    # f32 Cholesky), so do the subtraction in f64 (combine_f64) -- lP/lPr/lSr are
+    # already f64. Accuracy floor moves ~5e-4 -> ~1e-3 (CPU), still well under the
+    # GPU TF32 floor (~1.2e-2) where this f32 path actually runs.
+    d_ld_out = g.combine_f64(
+        g.node(lambda lp, ls, lpr, lsr: (lp + ls) - (lpr + lsr),
+               [lP, lS_cf, lPr, lSr],
+               description='d_ld_out = (lP + lS_cf) - (lPr + lSr)'))
 
     # --- assembly (note sec. 5): Delta logL = -0.5[(dA - dQ) + (d_ld_in + d_ld_out)] ---
     dlnL = g.node(lambda da, q, ldi, ldo: -0.5 * ((da - q) + (ldi + ldo)),

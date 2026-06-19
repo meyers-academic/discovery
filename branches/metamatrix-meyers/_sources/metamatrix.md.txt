@@ -162,12 +162,67 @@ between the two kernel paths to ~1e-9 relative.
   (CG solve + stochastic-Lanczos log-det estimator) is implemented on the
   metamath-native path but is **not** in the comparison tests; neither path's
   `cglogL` is currently cross-checked.
-- **Performance.** Only correctness has been checked, not speed — there is no
-  `matrix.py`-vs-metamath timing comparison.
-- **GPU.** All checks run on CPU in float64; the graph path is JAX-native and
-  should run on GPU, but that hasn't been exercised here.
+- **Performance.** The comparison-test suite checks correctness, not speed — there
+  is no general `matrix.py`-vs-metamath timing comparison. (The single-precision
+  work *does* have an HD-model benchmark: matrix vs metamath, `float64` vs `float32`;
+  see the section below.)
+- **GPU.** The comparison tests run on CPU in `float64`. The graph path is
+  JAX-native; it has now been exercised on GPU (GH200) for the single-precision HD
+  benchmark below, but broader GPU coverage of the comparison suite is still pending.
 - **Samplers.** The numpyro samplers ride on `logL`/`clogL` (which are checked),
   but no end-to-end sampling comparison has been run.
+
+## Single precision (float32) on GPU
+
+GPUs are far faster in `float32`, but a PTA marginal `logL` subtracts large numbers
+(a quadratic form $\sim 10^6$, log-determinants $\sim 10^4$) to land on an $O(1)$
+result. At the `float32` ulp of a $10^6$-scale number ($\approx 0.06$) that result is
+swamped, so a blanket-`float32` likelihood is too imprecise to sample with. Three
+complementary pieces address this. All are **opt-in** and byte-identical to the
+`float64` path when off; the user-facing comparison is in the
+[single-precision tutorial](advanced/single_precision).
+
+- **Half A — `float64` final combine.** The expensive factorisations stay in the
+  working (`float32`) dtype, but the final scalar assembly (the big `ytNmy − quad`
+  subtraction and the log-determinant sum) is done in `float64` (`combine_f64` /
+  `pin_f64`), with the per-pulsar raw quadratics and white-noise log-dets pinned to
+  `float64` at source. This protects the *combination*, not the building of `mu`
+  (which is still born from the `float32` Cholesky).
+- **Half B — reference + delta.** Freeze each GP level's prior covariance once at a
+  reference point $\theta_{\rm ref}$ (in `float64`), and evaluate
+  $\ln L(\theta) = \ln L_{\rm ref} + \Delta\!\ln L$: $\ln L_{\rm ref}$ carries the large
+  pieces (`float64`, computed once) and `float32` only ever holds the $O(1)$
+  increment, built directly via a resolvent identity (never a current−reference
+  subtraction of two large log-likelihoods). Opt in with
+  `ArrayLikelihood(..., reference=θ_ref)`. The fused two-level HD path has
+  reference+delta twins (`vectorwoodburyjointsolve_refdelta` →
+  `globalwoodbury_fused_refdelta`).
+- **Timing-model projection.** Handle the timing model $M$ by projection (the exact
+  flat-prior limit) instead of a huge-variance prior — `float32`-safe, and it keeps
+  the corrections. Opt in with `makegp_timing(..., project=True)`.
+
+Status (12 pulsars, NG15 HD model; precision vs the `float64` truth):
+
+| flavor | max \|ΔlogL\| vs truth | note |
+|---|---|---|
+| `float64` | $\sim 10^{-8}$ | machine precision |
+| blanket `float32` | $\sim 7\times 10^{-2}$ | sampling-fatal; worsens with array size |
+| reference+delta `float32` | $\sim 10^{-3}$ (CPU) | on GPU the floor is TF32 ($\sim 10^{-2}$) |
+
+On speed, the reference+delta fused HD kernel now costs **~1.5× the `float64` path's
+FLOPs** (and ~1.5× its wall-clock on a GH200), down from ~74× before the outer
+log-determinant increment was rewritten to reuse the Cholesky log-dets it already
+computes. So the accurate `float32` path is roughly as fast as the normal path while
+recovering most of the precision.
+
+**Done:** Half A, Half B (incl. the fused HD reference+delta twins and the
+outer-increment speedup), and projection are implemented and have a precision/speed
+harness + unit tests. **Remaining:** scaling re-measurement at 45/67 pulsars on GPU;
+optionally recovering the GPU TF32 floor with `jax_default_matmul_precision='highest'`;
+and routing reference+delta for the single-level (CURN/IRN) `vectorwoodbury` path
+(currently HD-only). Design decisions and notes live in
+[`dev_architecture/single_precision/`](https://github.com/meyers-academic/discovery/blob/metamatrix-meyers/dev_architecture/single_precision/)
+(README, research notes, and ADRs 0001–0004).
 
 ## Status and remaining work
 

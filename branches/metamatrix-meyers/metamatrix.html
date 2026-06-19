@@ -42,6 +42,8 @@
     <script src="_static/documentation_options.js?v=db78e746"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'metamatrix';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <link rel="index" title="Index" href="genindex.html" />
@@ -808,14 +810,84 @@ between the two kernel paths to ~1e-9 relative.</p>
 (CG solve + stochastic-Lanczos log-det estimator) is implemented on the
 metamath-native path but is <strong>not</strong> in the comparison tests; neither path’s
 <code class="docutils literal notranslate"><span class="pre">cglogL</span></code> is currently cross-checked.</p></li>
-<li><p><strong>Performance.</strong> Only correctness has been checked, not speed — there is no
-<code class="docutils literal notranslate"><span class="pre">matrix.py</span></code>-vs-metamath timing comparison.</p></li>
-<li><p><strong>GPU.</strong> All checks run on CPU in float64; the graph path is JAX-native and
-should run on GPU, but that hasn’t been exercised here.</p></li>
+<li><p><strong>Performance.</strong> The comparison-test suite checks correctness, not speed — there
+is no general <code class="docutils literal notranslate"><span class="pre">matrix.py</span></code>-vs-metamath timing comparison. (The single-precision
+work <em>does</em> have an HD-model benchmark: matrix vs metamath, <code class="docutils literal notranslate"><span class="pre">float64</span></code> vs <code class="docutils literal notranslate"><span class="pre">float32</span></code>;
+see the section below.)</p></li>
+<li><p><strong>GPU.</strong> The comparison tests run on CPU in <code class="docutils literal notranslate"><span class="pre">float64</span></code>. The graph path is
+JAX-native; it has now been exercised on GPU (GH200) for the single-precision HD
+benchmark below, but broader GPU coverage of the comparison suite is still pending.</p></li>
 <li><p><strong>Samplers.</strong> The numpyro samplers ride on <code class="docutils literal notranslate"><span class="pre">logL</span></code>/<code class="docutils literal notranslate"><span class="pre">clogL</span></code> (which are checked),
 but no end-to-end sampling comparison has been run.</p></li>
 </ul>
 </section>
+</section>
+<section id="single-precision-float32-on-gpu">
+<h2>Single precision (float32) on GPU<a class="headerlink" href="#single-precision-float32-on-gpu" title="Link to this heading">#</a></h2>
+<p>GPUs are far faster in <code class="docutils literal notranslate"><span class="pre">float32</span></code>, but a PTA marginal <code class="docutils literal notranslate"><span class="pre">logL</span></code> subtracts large numbers
+(a quadratic form <span class="math notranslate nohighlight">\(\sim 10^6\)</span>, log-determinants <span class="math notranslate nohighlight">\(\sim 10^4\)</span>) to land on an <span class="math notranslate nohighlight">\(O(1)\)</span>
+result. At the <code class="docutils literal notranslate"><span class="pre">float32</span></code> ulp of a <span class="math notranslate nohighlight">\(10^6\)</span>-scale number (<span class="math notranslate nohighlight">\(\approx 0.06\)</span>) that result is
+swamped, so a blanket-<code class="docutils literal notranslate"><span class="pre">float32</span></code> likelihood is too imprecise to sample with. Three
+complementary pieces address this. All are <strong>opt-in</strong> and byte-identical to the
+<code class="docutils literal notranslate"><span class="pre">float64</span></code> path when off; the user-facing comparison is in the
+<a class="reference internal" href="advanced/single_precision.html"><span class="doc std std-doc">single-precision tutorial</span></a>.</p>
+<ul class="simple">
+<li><p><strong>Half A — <code class="docutils literal notranslate"><span class="pre">float64</span></code> final combine.</strong> The expensive factorisations stay in the
+working (<code class="docutils literal notranslate"><span class="pre">float32</span></code>) dtype, but the final scalar assembly (the big <code class="docutils literal notranslate"><span class="pre">ytNmy</span> <span class="pre">−</span> <span class="pre">quad</span></code>
+subtraction and the log-determinant sum) is done in <code class="docutils literal notranslate"><span class="pre">float64</span></code> (<code class="docutils literal notranslate"><span class="pre">combine_f64</span></code> /
+<code class="docutils literal notranslate"><span class="pre">pin_f64</span></code>), with the per-pulsar raw quadratics and white-noise log-dets pinned to
+<code class="docutils literal notranslate"><span class="pre">float64</span></code> at source. This protects the <em>combination</em>, not the building of <code class="docutils literal notranslate"><span class="pre">mu</span></code>
+(which is still born from the <code class="docutils literal notranslate"><span class="pre">float32</span></code> Cholesky).</p></li>
+<li><p><strong>Half B — reference + delta.</strong> Freeze each GP level’s prior covariance once at a
+reference point <span class="math notranslate nohighlight">\(\theta_{\rm ref}\)</span> (in <code class="docutils literal notranslate"><span class="pre">float64</span></code>), and evaluate
+<span class="math notranslate nohighlight">\(\ln L(\theta) = \ln L_{\rm ref} + \Delta\!\ln L\)</span>: <span class="math notranslate nohighlight">\(\ln L_{\rm ref}\)</span> carries the large
+pieces (<code class="docutils literal notranslate"><span class="pre">float64</span></code>, computed once) and <code class="docutils literal notranslate"><span class="pre">float32</span></code> only ever holds the <span class="math notranslate nohighlight">\(O(1)\)</span>
+increment, built directly via a resolvent identity (never a current−reference
+subtraction of two large log-likelihoods). Opt in with
+<code class="docutils literal notranslate"><span class="pre">ArrayLikelihood(...,</span> <span class="pre">reference=θ_ref)</span></code>. The fused two-level HD path has
+reference+delta twins (<code class="docutils literal notranslate"><span class="pre">vectorwoodburyjointsolve_refdelta</span></code> →
+<code class="docutils literal notranslate"><span class="pre">globalwoodbury_fused_refdelta</span></code>).</p></li>
+<li><p><strong>Timing-model projection.</strong> Handle the timing model <span class="math notranslate nohighlight">\(M\)</span> by projection (the exact
+flat-prior limit) instead of a huge-variance prior — <code class="docutils literal notranslate"><span class="pre">float32</span></code>-safe, and it keeps
+the corrections. Opt in with <code class="docutils literal notranslate"><span class="pre">makegp_timing(...,</span> <span class="pre">project=True)</span></code>.</p></li>
+</ul>
+<p>Status (12 pulsars, NG15 HD model; precision vs the <code class="docutils literal notranslate"><span class="pre">float64</span></code> truth):</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>flavor</p></th>
+<th class="head"><p>max |ΔlogL| vs truth</p></th>
+<th class="head"><p>note</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">float64</span></code></p></td>
+<td><p><span class="math notranslate nohighlight">\(\sim 10^{-8}\)</span></p></td>
+<td><p>machine precision</p></td>
+</tr>
+<tr class="row-odd"><td><p>blanket <code class="docutils literal notranslate"><span class="pre">float32</span></code></p></td>
+<td><p><span class="math notranslate nohighlight">\(\sim 7\times 10^{-2}\)</span></p></td>
+<td><p>sampling-fatal; worsens with array size</p></td>
+</tr>
+<tr class="row-even"><td><p>reference+delta <code class="docutils literal notranslate"><span class="pre">float32</span></code></p></td>
+<td><p><span class="math notranslate nohighlight">\(\sim 10^{-3}\)</span> (CPU)</p></td>
+<td><p>on GPU the floor is TF32 (<span class="math notranslate nohighlight">\(\sim 10^{-2}\)</span>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>On speed, the reference+delta fused HD kernel now costs <strong>~1.5× the <code class="docutils literal notranslate"><span class="pre">float64</span></code> path’s
+FLOPs</strong> (and ~1.5× its wall-clock on a GH200), down from ~74× before the outer
+log-determinant increment was rewritten to reuse the Cholesky log-dets it already
+computes. So the accurate <code class="docutils literal notranslate"><span class="pre">float32</span></code> path is roughly as fast as the normal path while
+recovering most of the precision.</p>
+<p><strong>Done:</strong> Half A, Half B (incl. the fused HD reference+delta twins and the
+outer-increment speedup), and projection are implemented and have a precision/speed
+harness + unit tests. <strong>Remaining:</strong> scaling re-measurement at 45/67 pulsars on GPU;
+optionally recovering the GPU TF32 floor with <code class="docutils literal notranslate"><span class="pre">jax_default_matmul_precision='highest'</span></code>;
+and routing reference+delta for the single-level (CURN/IRN) <code class="docutils literal notranslate"><span class="pre">vectorwoodbury</span></code> path
+(currently HD-only). Design decisions and notes live in
+<a class="reference external" href="https://github.com/meyers-academic/discovery/blob/metamatrix-meyers/dev_architecture/single_precision/"><code class="docutils literal notranslate"><span class="pre">dev_architecture/single_precision/</span></code></a>
+(README, research notes, and ADRs 0001–0004).</p>
 </section>
 <section id="status-and-remaining-work">
 <h2>Status and remaining work<a class="headerlink" href="#status-and-remaining-work" title="Link to this heading">#</a></h2>
@@ -901,6 +973,7 @@ exercised on real analyses (this review is part of that).</p></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#not-yet-cross-checked">Not yet cross-checked</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#single-precision-float32-on-gpu">Single precision (float32) on GPU</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#status-and-remaining-work">Status and remaining work</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pointers">Pointers</a></li>
 </ul>

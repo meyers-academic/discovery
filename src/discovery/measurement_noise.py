@@ -39,7 +39,14 @@ def makenoise_measurement_simple(psr, noisedict={}):
         getnoise.params = params
         N = getnoise
 
-    return kernels.NoiseMatrix1D(N)
+    kern = kernels.NoiseMatrix1D(N)
+    # introspection tag read by discovery.summary (harmless to the math path):
+    # which white-noise parameters this kernel carries, and whether they were
+    # fixed from the noise dictionary rather than left free.
+    kern.measurement = {'name': 'measurement', 'params': params, 'psrname': psr.name,
+                        'fixed': all(par in noisedict for par in params),
+                        'ecorr': False}
+    return kern
 
 
 def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=False,
@@ -135,6 +142,15 @@ def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=Fal
         egp = signals.makegp_ecorr(psr, noisedict=(noisedict if is_const else {}),
                                    enterprise=enterprise, scale=scale, selection=selection)
         P = egp.Phi.N if is_const else egp.Phi.getN
-        return kernels.NoiseMatrixSM(N, egp.F, P)
+        kern = kernels.NoiseMatrixSM(N, egp.F, P)
+        ecorr_backends = [bf for bf in sorted(set(selection(psr))) if bf != '']
+        kern.measurement = {'name': 'measurement', 'params': params, 'psrname': psr.name,
+                            'fixed': is_const, 'ecorr': True,
+                            'ecorr_params': [f'{psr.name}_{b}_log10_ecorr' for b in ecorr_backends],
+                            'ecorr_basis_shape': tuple(np.shape(egp.F))}
+        return kern
     else:
-        return kernels.NoiseMatrix1D(N)
+        kern = kernels.NoiseMatrix1D(N)
+        kern.measurement = {'name': 'measurement', 'params': params, 'psrname': psr.name,
+                            'fixed': is_const, 'ecorr': False}
+        return kern

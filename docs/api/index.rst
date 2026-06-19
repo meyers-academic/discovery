@@ -18,3 +18,4 @@ Complete API documentation auto-generated from source code.
    prior
    const
    recipes
+   summary

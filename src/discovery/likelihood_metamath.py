@@ -22,6 +22,7 @@ from . import signals
 from . import metamatrix
 from . import metamath
 from . import utils as kh
+from . import summary
 
 # Kernel
 #   ConstantKernel
@@ -65,7 +66,7 @@ def ffunc(graph):
     return outfunc
 
 
-class PulsarLikelihood:
+class PulsarLikelihood(summary.SummaryMixin):
     """Single-pulsar likelihood — metamath-native composition.
 
     Kernel/GP composition (Woodbury chaining, compound GPs, delays) goes
@@ -76,6 +77,13 @@ class PulsarLikelihood:
     `_kernels` factory mode.
     """
     def __init__(self, args, concat=True):
+        # retain the original components so the model can describe itself
+        # (see discovery.summary); the math path uses only y, delay, N below.
+        # `concat` is kept too so the kernel-tree view knows whether GPs were
+        # fused into one Woodbury layer or chained.
+        self.signals = list(args)
+        self.concat = concat
+
         y     = [arg for arg in args if isinstance(arg, np.ndarray) or isinstance(arg, jax.Array)]
         delay = [arg for arg in args if callable(arg)]
         noise = [arg for arg in args if isinstance(arg, kh.Kernel)]
@@ -226,7 +234,7 @@ class PulsarLikelihood:
         return self.N.make_sample()
 
 
-class GlobalLikelihood:
+class GlobalLikelihood(summary.SummaryMixin):
     def __init__(self, psls, globalgp=None):
         self.psls = psls
         self.globalgp = signals.CompoundGlobalGP(globalgp) if isinstance(globalgp, list) else globalgp
@@ -529,7 +537,7 @@ class GlobalLikelihood:
         return cond
 
 
-class ArrayLikelihood:
+class ArrayLikelihood(summary.SummaryMixin):
     def __init__(self, psls, *, commongp=None, globalgp=None, transform=None,
                  decenter=False, extsignals=None, reference=None):
         self.psls = psls

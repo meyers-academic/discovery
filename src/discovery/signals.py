@@ -145,7 +145,11 @@ def makegp_ecorr(psr, noisedict={}, enterprise=False, scale=1.0, selection=selec
 
             return gp
         else:
-            return utils.ConstantGP(kernels.NoiseMatrix1D_novar(phi), Umatall)
+            gp = utils.ConstantGP(kernels.NoiseMatrix1D_novar(phi), Umatall)
+            gp.index = {f'{psr.name}_{name}_coefficients({Umatall.shape[1]})': slice(0, Umatall.shape[1])}
+            gp.name, gp.pos = psr.name, psr.pos
+            gp.gpname, gp.gpcommon = name, []
+            return gp
     else:
         pmasks = [utils.jnparray(pmask) for pmask in pmasks]
         def getphi(params):
@@ -174,6 +178,7 @@ def makegp_improper(psr, fmat, constant=1.0e40, name='improperGP', variable=Fals
         gp.index = {f'{psr.name}_{name}_coefficients({fmat.shape[1]})': slice(0, fmat.shape[1])}
     else:
         gp = utils.ConstantGP(kernels.NoiseMatrix1D_novar(constant * np.ones(fmat.shape[1])), fmat)
+        gp.index = {f'{psr.name}_{name}_coefficients({fmat.shape[1]})': slice(0, fmat.shape[1])}
 
     gp.name = psr.name
     gp.gpname = name
@@ -366,6 +371,7 @@ def makecommongp_fourier(psrs, prior, components, T, fourierbasis=fourierbasis, 
     gp = utils.VariableGP(kernels.VectorNoiseMatrix12D_var(priorfunc), fmats)
     gp.index = {f'{psr.name}_{name}_coefficients({len(f)})': slice(len(f)*i,len(f)*(i+1))
                 for i, psr in enumerate(psrs)}
+    gp.gpname, gp.gpcommon = name, common
 
     if means is not None:
         margspec = inspect.getfullargspec(means)
@@ -527,6 +533,9 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
                 slice(len(f)*i, len(f)*(i+1)) for i, psr in enumerate(psrs)}
     gp.pos = [psr.pos for psr in psrs]
     gp.name = [psr.name for psr in psrs]
+    # introspection tags read by discovery.summary
+    gp.gpname, gp.gpcommon = name, common
+    gp.orfnames = [orf.__name__ for orf in orfs]
 
     if means is not None:
         margspec = inspect.getfullargspec(means)
@@ -1326,6 +1335,7 @@ def makedelay(psr, delay, components=None, common=[], name='delay'):
     def delayfunc(params):
         return delay(**psrpars, **{arg: params[argname] for arg,argname in argmap.items()})
     delayfunc.params = sorted(argmap.values())
+    delayfunc.name = name
 
     return delayfunc
 

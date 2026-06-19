@@ -8,6 +8,7 @@ from . import matrix
 from . import signals
 from . import metamatrix
 from . import metamath
+from . import summary
 
 # import jax
 
@@ -53,8 +54,15 @@ def ffunc(graph):
     return outfunc
 
 
-class PulsarLikelihood:
+class PulsarLikelihood(summary.SummaryMixin):
     def __init__(self, args, concat=True):
+        # retain the original components so the model can describe itself
+        # (see discovery.summary); the math path uses only y, delay, N below.
+        # `concat` is kept too so the kernel-tree view knows whether GPs were
+        # fused into one Woodbury layer or chained.
+        self.signals = list(args)
+        self.concat = concat
+
         y     = [arg for arg in args if isinstance(arg, np.ndarray) or isinstance(arg, jax.Array)]
         delay = [arg for arg in args if callable(arg)]
         noise = [arg for arg in args if isinstance(arg, matrix.Kernel)]
@@ -224,7 +232,7 @@ class PulsarLikelihood:
         return self.N.make_sample()
 
 
-class GlobalLikelihood:
+class GlobalLikelihood(summary.SummaryMixin):
     def __init__(self, psls, globalgp=None):
         self.psls = psls
         self.globalgp = signals.CompoundGlobalGP(globalgp) if isinstance(globalgp, list) else globalgp
@@ -527,7 +535,7 @@ class GlobalLikelihood:
         return cond
 
 
-class ArrayLikelihood:
+class ArrayLikelihood(summary.SummaryMixin):
     def __init__(self, psls, *, commongp=None, globalgp=None, transform=None,
                  decenter=False, extsignals=None):
         self.psls = psls

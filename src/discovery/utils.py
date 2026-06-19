@@ -164,7 +164,17 @@ except ImportError:
 
 class Kernel:
     """Marker base class for kernel / GP / noise-matrix objects."""
-    pass
+
+    def __repr__(self):
+        # white-noise kernels are tagged with `.measurement` by the
+        # measurement-noise factories; show that nicely, else a plain label.
+        meas = getattr(self, 'measurement', None)
+        if meas is not None:
+            kind = 'white noise' + (' + ECORR (Sherman-Morrison)' if meas.get('ecorr') else '')
+            n = len(meas.get('params', [])) + len(meas.get('ecorr_params', []))
+            state = 'fixed' if meas.get('fixed') else 'free'
+            return f'<{kind} | {n} {state} params>'
+        return f'<{type(self).__name__}>'
 
 
 class ConstantKernel(Kernel):
@@ -193,6 +203,53 @@ class GP:
     pass
 
 
+def _gp_params(Phi):
+    """Free-parameter names of a prior kernel, across both backends: matrix.py
+    exposes ``Phi.params``; metamath keeps the parameterized callable at
+    ``Phi.getN.params``. Returns a (possibly empty) list."""
+    pars = getattr(Phi, 'params', None)
+    if pars:
+        return list(pars)
+    return list(getattr(getattr(Phi, 'getN', None), 'params', None) or [])
+
+
+def _gp_repr(gp, cls):
+    """Compact, defensive ``__repr__`` shared by the GP marker classes.
+
+    Reads only attributes the factories already set, so an under-populated GP
+    still reprs without raising. Shows the signal name, basis shape, ORF (for
+    correlated GPs), and either the free parameters or a 'fixed prior' note.
+    """
+    bits = [cls]
+    name = getattr(gp, 'gpname', None)
+    if name:
+        bits[0] = f"{cls} '{name}'"
+    orfs = getattr(gp, 'orfnames', None)
+    if orfs:
+        bits[0] += f" ({', '.join(orfs)})"
+
+    F = getattr(gp, 'F', None)
+    Fs = getattr(gp, 'Fs', None)
+    # a per-pulsar (common) GP keeps its bases as a list in either .F or .Fs
+    if isinstance(F, (list, tuple)):
+        Fs, F = F, None
+    if F is not None and hasattr(F, 'shape'):
+        bits.append('basis ' + '×'.join(str(d) for d in F.shape))
+    elif Fs:
+        npsr = len(Fs)
+        nb = Fs[0].shape[1] if hasattr(Fs[0], 'shape') and Fs[0].ndim == 2 else '?'
+        bits.append(f'{npsr} psr × {nb}')
+
+    pars = _gp_params(getattr(gp, 'Phi', None))
+    if pars:
+        shown = ', '.join(pars[:4]) + (', …' if len(pars) > 4 else '')
+        bits.append(f'params: {shown}')
+    else:
+        bits.append('fixed prior')
+
+    return '<' + ' | '.join(bits) + '>'
+
+
 class ConstantGP:
     """A Gaussian-process signal whose prior precision is fixed at trace time
     (no parameters). `Phi` is the prior covariance; `F` is the per-pulsar
@@ -200,11 +257,17 @@ class ConstantGP:
     def __init__(self, Phi, F):
         self.Phi, self.F = Phi, F
 
+    def __repr__(self):
+        return _gp_repr(self, 'ConstantGP')
+
 
 class VariableGP:
     """A Gaussian-process signal whose prior precision depends on parameters."""
     def __init__(self, Phi, F):
         self.Phi, self.F = Phi, F
+
+    def __repr__(self):
+        return _gp_repr(self, 'VariableGP')
 
 
 class GlobalVariableGP:
@@ -214,6 +277,9 @@ class GlobalVariableGP:
     def __init__(self, Phi, Fs):
         self.Phi, self.Fs = Phi, Fs
         self.Phi_inv = None
+
+    def __repr__(self):
+        return _gp_repr(self, 'GlobalVariableGP')
 
 
 class ExtSignal:
@@ -245,6 +311,15 @@ class ExtSignal:
     @property
     def params(self):
         return self.coeffs.params
+
+    def __repr__(self):
+        bits = [f"ExtSignal '{self.name}'"]
+        if self.Fs and hasattr(self.Fs[0], 'shape') and self.Fs[0].ndim == 2:
+            bits.append(f'{len(self.Fs)} psr × {self.Fs[0].shape[1]}')
+        pars = list(self.params or [])
+        if pars:
+            bits.append('params: ' + ', '.join(pars[:4]) + (', …' if len(pars) > 4 else ''))
+        return '<' + ' | '.join(bits) + '>'
 
 
 def make_uind(U):

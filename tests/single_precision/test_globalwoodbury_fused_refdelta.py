@@ -77,8 +77,7 @@ def _fused_rd_graph(m, phi_in, phi_gw, phi_in_ref, phi_gw_ref):
     # rung 1 emits two outputs now: constant reference group + live increment group
     refconst = mm.prune_graph(joint, output='refconst')
     refincr = mm.prune_graph(joint, output='refincr')
-    return mh.globalwoodbury_fused_refdelta(refconst, refincr, Pgw.make_inv, Pgw_r.make_inv,
-                                            Pgw.getN)
+    return mh.globalwoodbury_fused_refdelta(refconst, refincr, Pgw.make_inv, Pgw_r.make_inv)
 
 
 def _fused_rd(m, phi_in, phi_gw, phi_in_ref, phi_gw_ref):
@@ -166,7 +165,7 @@ def _graphs_varPhi(model):
                                                    model["Fs_in"], Pin.make_inv, Pin_r.make_inv)
     gr = mh.globalwoodbury_fused_refdelta(mm.prune_graph(joint_r, output='refconst'),
                                           mm.prune_graph(joint_r, output='refincr'),
-                                          Pgw.make_inv, Pgw_r.make_inv, Pgw.getN)
+                                          Pgw.make_inv, Pgw_r.make_inv)
     return gw, gr
 
 

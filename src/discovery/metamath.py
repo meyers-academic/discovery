@@ -346,7 +346,7 @@ def globalwoodbury_fused(g, projected, Pinv):
 
 
 @mm.graph
-def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref, Pcov):
+def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref):
     """Reference+delta twin of ``globalwoodbury_fused`` -- the OUTER half of the
     fused two-level reference+delta (Piece 2 'Half B'; HD / CURN-with-IRN). See
     dev_architecture/single_precision/research_note_nested_increment.md (sec. 4-5)
@@ -373,9 +373,10 @@ def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref, Pcov):
     Outer level (the cross-pulsar GW prior, dense for HD / block for CURN):
       Pinv     : current  Phi_gw^-1 leaf -> (Phi_gw^-1, logdet Phi_gw)   (live)
       Pinv_ref : reference Phi_ref,gw^-1 leaf (constant -> folds to f64)
-      Pcov     : UNUSED under route (b) (kept in the signature for now; prunes away).
-                 It supplied the current Phi_gw covariance for the old two-perturbation
-                 outer-logdet form; that form is gone (see the outer-logdet block).
+
+    (There is no current-Phi_gw covariance input: route (b)'s outer-logdet
+    increment reuses the Cholesky logdets and the quadratic uses dD_gw = Pm - Pmr,
+    so the kernel never needs Phi_gw or any inverse of Pm/Pmr in the live cone.)
 
     Builds logL_ref ONCE in float64 (folds: all reference quantities are
     constants under fixed white noise) and adds the small O(1) increment
@@ -406,13 +407,13 @@ def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref, Pcov):
     Pm, lP = Pinv                # current  Phi_gw^-1, logdet Phi_gw (lP live)
     Pmr, lPr = Pinv_ref          # reference (constant leaf -> folds); lPr constant
 
-    # NOTE (route b): the outer covariance Phi_gw (Pcov) and the explicit
-    # covariance-space perturbation dPhi_gw are no longer built. They existed only
-    # to feed the two-perturbation outer-logdet form (mid/S0_out/slogdet); that
-    # whole block is replaced below by reusing the current/reference Cholesky
-    # logdets directly. The quadratic increment routes through dD_gw = Pm - Pmr
-    # (see below), which needs neither Phi_gw nor inv(Pmr). So Pcov is now unused
-    # and prunes away, and inv(Pm)/inv(Pmr) never appear in the live cone.
+    # NOTE (route b): the outer covariance Phi_gw and the explicit covariance-space
+    # perturbation dPhi_gw are no longer built. They existed only to feed the
+    # two-perturbation outer-logdet form (mid/S0_out/slogdet); that whole block is
+    # replaced below by reusing the current/reference Cholesky logdets directly. The
+    # quadratic increment routes through dD_gw = Pm - Pmr (see below), which needs
+    # neither Phi_gw nor inv(Pmr) -- so inv(Pm)/inv(Pmr) never appear in the live
+    # cone, and the kernel no longer takes a current-Phi_gw covariance input.
 
     # --- current outer solve -- the expensive Cholesky stays float32 ---
     # KEEP its logdet lS_cf (current outer capacitance logdet, was discarded):
@@ -1262,8 +1263,7 @@ class GlobalWoodburyKernel(Kernel):
                 refconst_graph = mm.prune_graph(joint_graph, output='refconst')
                 refincr_graph = mm.prune_graph(joint_graph, output='refincr')
                 return globalwoodbury_fused_refdelta(
-                    refconst_graph, refincr_graph, self.P.make_inv, P_ref_out.make_inv,
-                    self.P.getN)   # Phi_gw direct -> no inv(Pm) round-trip
+                    refconst_graph, refincr_graph, self.P.make_inv, P_ref_out.make_inv)
             joint_graph = vectorwoodburyjointsolve(
                 ys, self.Fs, [N.make_solve for N in self.Ns.Ns],
                 self.Ns.Fs, self.Ns.P.make_inv)

@@ -25,6 +25,32 @@ def monopole_orfa(z):
 def make2d(array):
     return matrix.jnp.diag(array) if array.ndim == 1 else array
 
+
+def schur_cholesky(Pinv, FFt, FTt, TTt):
+    """Cholesky factor ``A`` (with ``S = A @ A.T``) of the GW-space Schur complement
+
+        S = TTt - FTt.T @ (diag(Pinv) + FFt)^-1 @ FTt
+          = G̃.T @ (I + F̃ B F̃.T)^-1 @ G̃          (B = diag(1/Pinv))
+
+    computed as the trailing block of the Cholesky of the joint matrix
+
+        J = [[diag(Pinv) + FFt, FTt],
+             [FTt.T,            TTt]]
+
+    rather than by forming the difference ``TTt - (...)`` explicitly. The GW
+    Fourier basis lies inside the red-noise span (its frequencies are a subset
+    of the red-noise frequencies on the same baseline), so that difference is
+    between two large, nearly equal PSD matrices and cancels catastrophically,
+    losing positive-definiteness -- which is what the old ``1e-10 tr(S)/n``
+    ridge was patching. The Schur complement read off a Cholesky factor is PSD
+    by construction (it equals ``L22 @ L22.T``), so no ridge is needed and the
+    factor ``A = L22`` is obtained directly.
+    """
+    mF = FFt.shape[0]
+    J = matrix.jnp.block([[matrix.jnp.diag(Pinv) + FFt, FTt],
+                          [FTt.T,                        TTt]])
+    return matrix.jnp.linalg.cholesky(J)[mF:, mF:]
+
 class OS:
     def __init__(self, gbl):
         self.psls = gbl.psls
@@ -67,23 +93,11 @@ class OS:
         def get_Q(params, orf=hd_orfa):
             sPhi = matrix.jnp.sqrt(Phivar(params))
 
-            cs = [matrix.jsp.linalg.cho_factor(matrix.jnp.diag(1.0 / Pvar(params)) + FFt) for Pvar, FFt in zip(Pvars, FFts)]
-            Ss = [TTt - FTt.T @ matrix.jsp.linalg.cho_solve(c, FTt) for c, TTt, FTt in zip(cs, TTts, FTts)]
-
-            # adaptively ridge-regularize each S so its Cholesky is well defined:
-            # add only what is needed to make the smallest eigenvalue positive
-            As = []
-            for S in Ss:
-                S = 0.5 * (S + S.T)  # enforce symmetry
-
-                eigs = matrix.jnp.linalg.eigvalsh(S)
-                min_eig = matrix.jnp.min(eigs)
-                max_eig = matrix.jnp.max(matrix.jnp.abs(eigs))
-
-                eps = 1e-12 * matrix.jnp.maximum(max_eig, 1.0)
-                ridge = matrix.jnp.maximum(0.0, -min_eig) + eps
-
-                As.append(matrix.jnp.linalg.cholesky(S + ridge * matrix.jnp.eye(S.shape[0])))
+            # S = G̃.T (I + F̃ B F̃.T)^-1 G̃ via the Schur complement of the joint
+            # Cholesky -> manifestly PSD, no ridge needed (see schur_cholesky)
+            As = [schur_cholesky(1.0 / Pvar(params), FFt, FTt, TTt)
+                  for Pvar, FFt, FTt, TTt in zip(Pvars, FFts, FTts, TTts)]
+            Ss = [A @ A.T for A in As]
 
             Ds = [sPhi[:,matrix.jnp.newaxis] * S * sPhi[matrix.jnp.newaxis,:] for S in Ss]
             # Ds are symmetric, so tr(Ds[i] @ Ds[j]) == sum(Ds[i] * Ds[j]) (O(m^2), no m x m temporary)
@@ -130,12 +144,9 @@ class OS:
         def get_opQ(params, orf=hd_orfa):
             sPhi = matrix.jnp.sqrt(Phivar(params))
 
-            cs = [matrix.jsp.linalg.cho_factor(matrix.jnp.diag(1.0 / Pvar(params)) + FFt) for Pvar, FFt in zip(Pvars, FFts)]
-            Ss = [TTt - FTt.T @ matrix.jsp.linalg.cho_solve(c, FTt) for c, TTt, FTt in zip(cs, TTts, FTts)]
-
-            Ss = [0.5 * (S + S.T) for S in Ss]  # ensure symmetry
-            As = [matrix.jnp.linalg.cholesky(S + (1e-10 * matrix.jnp.trace(S) / S.shape[0]) * matrix.jnp.eye(S.shape[0]))
-                for S in Ss]
+            As = [schur_cholesky(1.0 / Pvar(params), FFt, FTt, TTt)
+                  for Pvar, FFt, FTt, TTt in zip(Pvars, FFts, FTts, TTts)]
+            Ss = [A @ A.T for A in As]
 
             Ds = [sPhi[:,matrix.jnp.newaxis] * S * sPhi[matrix.jnp.newaxis,:] for S in Ss]
             bs = [matrix.jnp.sum(Ds[i] * Ds[j]) for (i,j) in self.pairs]  # Ds symmetric: tr(A@B)==sum(A*B)
@@ -184,13 +195,9 @@ class OS:
         def get_sample(key, params, orf=hd_orfa):
             sPhi = matrix.jnp.sqrt(Phivar(params))
 
-            # TO DO: should probably close on Ft.T @ Ft, Tt.T @ Tt, and Tt.T @ Ft (and Ft.T @ Tt) rather than on Fts and Tts
-            cs = [matrix.jsp.linalg.cho_factor(matrix.jnp.diag(1.0 / Pvar(params)) + FFt) for Pvar, FFt in zip(Pvars, FFts)]
-            Ss = [TTt - FTt.T @ matrix.jsp.linalg.cho_solve(c, FTt) for c, TTt, FTt in zip(cs, TTts, FTts)]
-
-            Ss = [0.5 * (S + S.T) for S in Ss]  # ensure symmetry
-            As = [matrix.jnp.linalg.cholesky(S + (1e-10 * matrix.jnp.trace(S) / S.shape[0]) * matrix.jnp.eye(S.shape[0]))
-                  for S in Ss]
+            As = [schur_cholesky(1.0 / Pvar(params), FFt, FTt, TTt)
+                  for Pvar, FFt, FTt, TTt in zip(Pvars, FFts, FTts, TTts)]
+            Ss = [A @ A.T for A in As]
 
             Ds = [sPhi[:,matrix.jnp.newaxis] * S * sPhi[matrix.jnp.newaxis,:] for S in Ss]
             bs = [matrix.jnp.sum(Ds[i] * Ds[j]) for (i,j) in self.pairs]  # Ds symmetric: tr(A@B)==sum(A*B)
@@ -225,26 +232,11 @@ class OS:
         Fts = [LNm[:,None] * Fmat for LNm, Fmat in zip(LNms, Fmats)]
         Tts = [LNm[:,None] * Tmat for LNm, Tmat in zip(LNms, Tmats)] # this is GW-only
 
-        cs = [matrix.jsp.linalg.cho_factor(matrix.jnp.diag(1/Pmat) + Ft.T @ Ft) for Pmat, Ft in zip(Pmats, Fts)]
-        Xs = [Tt - Ft @ matrix.jsp.linalg.cho_solve(c, Ft.T @ Tt) for c, Ft, Tt in zip(cs, Fts, Tts)]
-
-        Ss = [Tt.T @ X for Tt, X in zip(Tts, Xs)]
-
-        # alternative formulation (numerically unstable?):
-        # R = chol(Pmat^-1 + Ft.T @ Ft)
-        # Y = R^-1 @ Ft.T @ Tt
-        # S = Tt.T @ Tt - Y.T @ Y
-        #
-        # Rs = [matrix.jnp.linalg.cholesky(matrix.jnp.diag(1/Pmat) + Ft.T @ Ft, upper=True) for Pmat, Ft in zip(Pmats, Fts)]
-        # Ys = [matrix.jsp.linalg.solve_triangular(R, Ft.T @ Tt, lower=False) for R, Ft, Tt in zip(Rs, Fts, Tts)]
-        # Ss = [Tt.T @ Tt - Y.T @ Y for Tt, Y in zip(Tts, Ys)]
-
-        # with ridge regularization; the simple estimate based on the trace seems fine
-        # a more precise possibility is eps = matrix.jnp.maximum(0.0, -matrix.jnp.linalg.eigvalsh(S).min())
-        #                                     + 1e-10 * matrix.jnp.trace(S) / S.shape[0]
-        Ss = [0.5 * (S + S.T) for S in Ss]  # ensure symmetry
-        As = [matrix.jnp.linalg.cholesky(S + (1e-10 * matrix.jnp.trace(S) / S.shape[0]) * matrix.jnp.eye(S.shape[0]))
-              for S in Ss]
+        # S = G̃.T (I + F̃ B F̃.T)^-1 G̃ via the Schur complement of the joint
+        # Cholesky -> manifestly PSD, no ridge needed (see schur_cholesky)
+        As = [schur_cholesky(1.0 / Pmat, Ft.T @ Ft, Ft.T @ Tt, Tt.T @ Tt)
+              for Pmat, Ft, Tt in zip(Pmats, Fts, Tts)]
+        Ss = [A @ A.T for A in As]
 
         Ds = [sPhi[:,matrix.jnp.newaxis] * S * sPhi[matrix.jnp.newaxis,:] for S in Ss]
         bs = [matrix.jnp.sum(Ds[i] * Ds[j]) for (i,j) in self.pairs]  # Ds symmetric: tr(A@B)==sum(A*B)
@@ -436,7 +428,7 @@ class OS:
             N = getN(params)
             ks = [k(params) for k in kernelsolves]
 
-            if sN.ndim == 2:
+            if N.ndim == 2:
                 raise NotImplementedError("Complex rhosigma not defined for 2D Phi.")
 
             sN = matrix.jnp.sqrt(N)
@@ -495,7 +487,10 @@ def imhof(u, x, eigs):
     theta = 0.5 * matrix.jnp.sum(matrix.jnp.arctan(eigs * u), axis=0) - 0.5 * x * u
     rho = matrix.jnp.prod((1.0 + (eigs * u)**2)**0.25, axis=0)
 
-    return matrix.jnp.sin(theta) / (u * rho)
+    # the integrand has a removable 0/0 singularity at u=0 with finite limit
+    # ½(Σλ - x); quadax may sample the lower endpoint, so return the limit there
+    limit = 0.5 * (matrix.jnp.sum(eigs, axis=0) - x)
+    return matrix.jnp.where(u == 0.0, limit, matrix.jnp.sin(theta) / (u * rho))
 
 def eig2cdf(osxs, eigs, cutoff=1e-6, limit=100, epsabs=1e-6):
     # cutoff by number of eigenvalues is more friendly to jitted imhof

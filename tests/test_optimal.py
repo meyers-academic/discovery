@@ -103,3 +103,39 @@ def test_trace_sum_identity():
         A = rng.normal(size=(m, m)); A = A + A.T
         B = rng.normal(size=(m, m)); B = B + B.T
         np.testing.assert_allclose(np.trace(A @ B), np.sum(A * B), rtol=1e-12)
+
+
+def test_imhof_u0_limit():
+    """The Imhof integrand has a removable 0/0 at u=0; it must return the
+    finite limit ½(Σλ - x), not nan (quadax may sample the endpoint)."""
+    import jax.numpy as jnp
+    eigs = jnp.array([0.20, 0.15, -0.17, -0.05, 0.02, -0.01, 1e-4, -1e-4])
+    for x in (0.0, 1.0, 2.0):
+        val = float(optimal.imhof(jnp.array(0.0), x, eigs))
+        assert np.isfinite(val)
+        np.testing.assert_allclose(val, 0.5 * (float(np.sum(np.asarray(eigs))) - x),
+                                   rtol=1e-12, atol=0)
+
+
+def test_schur_cholesky_psd_no_ridge():
+    """schur_cholesky reproduces S = TTt - FTt.T (diag(1/P)+FFt)^-1 FTt as a
+    manifest Gram (A @ A.T), PSD by construction, matching the explicit
+    difference in float64 -- including a deliberately ill-conditioned case
+    (GW basis inside the red-noise span) where the old form needed a ridge."""
+    import jax.numpy as jnp
+    rng = np.random.default_rng(1)
+    mF, mG = 88, 28
+    # GW design as a strict subset of the red-noise design -> S near-singular
+    Fbig = rng.normal(size=(2000, mF))
+    Tt = jnp.asarray(Fbig[:, :mG] @ rng.normal(size=(mG, mG)))
+    Ft = jnp.asarray(Fbig)
+    P = jnp.asarray(10.0 ** rng.uniform(-18, -14, size=mF))   # red-noise priors
+    FFt, FTt, TTt = Ft.T @ Ft, Ft.T @ Tt, Tt.T @ Tt
+
+    A = optimal.schur_cholesky(1.0 / P, FFt, FTt, TTt)
+    S_new = np.asarray(A @ A.T)
+    c = jax.scipy.linalg.cho_factor(jnp.diag(1.0 / P) + FFt)
+    S_old = np.asarray(TTt - FTt.T @ jax.scipy.linalg.cho_solve(c, FTt))
+
+    assert np.linalg.eigvalsh(0.5 * (S_new + S_new.T)).min() > 0.0   # strictly PSD, no ridge
+    np.testing.assert_allclose(S_new, S_old, rtol=0, atol=1e-9 * np.linalg.norm(S_old))

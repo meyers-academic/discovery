@@ -26,6 +26,12 @@ def make2d(array):
     return matrix.jnp.diag(array) if array.ndim == 1 else array
 
 
+# set True to print, per pulsar, the conditioning of the inner matrix
+# (diag(1/P)+FFt) and of S *before* the adaptive ridge is applied. Cheap (S is
+# eigendecomposed anyway). Uses jax.debug.print so it works eager and under jit.
+DEBUG_RIDGE = False
+
+
 def ridge_cholesky(Pinv, FFt, FTt, TTt):
     """Cholesky factor ``A`` (``S = A @ A.T``) and the raw matrix ``S`` of the
     GW-space matrix
@@ -50,14 +56,23 @@ def ridge_cholesky(Pinv, FFt, FTt, TTt):
 
     The raw (unridged) ``S`` is returned for the pairwise normalization ``bs``.
     """
-    c = matrix.jsp.linalg.cho_factor(matrix.jnp.diag(Pinv) + FFt)
+    inner = matrix.jnp.diag(Pinv) + FFt
+    c = matrix.jsp.linalg.cho_factor(inner)
     S = TTt - FTt.T @ matrix.jsp.linalg.cho_solve(c, FTt)
     S = 0.5 * (S + S.T)  # enforce symmetry
 
     # add only what is needed to make the smallest eigenvalue positive
     eigs = matrix.jnp.linalg.eigvalsh(S)
-    ridge = (matrix.jnp.maximum(0.0, -matrix.jnp.min(eigs))
-             + 1e-12 * matrix.jnp.maximum(matrix.jnp.max(matrix.jnp.abs(eigs)), 1.0))
+    min_eig, max_abs = matrix.jnp.min(eigs), matrix.jnp.max(matrix.jnp.abs(eigs))
+    ridge = matrix.jnp.maximum(0.0, -min_eig) + 1e-12 * matrix.jnp.maximum(max_abs, 1.0)
+
+    if DEBUG_RIDGE:
+        inner_eigs = matrix.jnp.linalg.eigvalsh(inner)
+        jax.debug.print(
+            "ridge_cholesky | cond(inner)={ci:.2e} | S min_eig={lo:+.3e} max|eig|={hi:.3e} "
+            "cond={cs:.2e} -> ridge={r:.3e}",
+            ci=inner_eigs.max() / inner_eigs.min(), lo=min_eig, hi=max_abs,
+            cs=max_abs / matrix.jnp.abs(min_eig), r=ridge)
 
     A = matrix.jnp.linalg.cholesky(S + ridge * matrix.jnp.eye(S.shape[0]))
     return A, S

@@ -1,10 +1,17 @@
-# Stabilizing the OS per-pulsar matrix $S$ with a Cholesky–Schur complement
+# The OS per-pulsar matrix $S$: cancellation, a rejected Cholesky–Schur idea, and the ridge we actually need
 
-Working note on why the per-pulsar GW-space matrix $S_i$ in `optimal.py` lost
-positive-definiteness (and needed a ridge), and how to compute it as a
-manifest Gram instead. This is the projection note's "form the Gram, don't
-subtract" principle (see [`README.md`](README.md) §"Why whiten first"),
-generalized from the flat-prior timing case to a **finite** red-noise prior.
+Working note on the per-pulsar GW-space matrix $S_i$ in `optimal.py`: why it is
+hard to factor, an elegant Cholesky–Schur idea that **looked** right on a small
+test but **fails on real data**, and why an adaptive ridge is genuinely
+required.
+
+> **Status (corrected).** An earlier version of this note claimed the
+> Cholesky–Schur construction made $S$ "manifestly PSD, no ridge needed." That
+> is wrong on NANOGrav-15 data. $S$ is *genuinely* numerically indefinite for
+> high-precision pulsars, `jnp.linalg.cholesky` returns `NaN` on it, and the
+> ridge is mandatory. The code uses `ridge_cholesky`, not a Schur factorization.
+> The cancellation analysis (§1–§2) still stands; the conclusion (§3–§4) is
+> rewritten.
 
 ## 1. What $S$ is
 
@@ -14,19 +21,12 @@ $B=\operatorname{diag}(\mathbf P)$) and GW basis $G$, the OS needs
 $$
 S \;=\; G^{\mathsf T} C^{-1} G ,
 \qquad
-C \;=\; K + F B F^{\mathsf T},
+C \;=\; K + F B F^{\mathsf T}.
 $$
 
-i.e. the GW basis projected through the *total* (white + red) noise covariance.
-Working in whitened coordinates $W=K^{-1/2}$, $\tilde F = WF$, $\tilde G = WG$,
-so $\tilde C = W C W^{\mathsf T} = I + \tilde F B \tilde F^{\mathsf T}$ and
-
-$$
-S \;=\; \tilde G^{\mathsf T}\big(I + \tilde F B \tilde F^{\mathsf T}\big)^{-1}\tilde G .
-$$
-
-The Woodbury identity reduces the $n\times n$ inverse to the small GP space,
-$C = \Phi^{-1}+\tilde F^{\mathsf T}\tilde F$ space:
+In whitened coordinates $W=K^{-1/2}$, $\tilde F = WF$, $\tilde G = WG$, with
+$\tilde C = I + \tilde F B \tilde F^{\mathsf T}$, the Woodbury identity reduces
+the $n\times n$ inverse to the small GP space:
 
 $$
 S \;=\; \tilde G^{\mathsf T}\tilde G
@@ -36,7 +36,7 @@ S \;=\; \tilde G^{\mathsf T}\tilde G
 \tag{$\star$}
 $$
 
-In code ($\star$) is, per pulsar,
+In code:
 
 ```python
 FFt = Ft.T @ Ft     # F̃ᵀF̃
@@ -46,149 +46,126 @@ c   = cho_factor(diag(1/Pvar) + FFt)        # (B⁻¹ + F̃ᵀF̃)
 S   = TTt - FTt.T @ cho_solve(c, FTt)       # the difference (⋆)
 ```
 
-## 2. Why ($\star$) is numerically bad: catastrophic cancellation
+## 2. Why ($\star$) is hard: catastrophic cancellation **and** real indefiniteness
 
-$S$ is computed as $\tilde G^{\mathsf T}\tilde G$ **minus** a correction. Both
-terms are positive semidefinite, and their difference is small whenever
-$\tilde G$ is well explained by $\tilde F$ — i.e. when $G$ lies in the column
-span of $F$.
-
-In the standard PTA model that overlap is **total**: the GW basis uses the
-first $n_{\rm gw}$ Fourier frequencies $k/T$, and the red-noise basis uses the
-first $n_{\rm rn}\ge n_{\rm gw}$ of the *same* frequencies on the *same*
-baseline $T$. So $\operatorname{span}(G)\subseteq\operatorname{span}(F)$
-exactly. Empirically every GW column had overlap fraction $1.0$ with the
-red-noise span. The two terms in ($\star$) then agree to many digits and their
-difference is dominated by rounding:
+$S$ is $\tilde G^{\mathsf T}\tilde G$ **minus** a correction. Both terms are PSD,
+and their difference is small whenever $\tilde G$ is well explained by
+$\tilde F$ — i.e. when $G$ lies in the span of $F$. In the standard PTA model
+that overlap is *total*: the GW basis uses the first $n_{\rm gw}$ Fourier
+frequencies $k/T$, the red-noise basis the first $n_{\rm rn}\ge n_{\rm gw}$ of
+the *same* frequencies on the *same* baseline, so
+$\operatorname{span}(G)\subseteq\operatorname{span}(F)$ exactly (every GW column
+had overlap fraction $1.0$). The two terms then agree to many digits:
 
 $$
 \underbrace{\tilde G^{\mathsf T}\tilde G}_{\;\sim\,10^{16}}
 \;-\;
 \underbrace{(\cdots)}_{\;\sim\,10^{16}}
 \;=\;
-\underbrace{S}_{\text{smallest eig}\,\sim\,10^{1}} .
+\underbrace{S}_{\text{smallest eig}\,\sim\,10^{1}\ \text{or}\ <0} .
 $$
 
-(The $10^{16}$ scale is just the whitening $1/\sqrt{N}\sim10^{6}$ squared,
-times $n$; it is not the problem. The problem is the $\sim15$-order drop to the
-smallest eigenvalue of $S$.) The result is an $S$ whose true condition number
-$\sim10^{15}$ is at the edge of float64 and **past** float32, so the explicit
-difference produces a matrix that is no longer numerically PSD — its Cholesky
-fails. That is exactly what the
-`S → ½(S+Sᵀ)` symmetrization and the `1e-10 tr(S)/n` (or adaptive
-eigenvalue) **ridge** were patching.
+(The $10^{16}$ scale is just the whitening $1/\sqrt N\sim10^{6}$ squared times
+$n$ — not the problem. The problem is the $\sim15$-order drop to the smallest
+eigenvalue.) **Two distinct things are going on, and the distinction is the
+whole point of this note:**
 
-The ridge makes the Cholesky *succeed*, but it does so by adding
-$\mathcal O(10^{5})$ to a matrix whose smallest real eigenvalue is
-$\mathcal O(10^{1})$ — i.e. it discards the small GW-mode directions, the very
-ones the OS normalization $b_{ij}$ depends on.
+- **Cancellation** (a property of how we *compute* $S$): forming the explicit
+  difference loses precision in the small directions.
+- **Genuine ill-conditioning** (a property of $S$ *itself*): for high-precision
+  pulsars the true $\operatorname{cond}(S)$ exceeds float64. Measured on NG15
+  (`gw_log10_A=-14.5`, `gamma=3.2` per pulsar):
 
-## 3. The fix: read $S$'s Cholesky factor off a joint Cholesky
+  | pulsar | $\min\mathrm{eig}(S)$ | $\max\mathrm{eig}(S)$ | $\operatorname{cond}$ | #neg eigs |
+  |---|---|---|---|---|
+  | J0437-4715 | $-1.93\times10^{1}$ | $9.24\times10^{15}$ | $4.8\times10^{14}$ | 5 |
+  | J0406+3039 | $-3.48\times10^{-1}$ | $2.17\times10^{15}$ | $6.3\times10^{15}$ | 5 |
+  | J0740+6620 | $-1.47\times10^{0}$ | $7.32\times10^{15}$ | $5.0\times10^{15}$ | 3 |
 
-The clean, manifestly-PSD route never forms the difference. Assemble the joint
-(small, $(m_F{+}m_G)\times(m_F{+}m_G)$) matrix
+  The smallest eigenvalues come out **genuinely negative**. At
+  $\operatorname{cond}\sim10^{15}$ no algorithm recovers a positive
+  factorization in float64 — the small directions are below the noise floor of
+  the representation.
 
-$$
-J \;=\;
-\begin{bmatrix}
-B^{-1} + \tilde F^{\mathsf T}\tilde F & \tilde F^{\mathsf T}\tilde G\\[2pt]
-\tilde G^{\mathsf T}\tilde F & \tilde G^{\mathsf T}\tilde G
-\end{bmatrix}
-\;=\;
-\begin{bmatrix} J_{11} & J_{12}\\ J_{12}^{\mathsf T} & J_{22}\end{bmatrix},
-$$
+## 3. The Cholesky–Schur idea — and why it fails on real data
 
-which is symmetric positive definite ($J_{11}\succ0$ because $B^{-1}\succ0$;
-$J$ is the prior-scaled Gram of $[\tilde F B^{1/2},\,\tilde G]$ augmented by the
-prior). Its **Schur complement of $J_{11}$ is exactly $S$**:
+The tempting "form the Gram, don't subtract" move (the projection-note
+principle, see [`README.md`](README.md) §"Why whiten first"): assemble the joint
+SPD matrix and read $S$'s Cholesky factor off its trailing block, never forming
+the difference,
 
 $$
-J/J_{11}\;=\;J_{22}-J_{12}^{\mathsf T}J_{11}^{-1}J_{12}
-\;=\;\tilde G^{\mathsf T}\tilde G-(\tilde F^{\mathsf T}\tilde G)^{\mathsf T}
-(B^{-1}+\tilde F^{\mathsf T}\tilde F)^{-1}(\tilde F^{\mathsf T}\tilde G)
-\;=\;S .
+J=\begin{bmatrix}B^{-1}+\tilde F^{\mathsf T}\tilde F & \tilde F^{\mathsf T}\tilde G\\
+\tilde G^{\mathsf T}\tilde F & \tilde G^{\mathsf T}\tilde G\end{bmatrix}
+= L L^{\mathsf T},\qquad
+A \equiv L_{22},\quad S = A A^{\mathsf T}\ \ (J/J_{11}=L_{22}L_{22}^{\mathsf T}).
 $$
 
-Now factor $J$ by a block Cholesky $J = L L^{\mathsf T}$ with
+This is exact in real arithmetic and elegant. **It does not work here**, for the
+reason in §2: the trailing block factorization $L_{22}=\mathrm{chol}(J_{22}-L_{21}L_{21}^{\mathsf T})$
+still has to Cholesky something equal to $S$, and when $S$ is numerically
+indefinite that inner Cholesky hits a non-positive pivot. `jax.numpy.linalg.
+cholesky` does **not raise** on failure — it returns a matrix full of `NaN`.
+
+Measured consequence (NG15, 67 pulsars): `schur_cholesky` returned non-finite
+$A$ for **35 of 67** pulsars. A single `NaN` block makes the assembled $Q$
+all-`NaN`, so every eigenvalue is `NaN` and `gx2cdf` returns nonsense
+(values outside $[0,1]$). The 3-pulsar regression fixture happened to contain
+only well-conditioned pulsars ($S\succ0$), so it passed and hid the bug.
+
+There is no free lunch: avoiding the *cancellation* does not avoid the *genuine
+indefiniteness*. You must regularize.
+
+## 4. What we use: `ridge_cholesky` (adaptive ridge)
+
+Compute $S$ explicitly via ($\star$), symmetrize, and lift the smallest
+eigenvalue just past zero before the Cholesky:
 
 $$
-L=\begin{bmatrix}L_{11} & 0\\ L_{21} & L_{22}\end{bmatrix},
+\mathrm{ridge}=\max\!\big(0,\ -\lambda_{\min}(S)\big)+10^{-12}\max\!\big(\|\lambda(S)\|_\infty,\,1\big),
+\qquad
+A=\mathrm{chol}\!\big(S+\mathrm{ridge}\cdot I\big).
 $$
-
-The standard identity for the trailing block is
-
-$$
-L_{22}L_{22}^{\mathsf T}\;=\;J_{22}-L_{21}L_{21}^{\mathsf T}
-\;=\;J_{22}-J_{12}^{\mathsf T}J_{11}^{-1}J_{12}\;=\;S .
-$$
-
-So the bottom-right block of the Cholesky factor **is** a Cholesky factor of
-$S$:
-
-$$
-\boxed{\,A \equiv L_{22},\qquad S = A A^{\mathsf T}.\,}
-$$
-
-Two things matter here:
-
-1. **No difference is ever formed.** The subtraction $J_{22}-L_{21}L_{21}^{\mathsf T}$
-   happens *inside* the factorization, after $L_{21}=J_{12}^{\mathsf T}L_{11}^{-\mathsf T}$
-   has been computed from the well-scaled, prior-regularized $L_{11}$. This is
-   the matrix analogue of doing the cancellation "at the $O(1)$ whitened-vector
-   level and then summing squares."
-2. **$A$ is obtained directly**, so the separate `cholesky(S + ridge·I)` step
-   disappears. $S=AA^{\mathsf T}$ is PSD by construction; there is nothing left
-   to regularize.
-
-The genuine conditioning of $S$ ($\sim10^{15}$, set by the power-law spectral
-dynamic range over the band) is *physical* and unchanged — we are not pretending
-$S$ is well conditioned. We are only refusing to *manufacture* indefiniteness
-through cancellation.
-
-### Code
 
 ```python
-def schur_cholesky(Pinv, FFt, FTt, TTt):
-    mF = FFt.shape[0]
-    J = jnp.block([[jnp.diag(Pinv) + FFt, FTt],
-                   [FTt.T,                TTt]])
-    return jnp.linalg.cholesky(J)[mF:, mF:]      # = A,  S = A @ A.T
+def ridge_cholesky(Pinv, FFt, FTt, TTt):
+    c = cho_factor(diag(Pinv) + FFt)
+    S = TTt - FTt.T @ cho_solve(c, FTt)
+    S = 0.5 * (S + S.T)
+    eigs  = eigvalsh(S)
+    ridge = maximum(0.0, -eigs.min()) + 1e-12 * maximum(abs(eigs).max(), 1.0)
+    A = cholesky(S + ridge * eye(S.shape[0]))
+    return A, S          # bs uses the raw (unridged) S
 ```
 
-Downstream, the OS uses $A$ directly (for $Q$ blocks, samples) and reconstructs
-$S = A A^{\mathsf T}$ where the pairwise normalization
-$b_{ij}=\operatorname{sum}(D_i\!*\!D_j)$ needs it
-($D=\operatorname{diag}(\sqrt\Phi)\,S\,\operatorname{diag}(\sqrt\Phi)$).
+The ridge adds only what is needed to make $S+\mathrm{ridge}\,I$ numerically
+PD; it is $\mathcal O(\lambda_{\min}^-)$, vanishingly small next to the
+eigenvalues that dominate the pairwise normalization $b_{ij}=\operatorname{sum}(D_i\!*\!D_j)$,
+so the OS result is unaffected while the factorization is robust. Used in `Q`,
+`opQ`, `sample`, `sample_rhosigma_lowrank`.
 
-## 4. Verification
+On the full NG15 array this gives finite $Q$ and a valid `gx2cdf` (monotone, in
+$[0,1]$; SNR $\approx 5.3$ on the m3a chain sample). Regression guards:
+`test_ridge_cholesky_indefinite` (factor stays finite on indefinite $S$) and
+`test_Q_and_gx2cdf_finite_on_hard_pulsar` (J0437-4715 in the array).
 
-On the 3-pulsar regression fixture (`tests/test_optimal.py`), float64:
+## 5. Lessons
 
-| pulsar | old $\min\mathrm{eig}(S)$ | new $\min\mathrm{eig}(S)$ | $\operatorname{cond}(S)$ | $\|S_{\rm new}-S_{\rm old}\|/\|S_{\rm old}\|$ |
-|---|---|---|---|---|
-| 0 | $1.359\times10^{13}$ | $1.359\times10^{13}$ | $9.1\times10^{2}$ | $7.2\times10^{-16}$ |
-| 1 | $9.754$ (cancellation-corrupted) | $10.48$ | $8.0\times10^{14}$ | $5.7\times10^{-16}$ |
-| 2 | $1.317\times10^{13}$ | $1.317\times10^{13}$ | $8.5\times10^{2}$ | $7.0\times10^{-16}$ |
+- `jax.numpy.linalg.cholesky` **returns `NaN` instead of raising** on
+  non-PD input. Any code that Choleskys a possibly-indefinite matrix must either
+  regularize first or check `isfinite`.
+- Test fixtures must include a **high-precision pulsar** (J0437-4715 is the
+  canonical one): well-conditioned-only fixtures hide exactly the failures that
+  matter on real arrays.
+- Distinguish "ill-conditioned because of how I computed it" from
+  "ill-conditioned matrix." Only the first is fixable by reformulation; the
+  second needs regularization or higher precision.
 
-- New $\min\mathrm{eig}(S)>0$ strictly for every pulsar — **no ridge**.
-- On the ill-conditioned pulsar 1 the new value ($10.48$) is the *accurate*
-  small eigenvalue; the old $9.754$ was already corrupted by the cancellation.
-- Agreement to machine precision means the pinned golden OS / $Q$ / `gx2cdf`
-  values are unchanged at `rtol=1e-8`.
+## 6. If we ever want to drop the ridge for real
 
-Regression tests added: `test_schur_cholesky_psd_no_ridge` (PSD + equivalence
-on a deliberately GW⊂red-noise near-singular case) and the existing OS/Q/CDF
-goldens (unchanged).
-
-## 5. Where it is applied / not applied
-
-Applied (these formed $A$ via a ridged Cholesky):
-`Q.get_Q`, `opQ.get_opQ`, `sample.get_sample`, `sample_rhosigma_lowrank`.
-
-**Not** applied (no ridge there, so no crash today, but they carry the same
-cancellation in their traces): the default `os`/`scramble` path via
-`os_rhosigma` → `matrix.make_kernelsolve`, and `sample_rhosigma`. These build
-$T^{\mathsf T}\Sigma^{-1}T$ with the same Woodbury difference inside
-`matrix.py` and only use it for traces (never a Cholesky), so they degrade in
-precision rather than failing. Extending the Cholesky–Schur treatment into
-`make_kernelsolve` is a separate `matrix.py`/likelihood change, deferred.
+The ridge is a pragmatic float64 fix. Genuinely removing it would mean not
+forming $S$ in this basis at all — e.g. working in an orthonormalized GW basis
+(QR of $\tilde G$ after projecting out the red-noise span) so the surviving
+directions are $\mathcal O(1)$, or carrying the small directions in higher
+precision. Out of scope for now; recorded here so the ridge is understood as a
+deliberate choice, not an oversight.

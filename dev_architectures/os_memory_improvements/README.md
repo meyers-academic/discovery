@@ -5,10 +5,12 @@ Working notes on GPU-memory savings in `src/discovery/optimal.py`, plus the
 
 **Companion notes**
 
-- [`schur_complement_S.md`](schur_complement_S.md) — full math for computing the
-  per-pulsar GW-space matrix $S$ as a Cholesky–Schur complement (manifestly PSD,
-  ridge-free), replacing the cancellation-prone difference form. This is the
-  numerical-stability fix; §7 below summarizes it.
+- [`schur_complement_S.md`](schur_complement_S.md) — the per-pulsar GW-space
+  matrix $S$: the cancellation analysis, an elegant Cholesky–Schur idea that
+  **fails on real data** (S is genuinely indefinite → `cholesky` returns NaN),
+  and the adaptive ridge we actually use. §7 below summarizes it. (An earlier
+  version of these notes wrongly claimed the Schur form was ridge-free — see the
+  status box in that file.)
 
 ## 1. How `OS` is structured: precompute vs per-call
 
@@ -202,8 +204,10 @@ jitted/vmapped — the quadax rewrite likely lifts that restriction; re-check.
    (commit `46b680f`).
 2. ~~Add a regression test pinning quadax `eig2cdf` to the scipy reference.~~
    **DONE** (`tests/test_optimal.py::test_gx2cdf_regression`).
-3. ~~Stabilize $S$ via the Cholesky–Schur complement; drop the ridge.~~ **DONE**
-   (§7, [`schur_complement_S.md`](schur_complement_S.md)).
+3. ~~Stabilize $S$ via the Cholesky–Schur complement; drop the ridge.~~
+   **TRIED, REVERTED** — the Schur factorization NaNs on genuinely indefinite
+   $S$ (real pulsars); kept the adaptive ridge instead (§7,
+   [`schur_complement_S.md`](schur_complement_S.md)).
 4. ~~Fix the Imhof `u=0` nan and the `os_rhosigma_complex` `sN`-before-def bug.~~
    **DONE** (§5, §7).
 5. Update `optimal_statistic.rst` (scipy→quadax; re-verify the `gx2cdf`
@@ -214,9 +218,9 @@ jitted/vmapped — the quadax rewrite likely lifts that restriction; re-check.
 7. (Optional) revisit dense `Q` assembly only if `gx2cdf` memory is measured to
    be a problem.
 
-## 7. Numerical stability of $S$ + the two integrand/guard bugs (DONE)
+## 7. Numerical stability of $S$ + the two integrand/guard bugs
 
-Full math: [`schur_complement_S.md`](schur_complement_S.md). Short version:
+Full story: [`schur_complement_S.md`](schur_complement_S.md). Short version:
 
 The per-pulsar GW-space matrix
 
@@ -226,43 +230,45 @@ S \;=\; \tilde G^{\mathsf T}\big(I + \tilde F B \tilde F^{\mathsf T}\big)^{-1}\t
 - (\tilde F^{\mathsf T}\tilde G)^{\mathsf T}(B^{-1}+\tilde F^{\mathsf T}\tilde F)^{-1}(\tilde F^{\mathsf T}\tilde G)
 $$
 
-was formed as that **difference**. Because the GW Fourier basis $\tilde G$ lies
+is formed as that **difference**. Because the GW Fourier basis $\tilde G$ lies
 entirely inside the red-noise span $\tilde F$ (same frequencies, same baseline),
-the two terms are large and nearly equal — catastrophic cancellation drops
-$\sim15$ orders to $S$'s smallest eigenvalue, so the explicit $S$ stops being
-numerically PSD. The `1e-10 tr(S)/n` (and adaptive-eigenvalue) **ridge** was a
-band-aid for *self-inflicted* indefiniteness, and it swamped exactly the small
-GW-mode directions the OS normalization needs.
+the two terms are large and nearly equal — cancellation drops $\sim15$ orders to
+$S$'s smallest eigenvalue.
 
-Fix: never form the difference. Build the joint SPD matrix
+**A Cholesky–Schur idea that didn't survive contact with real data.** The
+tempting fix is to never form the difference: read $S$'s Cholesky factor
+$A=L_{22}$ off the joint Cholesky of
+$J=\big[\begin{smallmatrix}B^{-1}+\tilde F^{\mathsf T}\tilde F & \tilde F^{\mathsf T}\tilde G\\ \tilde G^{\mathsf T}\tilde F & \tilde G^{\mathsf T}\tilde G\end{smallmatrix}\big]$
+(its Schur complement of the top-left block is $S$). Exact in real arithmetic,
+and it matched the old code to machine precision on a 3-pulsar test — but it
+**fails on NANOGrav-15**. For high-precision pulsars $S$ is *genuinely*
+numerically indefinite (J0437-4715: $\min\mathrm{eig}\approx-19$, 5 negative
+eigenvalues, $\operatorname{cond}\sim10^{15}$), and `jnp.linalg.cholesky`
+returns `NaN` (no exception) on it. Result: $A$ was non-finite for **35 of 67**
+pulsars, poisoning $Q$ → all-`NaN` eigenvalues → `gx2cdf` outside $[0,1]$. The
+3-pulsar fixture only had well-conditioned pulsars, so it missed this entirely.
+
+**What we use:** `optimal.ridge_cholesky(Pinv, FFt, FTt, TTt)` — form $S$ via the
+difference, then lift the smallest eigenvalue past zero before the Cholesky,
 
 $$
-J=\begin{bmatrix}B^{-1}+\tilde F^{\mathsf T}\tilde F & \tilde F^{\mathsf T}\tilde G\\
-\tilde G^{\mathsf T}\tilde F & \tilde G^{\mathsf T}\tilde G\end{bmatrix}
-= L L^{\mathsf T},\qquad
-L=\begin{bmatrix}L_{11}&0\\ L_{21}&L_{22}\end{bmatrix},
+\mathrm{ridge}=\max\!\big(0,-\lambda_{\min}(S)\big)+10^{-12}\max(\|\lambda(S)\|_\infty,1),
+\qquad A=\mathrm{chol}(S+\mathrm{ridge}\,I),
 $$
 
-whose Schur complement of the top-left block is $S$. The trailing Cholesky
-block is then a Cholesky factor of $S$ directly:
+returning both $A$ and the raw $S$ (the pairwise normalization $b_{ij}$ uses the
+unridged $S$). The ridge is *mandatory*, not a band-aid: $S$ is genuinely
+indefinite, so there is no cancellation-free reformulation that avoids it in
+float64. Used in `Q`, `opQ`, `sample`, `sample_rhosigma_lowrank`. Guards:
+`test_ridge_cholesky_indefinite`, `test_Q_and_gx2cdf_finite_on_hard_pulsar`
+(J0437 in the array).
 
-$$
-A \equiv L_{22},\qquad S = A A^{\mathsf T}\ \ (\text{PSD by construction, no ridge}).
-$$
-
-The subtraction now happens *inside* the factorization on well-scaled,
-prior-regularized data (the matrix analogue of "subtract at the $O(1)$
-whitened-vector level, then sum squares" from the projection note). Genuine
-$\operatorname{cond}(S)\sim10^{15}$ is physical and untouched; we just stop
-manufacturing indefiniteness.
-
-Implemented as `optimal.schur_cholesky(Pinv, FFt, FTt, TTt)`, used in `Q`,
-`opQ`, `sample`, `sample_rhosigma_lowrank`. Matches the old form to machine
-precision in float64 (golden OS/$Q$/CDF unchanged); regression
-`test_schur_cholesky_psd_no_ridge`.
+> Lesson: `jax.numpy.linalg.cholesky` returns `NaN` instead of raising on
+> non-PD input, and test fixtures must include a high-precision pulsar or they
+> hide exactly this failure.
 
 Also fixed alongside:
 
-- **Imhof `u=0` nan** — see §5.
+- **Imhof `u=0` nan** — see §5. `test_imhof_u0_limit`.
 - **`os_rhosigma_complex` guard** referenced `sN` before assignment
   (`NameError`); now checks `N.ndim`.

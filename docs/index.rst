@@ -20,6 +20,7 @@ Discovery is a next-generation PTA data analysis package built on JAX.
 
    quickstart
    tutorials/basic_likelihood
+   tutorials/params_example
    tutorials/optimal_statistic
    tutorials/simulations
    tutorials/cookbook_models

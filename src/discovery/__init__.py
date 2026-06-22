@@ -10,6 +10,7 @@ from .params import *
 from .prior import *
 from .signals import *
 from .likelihood import *
+from .params import *
 from .optimal import *
 from .solar import *
 from .pulsar import *

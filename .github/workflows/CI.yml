@@ -1,9 +1,9 @@
 name: Python CI
 on:
   push:
-    branches: [ main ]
+    branches: [ main, metamatrix-meyers ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, metamatrix-meyers ]
   release:
     types: [created]
   workflow_dispatch:

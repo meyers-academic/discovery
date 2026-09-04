@@ -4,6 +4,7 @@ import inspect
 import math as _math
 import types
 import typing
+import warnings
 from collections.abc import Iterable
 
 import numpy as np
@@ -15,6 +16,7 @@ from . import utils
 from . import _kernels as kernels
 from . import const
 from . import solar
+from .structured import diagonal_fourier_covariance
 
 # residuals
 
@@ -185,7 +187,7 @@ def makegp_improper(psr, fmat, constant=1.0e40, name='improperGP', variable=Fals
     # `project=True` marks this improper GP to be marginalized by orthogonal
     # projection (the exact flat-prior limit) rather than by feeding its huge
     # prior variance through the Woodbury solve -- the float32-safe path. See
-    # dev_architecture/single_precision/docs/adr/0004-timing-model-projection.md.
+    # See docs/design/single_precision/ (timing-model projection).
     # Off by default, so existing models are byte-identical.
     gp.project = project
 
@@ -209,6 +211,27 @@ def makegp_timing(psr, constant=None, variance=None, svd=False, scale=1.0, varia
             raise ValueError("signals.makegp_timing() can take a specification of _either_ `constant` or `variance`.")
 
     return makegp_improper(psr, fmat, constant=constant, name='timingmodel', variable=variable, project=project)
+
+def makegp_standard_normal(psr, basis, name='standardnormalGP'):
+    """Proper GP with an identity (unit-normal) coefficient prior on `basis`.
+
+    Unlike makegp_improper (constant=1e40 improper/flat), this is a genuinely
+    proper ConstantGP whose coefficient covariance is exactly ones(k): its
+    coefficients c ~ Normal(0, I), and its log-determinant is retained. No
+    projection and no column normalization -- the caller passes the unnormalized
+    basis (e.g. a prior-normal z Jacobian) whose unit coefficient variance is the
+    physical prior.
+    """
+    fmat = np.asarray(basis, dtype=np.float64)
+    if fmat.ndim != 2:
+        raise ValueError("makegp_standard_normal basis must be 2-D (n_toa, k)")
+    k = fmat.shape[1]
+    gp = utils.ConstantGP(kernels.NoiseMatrix1D_novar(np.ones(k)), fmat)
+    gp.index = {f'{psr.name}_{name}_coefficients({k})': slice(0, k)}
+    gp.name = psr.name
+    gp.gpname = name
+    gp.project = False
+    return gp
 
 
 # Fourier GP
@@ -240,14 +263,29 @@ def fourierbasis(psr, components, T=None):
 
     return np.repeat(f, 2), np.repeat(df, 2), fmat
 
-def dmfourierbasis(psr, components, T=None, fref=1400.0):
+def fourierbasis_dm(psr, components, T=None, fref=1400.0):
+    """Fourier design matrix for a DM (dispersion measure) Gaussian process.
+
+    Identical to :func:`fourierbasis`, but each row is scaled by the cold-plasma
+    dispersion factor ``(fref / psr.freqs) ** 2``, i.e. a fixed chromatic index
+    alpha = 2. Use :func:`fourierbasis_chrom` when the chromatic index is a free
+    parameter, in which case the process is general chromatic noise rather than DM.
+    """
     f, df, fmat = fourierbasis(psr, components, T)
 
     Dm = (fref / psr.freqs)**2
 
     return f, df, fmat * Dm[:, None]
 
-def dmfourierbasis_alpha(psr, components, T=None, fref=1400.0):
+def fourierbasis_chrom(psr, components, T=None, fref=1400.0):
+    """Fourier design matrix for a chromatic Gaussian process with variable index.
+
+    Returns a callable design-matrix factory ``fmatfunc(alpha)`` that scales the
+    achromatic :func:`fourierbasis` columns by ``(fref / psr.freqs) ** alpha``,
+    where the chromatic index ``alpha`` is a free parameter. Because alpha is not
+    fixed to 2 the resulting process is general chromatic noise, not DM; use
+    :func:`fourierbasis_dm` for the alpha = 2 (DM) case.
+    """
     f, df, fmat = fourierbasis(psr, components, T)
 
     fmat, fnorm = utils.jnparray(fmat), utils.jnparray(fref / psr.freqs)
@@ -256,13 +294,15 @@ def dmfourierbasis_alpha(psr, components, T=None, fref=1400.0):
 
     return f, df, fmatfunc
 
-def dmfourierbasis_solar(psr, components, T=None):
-    f, df, fmat = fourierbasis(psr, components, T)
-    shape = solar.make_solardm(psr)(1.0)
+def make_fourierbasis_dm(alpha=2.0, tndm=False):
+    """Build a DM Fourier-basis function with a fixed chromatic index ``alpha``.
 
-    return f, df, fmat * shape[:, None]
-
-def make_dmfourierbasis(alpha=2.0, tndm=False):
+    Returns a ``basis(psr, components, T, fref)`` callable whose columns are the
+    achromatic :func:`fourierbasis` scaled by ``(fref / psr.freqs) ** alpha``. With
+    ``tndm=True`` the tempo2/TempoNest DM normalisation is also applied. A genuine
+    DM basis should keep ``alpha = 2``; for a variable chromatic index use
+    :func:`fourierbasis_chrom`.
+    """
     def basis(psr, components, T=None, fref=1400.0):
         f, df, fmat = fourierbasis(psr, components, T)
 
@@ -274,6 +314,37 @@ def make_dmfourierbasis(alpha=2.0, tndm=False):
         return f, df, fmat * Dm[:, None]
 
     return basis
+
+def make_fourierbasis_chrom(alpha=4.0, tndm=False):
+    """Build a chromatic Fourier-basis function with a fixed chromatic index ``alpha``.
+
+    Thin wrapper around :func:`make_fourierbasis_dm` with a default ``alpha = 4`` (a
+    common scattering-like index). The returned basis scales the achromatic
+    :func:`fourierbasis` columns by ``(fref / psr.freqs) ** alpha``. Use this for a
+    fixed-index chromatic process; for DM use :func:`make_fourierbasis_dm` (alpha = 2).
+    """
+    return make_fourierbasis_dm(alpha=alpha, tndm=tndm)
+
+def dmfourierbasis(psr, components, T=None, fref=1400.0):
+    warnings.warn("dmfourierbasis is deprecated; use fourierbasis_dm instead.",
+                  DeprecationWarning, stacklevel=2)
+    return fourierbasis_dm(psr, components, T=T, fref=fref)
+
+def dmfourierbasis_alpha(psr, components, T=None, fref=1400.0):
+    warnings.warn("dmfourierbasis_alpha is deprecated; use fourierbasis_chrom instead.",
+                  DeprecationWarning, stacklevel=2)
+    return fourierbasis_chrom(psr, components, T=T, fref=fref)
+
+def dmfourierbasis_solar(psr, components, T=None):
+    f, df, fmat = fourierbasis(psr, components, T)
+    shape = solar.make_solardm(psr)(1.0)
+
+    return f, df, fmat * shape[:, None]
+
+def make_dmfourierbasis(alpha=2.0, tndm=False):
+    warnings.warn("make_dmfourierbasis is deprecated; use make_fourierbasis_dm instead.",
+                  DeprecationWarning, stacklevel=2)
+    return make_fourierbasis_dm(alpha=alpha, tndm=tndm)
 
 def makegp_fourier(psr, prior, components, T=None, mean=None, fourierbasis=fourierbasis, common=[], exclude=['f', 'df'], name='fourierGP'):
     argspec = inspect.getfullargspec(prior)
@@ -457,6 +528,21 @@ def makegp_fourier_allpsr(psrs, prior, components, T=None, fourierbasis=fourierb
     return gp
 
 
+def _orf_spectrum_covariance_block(phi, orfmat):
+    """Legacy pulsar-major block assembly of a global Fourier covariance."""
+    return jnp.block([
+        [jnp.make2d(jnp.dot(phi, val)) for val in row]
+        for row in orfmat
+    ])
+
+
+def _orf_spectrum_covariance(phi, orfmat):
+    """Ordinary Fourier covariance ``Gamma kron diag(phi)`` when applicable."""
+    if orfmat.ndim == 2 and phi.ndim == 1:
+        return jnp.kron(orfmat, jnp.diag(phi))
+    return _orf_spectrum_covariance_block(phi, orfmat)
+
+
 def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourierbasis, means=None, common=[], exclude=['f', 'df'],
                          name='fourierGlobalGP', meansname='meanFourierGlobalGP'):
     priors = priors if isinstance(priors, list) else [priors]
@@ -477,12 +563,14 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
     if len(priors) == 1 and len(orfs) == 1:
         prior, orfmat, argmap = priors[0], orfmats[0], argmaps[0]
 
-        def priorfunc(params):
-            phi = prior(f, df, *[params[arg] for arg in argmap])
+        def spectrumfunc(params):
+            return prior(f, df, *[params[arg] for arg in argmap])
+        spectrumfunc.params = list(argmap)
 
-            # the jnp.dot handles the "pixel basis" case where the elements of orfmat are n-vectors
-            # and phidiag is an (m x n)-matrix; here n is the number of pixels and m of Fourier components
-            return jnp.block([[jnp.make2d(jnp.dot(phi, val)) for val in row] for row in orfmat])
+        def priorfunc(params):
+            # kron for an ordinary 1-D Fourier spectrum; the block expression
+            # remains for the pixel-basis case where orf entries are n-vectors.
+            return _orf_spectrum_covariance(spectrumfunc(params), orfmat)
         priorfunc.params = argmap
         priorfunc.type = jax.Array
 
@@ -490,7 +578,7 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
         if orfmat.ndim == 2:
             invorf, orflogdet = utils.jnparray(np.linalg.inv(orfmat)), np.linalg.slogdet(orfmat)[1]
             def invprior(params):
-                phi = prior(f, df, *[params[arg] for arg in argmap])
+                phi = spectrumfunc(params)
                 invphi = 1.0 / phi if phi.ndim == 1 else jnp.linalg.inv(phi)
                 logdetphi = jnp.sum(jnp.log(phi)) if phi.ndim == 1 else jnp.linalg.slogdet(phi)[1]
 
@@ -505,7 +593,7 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
 
             orfcf = utils.jsp.linalg.cho_factor(orfmat)
             def factors(params):
-                phi = prior(f, df, *[params[arg] for arg in argmap])
+                phi = spectrumfunc(params)
                 phicf = utils.jsp.linalg.cho_factor(phi)
 
                 return orfcf, phicf
@@ -536,6 +624,19 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
     # introspection tags read by discovery.summary
     gp.gpname, gp.gpcommon = name, common
     gp.orfnames = [orf.__name__ for orf in orfs]
+
+    if (len(priors) == 1
+            and len(orfs) == 1
+            and orfmat.ndim == 2
+            and getattr(prior, "fourier_covariance", None) == "diagonal"):
+        try:
+            from .structured import SeparableFourierPrior
+            gp.separable_prior = SeparableFourierPrior.build(
+                orfmat, spectrumfunc, width=len(f),
+            )
+        except ValueError:
+            # Optional metadata only; an invertible non-SPD ORF stays dense.
+            gp.separable_prior = None
 
     if means is not None:
         margspec = inspect.getfullargspec(means)
@@ -739,7 +840,46 @@ def make_timeinterpbasis(start_time=None, order=1):
 
     return timeinterpbasis
 
+def make_timeinterpbasis_dm(start_time=None, order=1, fref=1400.0):
+    """Build a DM time-interpolation basis (fixed chromatic index alpha = 2).
+
+    Time-domain analogue of :func:`make_fourierbasis_dm` used by the FFT-covariance
+    GPs: it scales the achromatic :func:`make_timeinterpbasis` basis by the
+    cold-plasma dispersion factor ``(fref / psr.freqs) ** 2``. Used by
+    :func:`makegp_fftcov_dm`.
+    """
+    timeinterpbasis_achrom = make_timeinterpbasis(start_time=start_time, order=order)
+
+    def timeinterpbasis_dm(psr, nmodes, T):
+        t_coarse, dt_coarse, Bmat = timeinterpbasis_achrom(psr, nmodes, T)
+        scale = (fref / psr.freqs) ** 2
+        return t_coarse, dt_coarse, scale[:, None] * Bmat
+
+    return timeinterpbasis_dm
+
+def make_timeinterpbasis_chromatic(start_time=None, order=1, fref=1400.0):
+    """Build a chromatic time-interpolation basis with a variable chromatic index.
+
+    Time-domain analogue of :func:`fourierbasis_chrom` used by the FFT-covariance
+    GPs. The returned basis yields a callable ``Bmat_func(alpha)`` that scales the
+    achromatic :func:`make_timeinterpbasis` basis by ``(fref / psr.freqs) ** alpha``,
+    with ``alpha`` a free parameter. Used by :func:`makegp_fftcov_chrom`.
+    """
+    timeinterpbasis_achrom = make_timeinterpbasis(start_time=start_time, order=order)
+
+    def timeinterpbasis_chrom(psr, nmodes, T):
+        t_coarse, dt_coarse, Bmat = timeinterpbasis_achrom(psr, nmodes, T)
+        scale = (fref / psr.freqs)
+        def Bmat_func(alpha):
+            return (scale[:, None]**alpha) * Bmat
+        return t_coarse, dt_coarse, Bmat_func
+
+    return timeinterpbasis_chrom
+
 def make_dmtimeinterpbasis(alpha=2.0, tndm=False, start_time=None, order=1):
+    warnings.warn("make_dmtimeinterpbasis is deprecated; use make_timeinterpbasis_dm "
+                  "(alpha=2 DM) or make_timeinterpbasis_chromatic (variable alpha) instead.",
+                  DeprecationWarning, stacklevel=2)
     basis = make_timeinterpbasis(start_time, order)
 
     def dmbasis(psr, components, T=None, fref=1400.0):
@@ -794,6 +934,33 @@ def makegp_fftcov(psr, prior, components, T=None, t0=None, order=1, oversample=3
     return makegp_fourier(psr, psd2cov(prior, components, T, oversample, fmax_factor, cutoff), components, T=T,
                           fourierbasis=(make_timeinterpbasis(start_time=t0, order=order) if fourierbasis is None else fourierbasis),
                           common=common, name=name)
+
+def makegp_fftcov_dm(psr, prior, components, T=None, t0=None, order=1, oversample=3, fmax_factor=1, cutoff=1, common=[], name='dm_gp', fref=1400.0):
+    """FFT-covariance (time-domain) GP for DM noise (fixed chromatic index alpha = 2).
+
+    DM counterpart of :func:`makegp_fftcov`: the achromatic time-interpolation basis
+    is replaced by :func:`make_timeinterpbasis_dm`, scaling each row by the cold-plasma
+    dispersion factor ``(fref / psr.freqs) ** 2``. ``prior`` is a power-spectral-density
+    function (e.g. :func:`powerlaw`) that is converted to a time-domain covariance via
+    :func:`psd2cov`. For a free chromatic index use :func:`makegp_fftcov_chrom`.
+    """
+    T = getspan(psr) if T is None else T
+    return makegp_fourier(psr, psd2cov(prior, components, T, oversample, fmax_factor, cutoff),
+                          components, T=T, fourierbasis=make_timeinterpbasis_dm(start_time=t0, order=order, fref=fref), common=common, name=name)
+
+def makegp_fftcov_chrom(psr, prior, components, T=None, t0=None, order=1, oversample=3, fmax_factor=1, cutoff=1, common=[], name='chrom_gp', fref=1400.0):
+    """FFT-covariance (time-domain) GP for chromatic noise with a variable index.
+
+    Chromatic counterpart of :func:`makegp_fftcov`: the achromatic time-interpolation
+    basis is replaced by :func:`make_timeinterpbasis_chromatic`, scaling each row by
+    ``(fref / psr.freqs) ** alpha`` with the chromatic index ``alpha`` a free parameter.
+    ``prior`` is a power-spectral-density function (e.g. :func:`powerlaw`) converted to a
+    time-domain covariance via :func:`psd2cov`. For the alpha = 2 (DM) case use
+    :func:`makegp_fftcov_dm`.
+    """
+    T = getspan(psr) if T is None else T
+    return makegp_fourier(psr, psd2cov(prior, components, T, oversample, fmax_factor, cutoff),
+                          components, T=T, fourierbasis=make_timeinterpbasis_chromatic(start_time=t0, order=order, fref=fref), common=common, name=name)
 
 def makecommongp_fftcov(psrs, prior, components, T, t0=None, order=1, oversample=3, fmax_factor=1, cutoff=1, fourierbasis=None, common=[], vector=False, name='fftcovCommonGP'):
     return makecommongp_fourier(psrs, psd2cov(prior, components, T, oversample, fmax_factor, cutoff), components, T,
@@ -875,10 +1042,148 @@ def make_powerlaw(*, gamma=None, scale=1.0, low_clip=-18.0, high_clip=-9.0):
                          - _g * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM + _s2)
             return utils.to_working(10.0 ** jnp.clip(log10_phi, low_clip, high_clip))
 
-    return powerlaw
+    return diagonal_fourier_covariance(powerlaw)
 
 
 powerlaw = make_powerlaw()
+
+
+# ---------------------------------------------------------------------------
+# Pivot-amplitude power-law parameterization
+# ---------------------------------------------------------------------------
+
+import dataclasses as _dataclasses  # noqa: E402
+
+
+@_dataclasses.dataclass(frozen=True)
+class PowerLawParameterization:
+    r"""Amplitude/slope parameterization for a power-law GP.
+
+    The standard ``make_powerlaw`` samples ``log10_A`` at the fixed reference
+    frequency ``f_ref = 1/yr``, where the amplitude and slope ``gamma`` are
+    strongly correlated. Sampling the amplitude at a *pivot* frequency
+    ``f_pivot`` near the data's sensitivity peak decorrelates them:
+
+    .. math::
+
+        \log_{10} A_{\rm ref} = \log_{10} A_{\rm pivot}
+            + \tfrac12\, \gamma\, \log_{10}(f_{\rm pivot} / f_{\rm ref}).
+
+    The map ``(log10_A_pivot, gamma) -> (log10_A_ref, gamma)`` is affine with unit
+    Jacobian determinant, so it needs no density correction. ``amplitude_reference_frequency``
+    is where the decoded/displayed ``log10_A`` is reported (``1/yr``, matching the
+    PSD's internal reference). ``slope_pivot_frequency`` is either an explicit
+    frequency in Hz or ``"sensitivity_weighted"`` (resolved once from the fixed
+    reference-noise metric via :func:`sensitivity_weighted_pivot_frequency`).
+    """
+
+    amplitude_reference_frequency: float = const.fyr
+    slope_pivot_frequency: "float | typing.Literal['sensitivity_weighted']" = (
+        "sensitivity_weighted"
+    )
+
+    def resolve_pivot_frequency(self, *, freqs=None, weights=None) -> float:
+        """Return the concrete pivot frequency in Hz.
+
+        For ``"sensitivity_weighted"`` the per-frequency ``freqs`` (Hz) and their
+        sensitivity ``weights`` are required; an explicit numeric pivot is
+        returned as-is.
+        """
+        spf = self.slope_pivot_frequency
+        if isinstance(spf, str):
+            if spf != "sensitivity_weighted":
+                raise ValueError(
+                    f"slope_pivot_frequency must be a float or "
+                    f"'sensitivity_weighted'; got {spf!r}")
+            if freqs is None or weights is None:
+                raise ValueError(
+                    "the 'sensitivity_weighted' pivot needs freqs and weights "
+                    "from the fixed reference-noise metric")
+            return sensitivity_weighted_pivot_frequency(freqs, weights)
+        return float(spf)
+
+
+def sensitivity_weighted_pivot_frequency(freqs, weights) -> float:
+    r"""Sensitivity-weighted geometric-mean pivot frequency.
+
+    .. math:: \log f_{\rm pivot} = \frac{\sum_j w_j \log f_j}{\sum_j w_j}
+
+    ``freqs`` (Hz) and ``weights`` are per-frequency (one entry per sine/cosine
+    pair). Weights come from :func:`fourier_sensitivity_weights`.
+    """
+    f = np.asarray(freqs, dtype=np.float64)
+    w = np.asarray(weights, dtype=np.float64)
+    if f.shape != w.shape or f.ndim != 1:
+        raise ValueError("freqs and weights must be 1-D arrays of equal length")
+    wsum = float(np.sum(w))
+    if not wsum > 0.0:
+        raise ValueError("sensitivity weights must sum to a positive value")
+    return float(np.exp(np.sum(w * np.log(f)) / wsum))
+
+
+def fourier_sensitivity_weights(fmat, reference_noise) -> np.ndarray:
+    r"""Per-frequency sensitivity weights ``w_j = tr(F_j^T N0^-1 F_j)``.
+
+    ``fmat`` is a discovery Fourier basis ``(n_toa, 2C)`` with sine/cosine pairs
+    ordered ``[sin f1, cos f1, sin f2, cos f2, ...]``; ``F_j`` is columns
+    ``[2j, 2j+1]``. ``reference_noise`` is a frozen reference-noise operator
+    (``.solve(rhs) -> (N0^-1 rhs, logdet)``), so the weights use the exact frozen
+    ``N0`` rather than live noise parameters.
+    """
+    F = np.asarray(fmat, dtype=np.float64)
+    if F.ndim != 2 or F.shape[1] % 2 != 0:
+        raise ValueError("fmat must be (n_toa, 2C) with sine/cosine pairs")
+    N0invF, _ = reference_noise.solve(F)
+    per_col = np.einsum("ij,ij->j", F, np.asarray(N0invF, dtype=np.float64))
+    return per_col[0::2] + per_col[1::2]
+
+
+def reference_log10_amplitude(log10_A_pivot, gamma, *, f_pivot,
+                              parameterization=None):
+    """Convert a sampled ``log10_A_pivot`` to ``log10_A`` at the reference
+    frequency; used to decode/display amplitudes at ``1/yr``."""
+    if parameterization is None:
+        parameterization = PowerLawParameterization()
+    f_ref = float(parameterization.amplitude_reference_frequency)
+    shift = 0.5 * _math.log10(float(f_pivot) / f_ref)
+    return log10_A_pivot + gamma * shift
+
+
+def make_powerlaw_pivot(*, f_pivot, parameterization=None, gamma=None,
+                        scale=1.0, low_clip=-18.0, high_clip=-9.0):
+    r"""Pivot-amplitude power-law PSD factory.
+
+    Identical spectral form to :func:`make_powerlaw`, but the sampled amplitude
+    ``log10_A_pivot`` is defined at ``f_pivot`` rather than the reference
+    frequency. The returned function's amplitude argument is named
+    ``log10_A_pivot`` (unambiguous public parameter name); decode the reference
+    amplitude with :func:`reference_log10_amplitude`.
+
+    Returns ``powerlaw(f, df, log10_A_pivot[, gamma])``.
+    """
+    if parameterization is None:
+        parameterization = PowerLawParameterization()
+    f_ref = float(parameterization.amplitude_reference_frequency)
+    shift = 0.5 * _math.log10(float(f_pivot) / f_ref)  # log10_A_ref = A_pivot + gamma*shift
+    _s2 = 2.0 * _math.log10(scale)
+
+    if gamma is None:
+        def powerlaw(f, df, log10_A_pivot, gamma):
+            log10_A = log10_A_pivot + gamma * shift
+            log10_phi = (2.0 * log10_A + (gamma - 3.0) * _LOG10_FYR
+                         - gamma * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM + _s2)
+            return utils.to_working(10.0 ** jnp.clip(log10_phi, low_clip, high_clip))
+    else:
+        _g = float(gamma)
+        _shift_g = _g * shift
+        _g_term = (_g - 3.0) * _LOG10_FYR
+        def powerlaw(f, df, log10_A_pivot):
+            log10_A = log10_A_pivot + _shift_g
+            log10_phi = (2.0 * log10_A + _g_term
+                         - _g * jnp.log10(f) + jnp.log10(df) + _LOG10_NORM + _s2)
+            return utils.to_working(10.0 ** jnp.clip(log10_phi, low_clip, high_clip))
+
+    return diagonal_fourier_covariance(powerlaw)
 
 
 def make_brokenpowerlaw(*, gamma=None, scale=1.0, low_clip=-18.0, high_clip=-9.0):
@@ -932,7 +1237,7 @@ def make_brokenpowerlaw(*, gamma=None, scale=1.0, low_clip=-18.0, high_clip=-9.0
                          + _kg * jnp.logaddexp(0.0, z) / _LN10 + _s2)
             return utils.to_working(10.0 ** jnp.clip(log10_phi, low_clip, high_clip))
 
-    return brokenpowerlaw
+    return diagonal_fourier_covariance(brokenpowerlaw)
 
 
 brokenpowerlaw = make_brokenpowerlaw()
@@ -970,7 +1275,7 @@ def make_freespectrum(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
         log10_phi = 2.0 * log10_rho + _s2
         return utils.to_working(jnp.repeat(10.0 ** jnp.clip(log10_phi, low_clip, high_clip), 2))
 
-    return freespectrum
+    return diagonal_fourier_covariance(freespectrum)
 
 
 freespectrum = make_freespectrum()
@@ -1094,6 +1399,9 @@ def make_combined_crn(components, irn_psd, crn_psd, crn_prefix: typing.Optional[
     exec(func_code, ns)
     combined = ns['combined']
     combined.__annotations__ = annotations
+    if (getattr(irn_psd, "fourier_covariance", None) == "diagonal"
+            and getattr(crn_psd, "fourier_covariance", None) == "diagonal"):
+        combined = diagonal_fourier_covariance(combined)
 
     # Deduplicated list of CRN param names as they appear in the combined signature
     crn_params = list(dict.fromkeys(crn_rename[k] for k in crn_names))
@@ -1156,9 +1464,10 @@ def makepowerlaw_crn(components, crn_gamma='variable', *, scale=1.0, low_clip=-1
             return phi
 
     if crn_gamma not in ('variable', None):
-        return utils.partial(powerlaw_crn, crn_gamma=crn_gamma)
+        return diagonal_fourier_covariance(
+            utils.partial(powerlaw_crn, crn_gamma=crn_gamma))
     else:
-        return powerlaw_crn
+        return diagonal_fourier_covariance(powerlaw_crn)
 
 
 def make_powerlaw_brokencrn(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
@@ -1199,7 +1508,7 @@ def make_powerlaw_brokencrn(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
         return utils.to_working(10.0 ** jnp.clip(log10_irn, low_clip, high_clip)
                                 + 10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
 
-    return powerlaw_brokencrn
+    return diagonal_fourier_covariance(powerlaw_brokencrn)
 
 
 powerlaw_brokencrn = make_powerlaw_brokencrn()
@@ -1246,7 +1555,7 @@ def make_brokenpowerlaw_brokencrn(*, scale=1.0, low_clip=-18.0, high_clip=-9.0):
         return utils.to_working(10.0 ** jnp.clip(log10_irn, low_clip, high_clip)
                                 + 10.0 ** jnp.clip(log10_crn, low_clip, high_clip))
 
-    return brokenpowerlaw_brokencrn
+    return diagonal_fourier_covariance(brokenpowerlaw_brokencrn)
 
 
 brokenpowerlaw_brokencrn = make_brokenpowerlaw_brokencrn()
@@ -1293,7 +1602,7 @@ def makefreespectrum_crn(components, *, scale=1.0, low_clip=-18.0, high_clip=-9.
             phi[:2*components] += np.repeat(10.0**(2.0 * crn_log10_rho), 2)
             return phi
 
-    return freespectrum_crn
+    return diagonal_fourier_covariance(freespectrum_crn)
 
 
 # ORFs: OK as numpy functions

@@ -3,6 +3,7 @@ import numpy as np
 from .. import matrix
 from .. import signals
 from .. import likelihood
+from .. import _kernels
 
 priordict_standard = {
     "(.*_)?efac": [0.9, 1.1],
@@ -56,11 +57,11 @@ def gps2commongp(gps):
 def _makegps(psr, Tred):
     return (([signals.makegp_fourier(psr, signals.powerlaw,
                                      components=psr.noisedict[psr.name + '_dm_gp_components'], T=signals.getspan(psr),
-                                     fourierbasis=signals.make_dmfourierbasis(alpha=2.0, tndm=False), name='dm_gp')]
+                                     fourierbasis=signals.make_fourierbasis_dm(alpha=2.0, tndm=False), name='dm_gp')]
              if psr.noisedict[psr.name + '_dm_gp_components'] else []) +
             ([signals.makegp_fourier(psr, signals.powerlaw,
                                      components=psr.noisedict[psr.name + '_chrom_components'], T=signals.getspan(psr),
-                                     fourierbasis=signals.make_dmfourierbasis(alpha=4.0, tndm=False), name='chrom_gp')]
+                                     fourierbasis=signals.make_fourierbasis_chrom(alpha=4.0, tndm=False), name='chrom_gp')]
              if psr.noisedict[psr.name + '_chrom_components'] else []) + 
             ([signals.makegp_fourier(psr, signals.powerlaw,
                                      components=psr.noisedict[psr.name + '_red_components'], T=Tred, name='red_noise')]
@@ -68,12 +69,14 @@ def _makegps(psr, Tred):
 
 # single-pulsar noise analysis for EPTA DR2new+. No exponential dips
 def makemodel_singlepulsar(psr):
+    _kernels.require_matrix("discovery.models.epta.makemodel_singlepulsar")
     return likelihood.PulsarLikelihood([psr.residuals,
                                         signals.makenoise_measurement(psr, psr.noisedict),
                                         signals.makegp_timing(psr)] + _makegps(psr, Tred=signals.getspan(psr)))
 
 # CURN model for EPTA DR2new+. No exponential dips
 def makemodel_curn(psrs, crn_components=30, array=False):
+    _kernels.require_matrix("discovery.models.epta.makemodel_curn")
     tspan = signals.getspan(psrs)
 
     if array:
@@ -100,6 +103,7 @@ def makemodel_curn(psrs, crn_components=30, array=False):
 
 # HD model for EPTA DR2new+. No exponential dips
 def makemodel_hd(psrs, gw_components=30, array=False):
+    _kernels.require_matrix("discovery.models.epta.makemodel_hd")
     tspan = signals.getspan(psrs)
 
     if array:

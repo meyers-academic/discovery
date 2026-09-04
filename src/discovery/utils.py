@@ -114,6 +114,16 @@ def working_dtype():
 def to_working(a):
     return jnp.asarray(a, dtype=_working_dtype)
 
+def bake_dtype():
+    """Float dtype for construction-time products (G0, b0, E0, conditioner
+    precisions): float64 whenever x64 is enabled, independent of
+    `utils.working_dtype()`. A float32 *sampling* configuration must never
+    degrade a baked constant: `W^T N0^{-1} W` through the timing-model Woodbury
+    loses ~1e-5 relative accuracy in float32 (far worse under TF32 GPU matmul),
+    which makes G0 indefinite and the transport factorization NaN once the
+    prior precision drops below |lambda_min(G0)|."""
+    return jnp.float64 if jax.config.x64_enabled else jnp.float32
+
 # CG solver and Lanczos-Hutchinson logdet estimator, need matfree and jaxopt
 try:
     import jaxopt
@@ -330,7 +340,15 @@ def make_uind(U):
     shifted by +1 so that 0 acts as a sentinel (used together with a
     zero-prepended y / +inf-prepended N).
     """
-    Uind = np.zeros((U.shape[1], jnp.max(jnp.sum(U, axis=0)) + 1), 'i')
+    U = np.asarray(U)
+
+    # No epochs (e.g. an ECORR selection that matches no TOAs): return an
+    # empty index table instead of taking the max of an empty array.
+    if U.shape[1] == 0:
+        return np.zeros((0, 1), 'i')
+
+    maxcount = int(np.max(np.sum(U, axis=0)))
+    Uind = np.zeros((U.shape[1], maxcount + 1), 'i')
 
     for i in range(U.shape[1]):
         ind = np.where(U[:, i])[0]
@@ -372,7 +390,7 @@ vsmup_ind_correct = jax.vmap(smup_ind_correct, in_axes=(0, None, None, None))
 # The ECORR indicators are orthogonal (one TOA per epoch), so K decouples per
 # epoch and K^{-1/2} has the closed form with per-epoch factor alpha_k below.
 # Used by the timing-model projection (float32-safe); see
-# dev_architecture/single_precision/docs/adr/0004-timing-model-projection.md.
+# See docs/design/single_precision/ (timing-model projection).
 
 def smwhiten_ind(A, l, xdivA, ind):
     """Per-epoch whitening correction: the rank-1 part of (K^{-1/2} x) for one epoch."""

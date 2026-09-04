@@ -17,6 +17,17 @@ from discovery import matrix
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
+@pytest.fixture(autouse=True)
+def _matrix_mode():
+    """This file tests `matrix.py` kernels directly (concrete Woodbury classes,
+    solve_1d/solve_2d). The factory only returns them under matrix mode, which
+    is the module default; pin it anyway so the file stays correct if the
+    default flips. The root conftest autouse fixture restores the module
+    default afterward."""
+    ds.config(kernels="matrix")
+    yield
+
+
 class TestWoodburyKernel:
     def test_WoodburyKernel_varNP_vs_varP(self):
         """
@@ -140,6 +151,51 @@ class TestWoodburyKernel:
             "JIT and non-JIT varNP should give identical results"
         assert np.isclose(logL_varP, logL_varP_jit, rtol=1e-10, atol=1e-10), \
             "JIT and non-JIT varP should give identical results"
+
+    @staticmethod
+    def _oracle_b_mean_and_Sigma(y, N_diag, F, P_diag):
+        NmF = F / N_diag[:, None]
+        FtNmF = F.T @ NmF
+        FtNmy = NmF.T @ y
+        Sigma = np.diag(1.0 / P_diag) + FtNmF
+        return np.linalg.solve(Sigma, FtNmy), Sigma
+
+    def test_WoodburyKernel_varP_make_kernelsolve_simple(self):
+        """Mean matches dense oracle; cf is lower Cholesky of Sigma."""
+        np.random.seed(7)
+        n_data, n_basis = 80, 6
+        y = np.random.randn(n_data)
+        F = np.random.randn(n_data, n_basis)
+        N_diag = np.random.uniform(0.2, 1.5, n_data)
+        rn_name = "test_log10_A"
+
+        def getP_diag(params):
+            return jnp.ones(n_basis) * (10 ** params[rn_name])
+
+        getP_diag.params = [rn_name]
+        P_var = matrix.NoiseMatrix1D_var(getP_diag)
+        N_fixed = matrix.NoiseMatrix1D_novar(N_diag)
+        kernel = matrix.WoodburyKernel_varP(N_fixed, F, P_var)
+
+        ksolve = kernel.make_kernelsolve_simple(y)
+        assert list(ksolve.params) == [rn_name]
+
+        params = {rn_name: -0.4}
+        b_mean, cf = ksolve(params)
+        b_mean = np.asarray(b_mean)
+
+        P_diag = np.ones(n_basis) * (10 ** params[rn_name])
+        b_oracle, Sigma = self._oracle_b_mean_and_Sigma(y, N_diag, F, P_diag)
+        np.testing.assert_allclose(b_mean, b_oracle, rtol=1e-10, atol=1e-12)
+
+        # Lower-factor contract (sample_conditional depends on this)
+        assert cf[1] is True
+        L = np.tril(np.asarray(cf[0]))
+        np.testing.assert_allclose(L @ L.T, Sigma, rtol=1e-10, atol=1e-12)
+
+        FtNmy = F.T @ (y / N_diag)
+        b_from_cf = np.asarray(matrix.jsp.linalg.cho_solve(cf, matrix.jnparray(FtNmy)))
+        np.testing.assert_allclose(b_from_cf, b_oracle, rtol=1e-10, atol=1e-12)
 
 
 class TestPulsarLikelihoodWithDelay:
@@ -331,3 +387,58 @@ class TestPulsarLikelihoodWithDelay:
             f"kernelsolve TtSy should agree. Max diff={np.max(np.abs(TtSy_no_rn - TtSy_rn))}"
         assert np.allclose(TtST_no_rn, TtST_rn, rtol=1e-12), \
             f"kernelsolve TtST should agree. Max diff={np.max(np.abs(TtST_no_rn - TtST_rn))}"
+
+
+class TestWoodburyKernelNovarChoLower:
+    """JAX cho_solve requires a hashable Python bool for the SciPy `lower` flag."""
+
+    def _novar_kernel(self):
+        np.random.seed(0)
+        n_data, n_basis = 32, 4
+        y0 = np.random.randn(n_data)
+        F = np.random.randn(n_data, n_basis)
+        N = matrix.NoiseMatrix1D_novar(np.full(n_data, 0.25))
+        P = matrix.NoiseMatrix1D_novar(np.full(n_basis, 1.0))
+        return matrix.WoodburyKernel_novar(N, F, P), y0
+
+    def test_cf_lower_is_python_bool(self):
+        kernel, _ = self._novar_kernel()
+        assert type(kernel.cf[1]) is bool
+
+    def test_callable_y_kernelproduct_tolerates_ndarray_lower(self):
+        """Regression for CI: SciPy can hand back array(False) as `lower`."""
+        kernel, y0 = self._novar_kernel()
+        kernel.cf = (kernel.cf[0], np.array(False))
+
+        def y_var(params):
+            return y0
+
+        y_var.params = []
+        kp = kernel.make_kernelproduct(y_var)
+        val = float(kp({}))
+        assert np.isfinite(val)
+
+
+class TestMakeUind:
+    def test_variable_epoch_sizes_pad_with_zero(self):
+        U = np.array(
+            [
+                [1, 0],
+                [1, 0],
+                [1, 1],
+                [0, 1],
+                [1, 0],
+            ],
+            dtype=float,
+        )
+        Uind = matrix.make_uind(U)
+        assert Uind.shape == (2, 5)
+        # 1-based TOA indices, zero-padded rows.
+        assert list(Uind[0]) == [1, 2, 3, 5, 0]
+        assert list(Uind[1]) == [3, 4, 0, 0, 0]
+
+    def test_empty_basis_returns_empty_index_table(self):
+        U = np.zeros((5, 0), dtype=float)
+        Uind = matrix.make_uind(U)
+        assert Uind.shape == (0, 1)
+        assert Uind.dtype.kind == 'i'

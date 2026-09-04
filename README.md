@@ -19,15 +19,16 @@ pip install -e .
 
 _Discovery_ needs a modern Python with `numpy`, `scipy`, `jax`, and `pyarrow`. It
 runs on CPU and is happiest on an Nvidia GPU with CUDA-enabled JAX. Some
-subpackages (e.g. `discovery.samplers`) and the docs build need extra
-dependencies — install those with extras, e.g. `pip install -e ".[docs]"`.
+subpackages (e.g. `discovery.samplers`, `discovery.flow`) and the docs build need
+extra dependencies — install those with extras, e.g. `pip install -e ".[docs]"`.
 
 ## Documentation
 
 Full documentation — guide, tutorials, the model cookbook, and the API
 reference — is at **https://nanograv.github.io/discovery/**.
 
-## Looking for the old README?
-
-The previous README user guide has moved — you can find it
-[here](dev_architecture/old_readme/README.md).
+Graph-backend (metamatrix) notes for users and developers live in the Sphinx
+docs under *Development* (`docs/metamatrix.md`, `docs/metamatrix_dev.md`).
+The packed ``(theta, xi)`` coefficient likelihood is documented under
+*Advanced Topics* (`docs/advanced/packed_clogl.md`). Durable design notes
+(ADRs, research math, deletion checklist) are under `docs/design/`.

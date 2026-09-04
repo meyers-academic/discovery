@@ -25,7 +25,7 @@ the monkeypatch now survives only as the test harness's `mh_patched` route.
 Names intentionally NOT in ``_METAMATH`` (e.g. ``NoiseMatrix2D_novar``,
 ``VectorNoiseMatrix12D_var``) fall through to `matrix.*` even in metamath
 mode — preserving today's behavior for constructors that have no metamath
-port yet. Closing those gaps is exit_plan Phase 3.
+port yet. Closing those gaps is further coverage work.
 """
 from . import matrix
 from . import metamath as mh
@@ -80,6 +80,29 @@ def set_mode(mode):
 
 def get_mode():
     return _mode
+
+
+def require_metamath(feature):
+    """Raise unless the metamath kernel path is active.
+
+    New entry points are metamath-only: the legacy path is frozen for deletion,
+    and implementing new features twice is exactly the duplication this branch
+    exists to remove.
+    """
+    if _mode != "metamath":
+        raise NotImplementedError(
+            f"{feature} requires the metamath kernel path; call "
+            "discovery.config(kernels='metamath') before building the model.")
+
+
+def require_matrix(feature):
+    """Raise unless the matrix kernel path is active. Used by model builders
+    that construct matrix.* classes directly."""
+    if _mode != "matrix":
+        raise NotImplementedError(
+            f"{feature} constructs matrix-path kernels directly and is not "
+            f"supported under kernels={_mode!r}; call "
+            f"ds.config(kernels='matrix') first.")
 
 
 # ---------------------------------------------------------------------------

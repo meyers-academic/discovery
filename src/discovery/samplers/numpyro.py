@@ -14,6 +14,53 @@ from .. import prior
 from ..pulsar import save_chain
 
 
+def makemodel_packed(array_likelihood, priordict={}, *,
+                     store_physical_coefficients=False):
+    """NumPyro model for a packed decentered ``clogL``.
+
+    Sites are a bounded Uniform ``theta`` vector and a standard-normal ``xi``
+    array. The Normal site is only a proper base measure: ``clogL`` already
+    contains the transformed joint, so the Normal quadratic is cancelled
+    with ``xi_base_correction``. See ``docs/advanced/packed_clogl.md``.
+    """
+    packed = array_likelihood.make_packed_clogL()
+
+    lows = []
+    highs = []
+    for name, start, stop, _shape in packed.theta_layout:
+        lo, hi = prior.getprior_uniform(name, priordict)
+        width = stop - start
+        lows.extend([lo] * width)
+        highs.extend([hi] * width)
+    low = jnp.asarray(lows)
+    high = jnp.asarray(highs)
+
+    def numpyro_model():
+        theta = numpyro.sample(
+            "theta",
+            dist.Uniform(low, high).to_event(1),
+        )
+        xi = numpyro.sample(
+            "xi",
+            dist.Normal(0.0, 1.0)
+                .expand(packed.xi_shape)
+                .to_event(2),
+        )
+
+        out = packed(theta, xi)
+        logp, coefficients = out
+
+        numpyro.factor("xi_base_correction", 0.5 * jnp.sum(xi * xi))
+        numpyro.factor("logp", logp)
+
+        if store_physical_coefficients:
+            numpyro.deterministic("coefficients", coefficients)
+
+    numpyro_model.to_df = lambda chain: packed.samples_to_df(chain)
+    numpyro_model.packed_clogL = packed
+    return numpyro_model
+
+
 def makemodel_transformed(mylogl, transform=prior.makelogtransform_uniform, priordict={}):
     logx = transform(mylogl, priordict=priordict)
 
@@ -41,18 +88,64 @@ def makemodel(mylogl, priordict={}):
 
 
 def makesampler_nuts(numpyro_model, num_warmup=512, num_samples=1024, num_chains=1, **kwargs):
-    nutsargs = dict(max_tree_depth=8, dense_mass=False,
-                    forward_mode_differentiation=False, target_accept_prob=0.8,
-                    **{arg: val for arg in kwargs.items() if arg in inspect.getfullargspec(infer.NUTS).args})
+    # A positional model is always supplied below, so potential_fn is not a
+    # legal override even though it appears in the NUTS signature.
+    nuts_argnames = (
+        set(inspect.signature(infer.NUTS).parameters)
+        - {"model", "potential_fn"}
+    )
+    mcmc_argnames = set(inspect.signature(infer.MCMC).parameters) - {"sampler"}
 
-    mcmcargs = dict(num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains,
-                    chain_method='vectorized', progress_bar=True,
-                    **{arg: val for arg in kwargs.items() if arg in inspect.getfullargspec(infer.MCMC).kwonlyargs})
+    unknown = set(kwargs) - nuts_argnames - mcmc_argnames
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise TypeError(f"makesampler_nuts() got unexpected keyword argument(s): {names}")
+
+    nutsargs = {
+        "max_tree_depth": 8,
+        "dense_mass": False,
+        "forward_mode_differentiation": False,
+        "target_accept_prob": 0.8,
+    }
+    nutsargs.update({name: value for name, value in kwargs.items() if name in nuts_argnames})
+
+    mcmcargs = {
+        "num_warmup": num_warmup,
+        "num_samples": num_samples,
+        "num_chains": num_chains,
+        "chain_method": "vectorized",
+        "progress_bar": True,
+    }
+    mcmcargs.update({name: value for name, value in kwargs.items() if name in mcmc_argnames})
 
     sampler = infer.MCMC(infer.NUTS(numpyro_model, **nutsargs), **mcmcargs)
     sampler.to_df = lambda: numpyro_model.to_df(sampler.get_samples())
 
     return sampler
+
+
+def _ensure_sampler_to_df(sampler):
+    """Attach ``sampler.to_df`` from the underlying model when missing.
+
+    ``makesampler_nuts`` already wires this. For a raw ``numpyro.infer.MCMC``
+    built around a model that defines ``to_df``, recover the same attachment
+    from ``sampler.sampler.model``. Otherwise raise a clear error.
+    """
+    if hasattr(sampler, "to_df") and callable(getattr(sampler, "to_df")):
+        return
+
+    kernel = getattr(sampler, "sampler", None)
+    model = getattr(kernel, "model", None)
+    if model is not None and hasattr(model, "to_df") and callable(model.to_df):
+        sampler.to_df = lambda s=sampler, m=model: m.to_df(s.get_samples())
+        return
+
+    raise AttributeError(
+        "sampler has no to_df; build it with makesampler_nuts(...) "
+        "or use a NumPyro model that defines to_df "
+        "(makesampler_nuts / run_nuts_with_checkpoints will attach it)"
+    )
+
 
 def run_nuts_with_checkpoints(
     sampler,
@@ -65,7 +158,12 @@ def run_nuts_with_checkpoints(
 
     This function performs multiple iterations of MCMC sampling, saving checkpoints
     after each iteration. It saves samples to feather files and the NumPyro MCMC
-    state to JSON.
+    state to a pickle.
+
+    Preferred construction is :func:`makesampler_nuts`, which attaches
+    ``sampler.to_df`` from the model's ``to_df``. If ``sampler.to_df`` is
+    missing but the underlying NUTS kernel's ``.model`` defines ``to_df``,
+    that attachment is recovered automatically.
 
     Parameters
     ----------
@@ -82,28 +180,28 @@ def run_nuts_with_checkpoints(
 
     Returns
     -------
-    None
-        This function doesn't return any value but saves the results to disk.
+    pandas.DataFrame
+        The concatenated sample table written to ``numpyro-samples.feather``.
 
     Side Effects
     ------------
     - Runs the MCMC sampler for the number of iterations required to reach the total sample number.
     - Saves samples data to feather files after each iteration.
     - Writes the NumPyro sampler state to a pickle file after each iteration.
+    - Creates `outdir` (including missing parents) if it does not exist.
 
     Example
     -------
     >>> import discovery.samplers.numpyro as ds_numpyro
     >>> # Assume `model` is configured
-    >>> npsampler = ds_numpyro.makesampler_nuts(model, num_samples =100, num_warmup=50)
+    >>> npsampler = ds_numpyro.makesampler_nuts(model, num_samples=100, num_warmup=50)
     >>> ds_numpyro.run_nuts_with_checkpoints(npsampler, 10, jax.random.key(42))
 
     """
-    # convert to pathlib object
-    # make directory if it doesn't exist
-    if not isinstance(outdir, Path):
-        outdir = Path(outdir)
-        outdir.mkdir(exist_ok=True, parents=True)
+    _ensure_sampler_to_df(sampler)
+
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
 
     samples_file = outdir / "numpyro-samples.feather"
     checkpoint_file = outdir / "numpyro-checkpoint.pickle"
@@ -150,3 +248,5 @@ def run_nuts_with_checkpoints(
         sampler.post_warmup_state = sampler.last_state
 
         rng_key, _ = jax.random.split(rng_key)
+
+    return df

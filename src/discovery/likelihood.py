@@ -56,7 +56,7 @@ def ffunc(graph):
 
 
 class PulsarLikelihood(summary.SummaryMixin):
-    def __init__(self, args, concat=True):
+    def __init__(self, args, concat=True, marginalize_all_but_last=None):
         # retain the original components so the model can describe itself
         # (see discovery.summary); the math path uses only y, delay, N below.
         # `concat` is kept too so the kernel-tree view knows whether GPs were
@@ -98,6 +98,22 @@ class PulsarLikelihood(summary.SummaryMixin):
             for vgp in vgps:
                 if hasattr(vgp, 'gpname') and vgp.gpname == 'gw':
                     self.gw = vgp
+
+            # The chained (concat=False) construction below overwrites `.index`
+            # per iteration, so only the LAST variable GP keeps sampled
+            # coefficients; the rest are silently marginalized. Make that
+            # explicit rather than accidental. The matrix route has the
+            # same overwrite behavior and stays user-reachable until the
+            # legacy path is removed, so the ambiguity is rejected on both routes.
+            if len(vgps) > 1 and not concat and marginalize_all_but_last is not True:
+                shadowed = [getattr(g, 'gpname', '<unnamed>') for g in vgps[:-1]]
+                last = getattr(vgps[-1], 'gpname', '<unnamed>')
+                raise ValueError(
+                    f"PulsarLikelihood(concat=False) with multiple variable GPs "
+                    f"analytically marginalizes all but the LAST one: only "
+                    f"'{last}' keeps sampled coefficients; {shadowed} are shadowed. "
+                    f"Pass marginalize_all_but_last=True to confirm this, or use "
+                    f"concat=True to sample all coefficient blocks.")
 
             if len(vgps) > 1 and concat:
                 vgp = matrix.CompoundGP(vgps)
@@ -172,7 +188,7 @@ class PulsarLikelihood(summary.SummaryMixin):
             def cond(params):
                 mu, cf = ksolve(params)
                 return mu, cf
-            cond.params = sorted(N_Nmat.params + self.N.P_var.params)
+            cond.params = sorted(set(N_Nmat.params + self.N.P_var.params))
             return cond
         P_var_inv = self.N.P_var.Phi_inv or self.N.P_var.make_inv()
 
@@ -200,7 +216,7 @@ class PulsarLikelihood(summary.SummaryMixin):
 
                 return mu, cf
 
-            cond.params = sorted(ksolve.params) + P_var_inv.params
+            cond.params = sorted(set(ksolve.params + P_var_inv.params))
 
         return cond
 
@@ -322,7 +338,7 @@ class GlobalLikelihood(summary.SummaryMixin):
                 # ys = [key, _ := sl(key, params) + jnp.dot(F, c[slc]) for sl, F, slc in zip(sls, Fs, slcs)]
                 return key, ys
 
-            sampler.params = sorted(set.union(*[set(sl.params) for sl in sls])) + Phi_sample.params
+            sampler.params = sorted(set(sum([sl.params for sl in sls], []) + Phi_sample.params))
 
         return sampler
 
@@ -391,7 +407,7 @@ class GlobalLikelihood(summary.SummaryMixin):
 
                 params_kterms = list(set.union(*[set(kterm.params) for kterm in kterms]))
                 params_kmeans = kmeans.params if kmeans is not None else []
-                loglike.params = sorted(params_kterms + params_kmeans + P_var_inv.params)
+                loglike.params = sorted(set(params_kterms + params_kmeans + P_var_inv.params))
 
         return loglike
 
@@ -558,7 +574,7 @@ class GlobalLikelihood(summary.SummaryMixin):
                     return mu, cf
                     # return mu, cf, phiinv, tnt
 
-                cond.params = sorted(set.union(*[set(ksolve.params) for ksolve in ksolves])) + P_var_inv.params
+                cond.params = sorted(set(sum([ksolve.params for ksolve in ksolves], []) + P_var_inv.params))
 
         return cond
 
@@ -661,6 +677,15 @@ class ArrayLikelihood(summary.SummaryMixin):
             NmFtys = [NmF.T @ y for NmF, y in zip(NmFs, self.ys)]
             FtNmF, NmFty = matrix.jnparray(FtNmFs), matrix.jnparray(NmFtys)
 
+            ext_E0s = []
+            if self.extsignals:
+                for es in self.extsignals:
+                    E0_per = []
+                    for N, F, Fcw in zip(self.vsm.Ns, vsm_Fs, es.Fs):
+                        NmFcw, _ = _solve_2d(N, np.asarray(Fcw))
+                        E0_per.append(F.T @ NmFcw)
+                    ext_E0s.append(matrix.jnparray(E0_per))
+
             def decenter_transform(params, c):
                 cgp_list = (self.commongp if isinstance(self.commongp, list)
                             else [self.commongp])
@@ -679,12 +704,27 @@ class ArrayLikelihood(summary.SummaryMixin):
                 cf = matrix.matrix_factor(FtNmF.at[:, i1, i2].add(phis_invs), lower=True)
                 am = matrix.jsp.linalg.solve_triangular(
                     cf[0], c, trans=1, lower=cf[1])
-                mus = matrix.matrix_solve(cf, NmFty)
+                rhs = NmFty
+                if self.extsignals:
+                    for E0, es in zip(ext_E0s, self.extsignals):
+                        rhs = rhs - matrix.jnp.einsum(
+                            "ijk,ik->ij", E0, es.coeffs(params))
+                mus = matrix.matrix_solve(cf, rhs)
                 # Jacobian of f^-1 wrt xi: |L|; cf[0] is L^-1.
                 ldL = -matrix.jnp.logdet(cf[0][:, i1, i2])
 
                 return am + mus, ldL
-            decenter_transform.params = []
+            cgp_list = (self.commongp if isinstance(self.commongp, list)
+                        else [self.commongp])
+            cond_params = sum(
+                [list(gp.Phi.getN.params) for gp in cgp_list], [])
+            if self.globalgp is not None:
+                cond_params = cond_params + list(self.globalgp.Phi.getN.params)
+            ext_params = sum(
+                [list(getattr(es, "params", []))
+                 for es in (self.extsignals or [])],
+                [])
+            decenter_transform.params = sorted(set(cond_params + ext_params))
 
         if hasattr(commongp, 'prior'):
             self.vsm.prior = commongp.prior
@@ -783,7 +823,7 @@ class ArrayLikelihood(summary.SummaryMixin):
                     return logp
 
                 params_kmeans = kmeans.params if kmeans is not None else []
-                loglike.params = sorted(kterms.params + params_kmeans + P_var_inv.params)
+                loglike.params = sorted(set(kterms.params + params_kmeans + P_var_inv.params))
 
         return loglike
 
@@ -904,6 +944,6 @@ class ArrayLikelihood(summary.SummaryMixin):
                 else:
                     raise ValueError("Unknown logdet method: {}".format(make_logdet))
 
-            loglike.params = sorted(kterms.params + factors.params)
+            loglike.params = sorted(set(kterms.params + factors.params))
 
         return loglike

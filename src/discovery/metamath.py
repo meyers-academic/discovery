@@ -7,8 +7,8 @@ decide what runs at trace time vs runtime. `mm.func` belongs at the outer
 boundary in `likelihood.py`, not inside methods here. `make_sample` is the
 one documented exception.
 
-See `dev_architecture/metamatrix/metamatrix_architecture.md` for the full
-conventions and porting guidance before adding new methods.
+See `docs/metamatrix_dev.md` and `docs/design/metamatrix/architecture.md`
+for conventions and porting guidance before adding new methods.
 """
 
 import functools
@@ -19,6 +19,7 @@ import jax.scipy as jsp
 
 from . import signals
 from . import metamatrix as mm
+from .structured import separable_contrib
 from .utils import (
     Kernel,
     make_uind,
@@ -101,7 +102,7 @@ def woodbury(g, y, Nsolve, F, Pinv):
 def woodbury_proj(g, y, Nwhiten, M, F, Pinv):
     """Marginal logL with the timing model M handled by *projection* instead of
     a huge-variance prior (the float32-safe path; see
-    dev_architecture/single_precision/docs/adr/0004-timing-model-projection.md).
+    docs/design/single_precision/ (timing-model projection).
 
     Same marginal likelihood as ``woodbury`` built from the combined basis
     ``[M | F]`` with a flat (sigma^2 -> infinity) prior on the M coefficients,
@@ -118,7 +119,7 @@ def woodbury_proj(g, y, Nwhiten, M, F, Pinv):
       Pinv    : GP prior inverse leaf -> (Phi^-1, logdet Phi) (GP block only,
                 NO timing block).
 
-    Whiten FIRST (ADR 0004, decision 3): forming M^T K^-1 M by un-whitened sums
+    Whiten FIRST: forming M^T K^-1 M by un-whitened sums
     re-introduces large-minus-large cancellation in the low-frequency Fourier
     modes that overlap the timing polynomials -- catastrophic in float32.
     """
@@ -170,7 +171,7 @@ def woodbury_proj(g, y, Nwhiten, M, F, Pinv):
 def woodbury_refdelta(g, y, Nsolve, F, Pinv, Pinv_ref):
     """Marginal logL as a *reference + delta* expansion (Piece 2 'Half B'; the
     single-level test rung). See
-    dev_architecture/single_precision/research_note_on_split_with_reference.md
+    docs/design/single_precision/ (reference+delta)
     (sec. 2-3) and docs/adr/0001,0003.
 
     Instead of computing logL(theta) directly -- a catastrophic float32
@@ -349,8 +350,7 @@ def globalwoodbury_fused(g, projected, Pinv):
 def globalwoodbury_fused_refdelta(g, refconst, refincr, Pinv, Pinv_ref):
     """Reference+delta twin of ``globalwoodbury_fused`` -- the OUTER half of the
     fused two-level reference+delta (Piece 2 'Half B'; HD / CURN-with-IRN). See
-    dev_architecture/single_precision/research_note_nested_increment.md (sec. 4-5)
-    and piece2_fused_refdelta_plan.md (rung 2).
+    docs/design/single_precision/ (nested reference+delta).
 
     Consumes TWO separate graphs from ``vectorwoodburyjointsolve_refdelta`` (the
     inner rung) -- kept separate ON PURPOSE so the constant group folds away (see
@@ -537,8 +537,7 @@ def vectorwoodburyjointsolve(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv):
 def vectorwoodburyjointsolve_refdelta(g, ys, Fs_outer, Nsolves, Fs_inner, Pinv, Pinv_ref):
     """Reference+delta twin of ``vectorwoodburyjointsolve`` -- the INNER half of the
     fused two-level reference+delta (Piece 2 'Half B'; HD / CURN-with-IRN). See
-    dev_architecture/single_precision/research_note_nested_increment.md (sec. 2-3)
-    and piece2_fused_refdelta_plan.md.
+    docs/design/single_precision/ (nested reference+delta).
 
     Same per-pulsar inner intrinsic-red-noise (IRN) solve as
     ``vectorwoodburyjointsolve``, but off a frozen inner reference covariance
@@ -857,6 +856,51 @@ def vectorgpcomponent(g, ys, Nsolves, Fs, prior, coeffs, means, ext_coeffs, ext_
 
 
 @mm.graph
+def vectorresidualcomponent(g, ys, Nsolves, Fs, prior, coeffs, means,
+                            ext_coeffs, ext_Fs):
+    """ArrayLikelihood.clogL, residual form: log p(y, c) at fixed GP
+    coefficients with NO F^T N^-1 F products.
+
+    Identical leaf contract to `vectorgpcomponent` (same inputs, same named
+    outputs 'logp'/'staged', same prior/means/reparam semantics); different
+    algebra:
+
+        r_i  = y_i - F_i @ c[i] - sum_e Fext_e,i @ ccw_e[i]
+        logp = sum_i [ -0.5 r_i^T N_i^-1 r_i - 0.5 logdet N_i ]
+               + prior(c - means) + ldL
+
+    With constant N the per-pulsar solve factorization folds at trace time and
+    each evaluation costs one O(n_toa * k) matvec plus a vector solve. With
+    parameter-dependent N nothing of shape (n_toa, k) is ever pushed through
+    the solve -- this is the varying-white-noise fast path.
+
+    ExtSignal contributions are plain subtractions from `r`; the cross-term
+    algebra of `vectorgpcomponent` is NOT replicated -- the two forms are
+    algebraically identical.
+
+    No f64 pins in this graph: it is float64-default; single-precision
+    treatment is out of scope here.
+    """
+    c, ldL = coeffs.split()
+    logpr = prior(c - means)           # means is ConstLeaf(0.0) when absent
+
+    data_terms, ldNs = [], []
+    for i, (y, F, Nsolve) in enumerate(zip(ys, Fs, Nsolves)):
+        r = y - F @ c[i]
+        for ccw, Fcw_list in zip(ext_coeffs, ext_Fs):
+            r = r - Fcw_list[i] @ ccw[i]
+        Nmr, lN = Nsolve(r)
+        data_terms.append(g.dot(r, Nmr))
+        ldNs.append(lN)
+
+    logp = (-0.5 * g.sum_all(data_terms) - 0.5 * g.sum_all(ldNs)
+            + logpr + ldL)
+
+    g.named(logp, 'logp')
+    g.named(g.pair(logp, c), 'staged')
+
+
+@mm.graph
 def vectorwoodburysolve(g, ys, Nsolves, Fs, Pinv):
     Nmys, NmFs, FtNmys, FtNmFs, lNs = [], [], [], [], []
 
@@ -1046,7 +1090,7 @@ class NoiseMatrixSM(Kernel):
 
     @property
     def make_whiten(self):
-        # K^{-1/2} applicator for the timing-model projection (ADR 0004).
+        # K^{-1/2} applicator for the timing-model projection.
         return smwhiten(None, self.N, self.Uind, self.P)
 
     @property
@@ -1112,7 +1156,7 @@ class NoiseMatrix(Kernel):
 
     @property
     def make_whiten(self):
-        # diag(N)^{-1/2} applicator for the timing-model projection (ADR 0004).
+        # diag(N)^{-1/2} applicator for the timing-model projection.
         return dwhiten(None, self.N)
 
     @property
@@ -1173,14 +1217,16 @@ class WoodburyKernel(Kernel):
     def make_kernelproduct(self, y):
         return woodbury(y, self.N.make_solve, self.F, self.P.make_inv)
 
-    def make_kernelsolve(self, y, T):
+    def make_kernelsolve(self, y, T, working=None):
         """Callable returning (T^T Σ^-1 y, T^T Σ^-1 T) for Σ = N + F P F^T.
 
         Matches the contract of matrix.WoodburyKernel_var*.make_kernelsolve
         so likelihood.py's GlobalLikelihood.conditional path works unchanged.
+        `working` is forwarded to `metamatrix.func` (construction-time bake
+        dtype; default `utils.working_dtype()`).
         """
         graph = woodburykernelsolve(y, T, self.N.make_solve, self.F, self.P.make_inv)
-        f = mm.func(graph)
+        f = mm.func(graph, working=working)
         def call(params={}):
             return f(params=params)
         call.params = f.params
@@ -1202,7 +1248,7 @@ class WoodburyProjKernel(Kernel):
     """Like ``WoodburyKernel`` but the improper timing model `M` is handled by
     *projection* (the flat-prior / float32-safe path) instead of a huge-variance
     (1e40) Gaussian prior. The remaining GP `F` (e.g. ECORR) is kept as an
-    ordinary Woodbury block. See `woodbury_proj` and ADR 0004.
+    ordinary Woodbury block. See `woodbury_proj` and docs/design/single_precision/adr/0004-timing-model-projection.md.
 
     Drop-in for the per-pulsar noise in the fused array path: its `make_solve`
     returns the timing-projected inverse operator, so when the array kernel
@@ -1244,7 +1290,7 @@ class GlobalWoodburyKernel(Kernel):
             return globalwoodbury(ys, [N.make_solve for N in self.Ns], self.Fs, self.P.make_inv)
         elif hasattr(self.Ns, 'Ns'):
             # compound kernel: vectorized fused two-level path.
-            # Reference+delta (single-precision Half B) opt-in (ADR 0003): when
+            # Reference+delta (single-precision Half B) opt-in: when
             # BOTH frozen references are present -- the inner Phi_ref,in on the
             # inner kernel (self.Ns.P_ref) and the outer Phi_ref,gw on this kernel
             # (self.P_ref) -- route to the refdelta twins. Absent -> today's graph,
@@ -1285,7 +1331,7 @@ class VectorWoodburyKernel(Kernel):
                                    self.Fs, self.P.make_inv)
 
     def make_kernelproduct(self, ys):
-        # Reference+delta opt-in (ADR 0003): a frozen inner Phi_ref leaf in
+        # Reference+delta opt-in: a frozen inner Phi_ref leaf in
         # self.P_ref routes to the batched single-level refdelta twin (CURN/IRN,
         # no Hellings-Downs). Absent -> today's vectorwoodbury, byte-identical.
         P_ref = getattr(self, 'P_ref', None)
@@ -1306,21 +1352,13 @@ class VectorWoodburyKernel(Kernel):
             self.P.make_inv
         )
 
-    def make_kernelproduct_gpcomponent(self, ys, transform=None, extsignals=None):
-        """ArrayLikelihood.clogL path. Returns a metamatrix graph.
+    def _coefficient_leaves(self, transform):
+        """Shared coefficient/prior leaves for the cross and residual forms.
 
-        Composes the GP-coefficient log-likelihood from `vectorgpcomponent`:
-
-            xi --[reparams]--> c  --(prior on c - means)--  data sees c
-
-        Leaves go in as graphs / FuncLeafs / arrays; folding decides what
-        runs at trace time vs runtime. The output is a graph with named
-        subgraphs 'logp' and 'staged'; the method prunes to whichever
-        matches the reparam state.
+        Returns (prior_graph, _coeffs, means_leaf, has_reparams).
 
         - ``transform``: callable or list of ``rp(params, c) -> (c, ldL)``.
         - ``self.means``: callable ``params -> a0``; centers the GP prior.
-        - ``extsignals``: list of ``ExtSignal`` (each with .coeffs, .Fs).
         """
         if transform is None:
             reparams = []
@@ -1332,8 +1370,10 @@ class VectorWoodburyKernel(Kernel):
         # Prior on c_for_prior: either the uniform-Phi wrap of `P.make_inv` or,
         # for a mixed-Phi compound (commongp + HD globalgp), the per-GP-sum
         # graph supplied by `CompoundGP._build_mixed_logprior`. Both look the
-        # same to `vectorgpcomponent` — a GraphLeaf taking c_for_prior.
-        if hasattr(self, 'prior') and self.prior is not None:
+        # same to the component graphs — a GraphLeaf taking c_for_prior. Reusing
+        # it unchanged is what keeps the exact dense HD coefficient prior in the
+        # residual form for free.
+        if getattr(self, 'prior', None) is not None:
             prior_graph = self.prior
         else:
             prior_graph = gaussian_coefficient_logprior(None, self.P.make_inv)
@@ -1361,8 +1401,23 @@ class VectorWoodburyKernel(Kernel):
 
         means_leaf = self.means if getattr(self, 'means', None) is not None else 0.0
 
-        ext_coeffs = [es.coeffs for es in (extsignals or [])]
-        ext_Fs     = [list(es.Fs) for es in (extsignals or [])]
+        return prior_graph, _coeffs, means_leaf, bool(reparams)
+
+    def make_kernelproduct_gpcomponent(self, ys, transform=None, extsignals=None):
+        """ArrayLikelihood.clogL path, CROSS form. Returns a metamatrix graph.
+
+        Composes the GP-coefficient log-likelihood from `vectorgpcomponent`:
+
+            xi --[reparams]--> c  --(prior on c - means)--  data sees c
+
+        Leaves go in as graphs / FuncLeafs / arrays; folding decides what
+        runs at trace time vs runtime. The output is a graph with named
+        subgraphs 'logp' and 'staged'; the method prunes to whichever
+        matches the reparam state.
+
+        - ``extsignals``: list of ``ExtSignal`` (each with .coeffs, .Fs).
+        """
+        prior_graph, _coeffs, means_leaf, has_rp = self._coefficient_leaves(transform)
 
         graph = vectorgpcomponent(
             ys,
@@ -1371,10 +1426,49 @@ class VectorWoodburyKernel(Kernel):
             prior_graph,
             _coeffs,
             means_leaf,
-            ext_coeffs,
-            ext_Fs,
+            [es.coeffs for es in (extsignals or [])],
+            [list(es.Fs) for es in (extsignals or [])],
         )
-        return mm.prune_graph(graph, output=('staged' if reparams else 'logp'))
+        return mm.prune_graph(graph, output=('staged' if has_rp else 'logp'))
+
+    def make_residualproduct(self, ys, transform=None, extsignals=None):
+        """Residual-form twin of make_kernelproduct_gpcomponent. Same contract,
+        no FtNmF. See vectorresidualcomponent."""
+        prior_graph, _coeffs, means_leaf, has_rp = self._coefficient_leaves(transform)
+
+        graph = vectorresidualcomponent(
+            ys,
+            [N.make_solve for N in self.Ns],
+            list(self.Fs),
+            prior_graph,
+            _coeffs,
+            means_leaf,
+            [es.coeffs for es in (extsignals or [])],
+            [list(es.Fs) for es in (extsignals or [])],
+        )
+        return mm.prune_graph(graph, output=('staged' if has_rp else 'logp'))
+
+
+def dense_coefficient_logprior_legacy(c, Phi):
+    """Two-factor dense Gaussian log-density (solve + slogdet). Test reference."""
+    flat = c.reshape(-1)
+    return (-0.5 * flat @ jnp.linalg.solve(Phi, flat)
+            - 0.5 * jnp.linalg.slogdet(Phi)[1])
+
+
+def dense_coefficient_logprior(c, Phi):
+    """One-factor dense Gaussian log-density (LU + log|diag|)."""
+    cf = jsp.linalg.lu_factor(Phi)
+    flat = c.reshape(-1)
+    solved = jsp.linalg.lu_solve(cf, flat)
+    logabsdet = jnp.sum(jnp.log(jnp.abs(jnp.diag(cf[0]))))
+    return -0.5 * (flat @ solved + logabsdet)
+
+
+def inverse_coefficient_logprior(c, inverse, logabsdet):
+    """Gaussian log-density from an analytic ``(Phi^{-1}, log|Phi|)`` pair."""
+    flat = c.reshape(-1)
+    return -0.5 * (flat @ inverse @ flat + logabsdet)
 
 
 class CompoundGP:
@@ -1471,11 +1565,6 @@ class CompoundGP:
         def _slice_op(s, e):
             return lambda c: c[:, s:e]
 
-        def _dense_contrib(c_, Phi_):
-            cf = c_.reshape(-1)
-            return (-0.5 * cf @ jnp.linalg.solve(Phi_, cf)
-                    - 0.5 * jnp.linalg.slogdet(Phi_)[1])
-
         def _diag_contrib(c_, Phi_):
             return (-0.5 * jnp.sum(c_ * c_ / Phi_)
                     - 0.5 * jnp.sum(jnp.log(jnp.abs(Phi_))))
@@ -1483,15 +1572,49 @@ class CompoundGP:
         contribs = []
         for i, gp in enumerate(gplist):
             s, e = offsets[i], offsets[i + 1]
-            phi_n_leaf = b.leaf(gp.Phi.N, name=f'gp{i}_phiN')
             c_slice = b.node(_slice_op(s, e), [c_for_prior],
                              description=f'c_for_prior[:,{s}:{e}]')
-            if isinstance(gp.Phi, NoiseMatrix2D):
-                contrib = b.node(_dense_contrib, [c_slice, phi_n_leaf],
-                                 description=f'gp{i} dense logprior')
+            separable = getattr(gp, "separable_prior", None)
+            inv_fn = getattr(gp, "Phi_inv", None) or getattr(gp.Phi, "inv", None)
+            if separable is not None:
+                if widths[i] != separable.width:
+                    raise ValueError(
+                        f"GP {i} coefficient width {widths[i]} does not match "
+                        f"separable prior width {separable.width}"
+                    )
+                phi_leaf = b.leaf(
+                    separable.spectrum, name=f"gp{i}_separable_spectrum")
+                chol_leaf = b.leaf(
+                    separable.orf_cholesky, name=f"gp{i}_orf_cholesky")
+                logdet_leaf = b.leaf(
+                    separable.orf_logdet, name=f"gp{i}_orf_logdet")
+                contrib = b.node(
+                    separable_contrib,
+                    [c_slice, phi_leaf, chol_leaf, logdet_leaf],
+                    description=f"gp{i} separable Fourier logprior",
+                )
+            elif isinstance(gp.Phi, NoiseMatrix2D) and inv_fn is not None:
+                inverse_leaf = b.leaf(inv_fn, name=f"gp{i}_analytic_inverse")
+                inverse, logabsdet = inverse_leaf.split()
+                contrib = b.node(
+                    inverse_coefficient_logprior,
+                    [c_slice, inverse, logabsdet],
+                    description=f"gp{i} analytic-inverse logprior",
+                )
+            elif isinstance(gp.Phi, NoiseMatrix2D):
+                phi_n_leaf = b.leaf(gp.Phi.N, name=f"gp{i}_phiN")
+                contrib = b.node(
+                    dense_coefficient_logprior,
+                    [c_slice, phi_n_leaf],
+                    description=f"gp{i} one-factor dense logprior",
+                )
             else:
-                contrib = b.node(_diag_contrib, [c_slice, phi_n_leaf],
-                                 description=f'gp{i} diag logprior')
+                phi_n_leaf = b.leaf(gp.Phi.N, name=f"gp{i}_phiN")
+                contrib = b.node(
+                    _diag_contrib,
+                    [c_slice, phi_n_leaf],
+                    description=f"gp{i} diag logprior",
+                )
             contribs.append(contrib)
 
         logpr = contribs[0]

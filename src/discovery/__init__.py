@@ -17,7 +17,7 @@ from .pulsar import *
 from .deterministic import *
 
 
-_KERNELS = "matrix"
+_KERNELS = "matrix"      # metamath is opt-in; flipping the default is later and gated
 _LIKELIHOOD_CLASSES = ("PulsarLikelihood", "GlobalLikelihood", "ArrayLikelihood")
 
 
@@ -71,6 +71,16 @@ def config(kernels=None):
         setattr(pkg, name, getattr(_src, name))
 
     _KERNELS = kernels
+
+
+# Make the factory mode and the likelihood-class bindings agree at import time.
+# `from .likelihood import *` above binds the top-level PulsarLikelihood /
+# GlobalLikelihood / ArrayLikelihood to the matrix classes, and `_kernels._mode`
+# starts at "matrix" -- so this call is currently a no-op that keeps both on
+# the matrix default. Metamath is opt-in via `config(kernels="metamath")`
+# before constructing models. Flipping the default later is this one line
+# plus `_KERNELS` above (set both to "metamath").
+config(kernels=_KERNELS)
 
 
 __version__ = "0.5"

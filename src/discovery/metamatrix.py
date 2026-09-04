@@ -13,7 +13,6 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
-from sympy import Matrix
 
 from . import prior
 from . import utils
@@ -131,6 +130,20 @@ Graph = Dict[str, Union[Leaf, Node]]
 class Apply:
     pass
 
+def _const_leaf(value, name=None):
+    """The only sanctioned way to create a ConstLeaf from a runtime value.
+    Rejects JAX tracers (also inside tuples/pytrees, e.g. a (mu, cf) pair) so a
+    graph folded inside jit/grad fails loudly instead of caching leaked tracers."""
+    for leaf in jax.tree_util.tree_leaves(value):
+        if isinstance(leaf, jax.core.Tracer):
+            raise TypeError(
+                f"graph constant {name or '<unnamed>'} is a JAX tracer: likelihood "
+                "graphs must be materialized outside jit/grad. Touch model.logL / "
+                "model.clogL (or call model.build()) once eagerly, then jit the "
+                "returned callable — e.g. jax.jit(model.logL), not "
+                "jax.jit(lambda p: model.logL(p)).")
+    return ConstLeaf(value)
+
 def make_leaf(x, name=None) -> Leaf:
     if x is None:
         return ArgLeaf(name=name)
@@ -139,7 +152,7 @@ def make_leaf(x, name=None) -> Leaf:
     elif isinstance(x, OrderedDict):
         return GraphLeaf(graph=x)
     else:
-        return ConstLeaf(value=x)
+        return _const_leaf(x, name=name)
 
 
 # args takes None and values; the latter will be replaced into ArgLeafs
@@ -192,7 +205,7 @@ def fold_constants(graph, args=[]):
         if isinstance(node, ArgLeaf):
             if len(args_cache) and (argval := args_cache.popleft()) is not None:
                 cache[name] = argval
-                new_graph[name] = ConstLeaf(value=argval)
+                new_graph[name] = _const_leaf(argval, name=name)
             else:
                 new_graph[name] = node
         elif isinstance(node, ConstLeaf):
@@ -203,7 +216,7 @@ def fold_constants(graph, args=[]):
                 with jax.default_device(cpu_device):
                     val = node.fn(params={})
                 cache[name] = val
-                new_graph[name] = ConstLeaf(val)
+                new_graph[name] = _const_leaf(val, name=name)
             else:
                 new_graph[name] = node
         elif isinstance(node, GraphLeaf):
@@ -251,7 +264,7 @@ def fold_constants(graph, args=[]):
                 with jax.default_device(cpu_device):
                     val = node.op(*[cache[input] for input in node.inputs])
                 cache[name] = val
-                new_graph[name] = ConstLeaf(val)
+                new_graph[name] = _const_leaf(val, name=name)
                 _maybe_evict(node.inputs, True)
 
             else:
@@ -300,8 +313,17 @@ def fold_constants(graph, args=[]):
 
     return new_graph
 
-def build_callable_from_graph(graph: Graph):
+def build_callable_from_graph(graph: Graph, working=None):
+    """Materialize `graph` as a callable.
+
+    `working` selects the float dtype of every non-pinned node (see
+    `_dtype_map`); default `utils.working_dtype()`. Boundary modules that bake
+    CONSTANTS once at construction time (e.g. `transport`) pass
+    `working=jnp.float64` so that a float32 sampling configuration never
+    degrades a baked product such as `W^T N0^-1 W`.
+    """
     output_name = next(reversed(graph.keys()))
+    working = utils.working_dtype() if working is None else working
 
     arg_leaves: List[str] = []
     const_values: Dict[str, Array] = {}
@@ -317,7 +339,7 @@ def build_callable_from_graph(graph: Graph):
         elif isinstance(node, FuncLeaf):
             func_leaves[name] = node.fn
         elif isinstance(node, GraphLeaf):
-            graph_leaves[name] = build_callable_from_graph(node.graph)
+            graph_leaves[name] = build_callable_from_graph(node.graph, working=working)
         elif isinstance(node, Node):
             nodes[name] = node
         else:
@@ -326,7 +348,7 @@ def build_callable_from_graph(graph: Graph):
     # Decide each node's float dtype once at materialization (func() is called
     # once, at the likelihood boundary). float64 default / no pins -> every node
     # is float64, so the per-edge cast below is the identity.
-    dtype_map = _dtype_map(graph, utils.working_dtype())
+    dtype_map = _dtype_map(graph, working)
 
     def f(*args, params={}) -> Array:
         env: Dict[str, Array] = {}
@@ -359,7 +381,7 @@ def build_callable_from_graph(graph: Graph):
 
                 if isinstance(graph[first], GraphLeaf):
                     args = [_cast_to(env[input], target) for input in node.inputs[1:]]
-                    env[name] = graph_leaves[first](*args, params=params)
+                    env[name] = _cast_to(graph_leaves[first](*args, params=params), target)
                 else:
                     raise NotImplementedError(f"Should we apply {first}?")
             else:
@@ -415,6 +437,34 @@ def prune_graph(graph: Graph,
     )
 
     return pruned
+
+
+def graph_params(graph):
+    """Sorted union of `.params` over every FuncLeaf in `graph`, recursing
+    into GraphLeafs and callable-attached `.graph` values. Pure inspection:
+    nothing is folded or evaluated.
+
+    Used to decide, before building a likelihood graph, whether a kernel's
+    solve depends on sampled parameters (e.g. clogl_form='auto' routing).
+    """
+    out = set()
+    seen = set()
+
+    def visit(g):
+        if id(g) in seen:
+            return
+        seen.add(id(g))
+        for node in g.values():
+            if isinstance(node, FuncLeaf):
+                out.update(getattr(node.fn, 'params', []))
+                nested = getattr(node.fn, 'graph', None)
+                if isinstance(nested, dict):
+                    visit(nested)
+            elif isinstance(node, GraphLeaf):
+                visit(node.graph)
+
+    visit(graph)
+    return sorted(out)
 
 
 def visualize_graph(graph: Graph, fold=False, format='svg', rankdir='TB',
@@ -575,16 +625,20 @@ def sample_graph(graph: Graph, *args, display=False) -> Graph:
 
 
 def func(graph: Graph,
-         output: str = None) -> Callable[[Any], Array]:
+         output: str = None,
+         working=None) -> Callable[[Any], Array]:
     """
     Given a computational graph, produce a JAX-jittable function
     that computes the graph output. This first folds constant subgraphs,
     then prunes the graph, then builds the callable.
+
+    `working` overrides the float dtype of the materialized nodes (default:
+    `utils.working_dtype()`); see `build_callable_from_graph`.
     """
     if output is not None:
         graph = prune_graph(graph, output)
 
-    return build_callable_from_graph(fold_constants(graph))
+    return build_callable_from_graph(fold_constants(graph), working=working)
 
 
 # ===== Matrix operations =====
@@ -757,11 +811,13 @@ class GraphBuilder:
 
     def pin_f64(self, symbol: Sym) -> Sym:
         """Mark a node to be computed in float64 even under a float32 working
-        dtype (stage-2 single precision). Everything the node depends on is
-        pulled into float64 too, so the pinned value is built entirely in
-        float64; the result is converted to a consumer's dtype on read. This is
-        graph intent set where the kernel math is written -- not a func()/
-        materialization call -- so the house rule (methods return graphs) holds.
+        dtype (stage-2 single precision). Ancestor Nodes in this graph are
+        pulled into float64 too, so the pinned value is built in float64
+        within this graph; the result is converted to a consumer's dtype on
+        read. The f64 cone stops at GraphLeaf (subgraph) boundaries -- a pin
+        does not recurse into nested graphs. This is graph intent
+        set where the kernel math is written -- not a func()/materialization
+        call -- so the house rule (methods return graphs) holds.
         Returns the symbol so it can be used inline.
         """
         node = self.graph[symbol.name]

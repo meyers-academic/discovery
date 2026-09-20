@@ -18,6 +18,7 @@ from discovery.signals import (
     fourierbasis_chrom,
     make_fourierbasis_chrom,
     log_fourierbasis,
+    linBinning,
     log_fourierbasis_dm,
     log_fourierbasis_chrom,
     log_fourierbasis_chrom_fixed,
@@ -415,6 +416,67 @@ class TestLogFourierbasis:
         f2, df2, fmat2 = log_fourierbasis(psr, T=T, logmode=0, nlin=10, nlog=0)
         np.testing.assert_allclose(np.asarray(f1), np.asarray(f2), rtol=1e-12)
         np.testing.assert_allclose(fmat1, fmat2, rtol=1e-12)
+
+
+class TestLogFourierbasisWeights:
+    """The frequency volume element on a mixed log/linear grid.
+
+    These need nlog>0: with linear modes alone every bin is 1/T and the weighting
+    conventions agree.
+    """
+
+    @staticmethod
+    def _band(T, logmode, f_min, nlin, nlog):
+        """Range the modes tile: f_min to half a linear bin past the highest mode."""
+        return f_min, (logmode + nlin + 0.5) / T
+
+    def test_df_is_the_linbinning_weight_squared(self, psr):
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
+        f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        _, w = linBinning(T, logmode, f_min, nlin, nlog)
+        np.testing.assert_allclose(np.asarray(df), np.repeat(np.asarray(w) ** 2, 2),
+                                   rtol=1e-12)
+
+    def test_linear_modes_have_df_equal_to_one_over_T(self, psr):
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
+        _, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        np.testing.assert_allclose(np.asarray(df)[2 * nlog:], 1.0 / T, rtol=1e-12)
+
+    def test_weights_tile_the_band(self, psr):
+        """Per-mode widths must sum to the range covered. np.diff instead telescopes
+        to the highest mode, independent of f_min."""
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
+        f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        lo, hi = self._band(T, logmode, f_min, nlin, nlog)
+        total = np.asarray(df)[::2].sum()          # df is repeated for sin and cos
+        assert total == pytest.approx(hi - lo, rel=2e-2)
+
+    def test_lowest_log_mode_is_not_given_the_dc_bin(self, psr):
+        """Regression: np.diff hands mode 0 the whole of [0, f_0], swamping a red
+        spectrum. Its width is its own log bin, not its distance from zero."""
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
+        f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        f0, df0 = np.asarray(f)[0], np.asarray(df)[0]
+        assert df0 < 0.75 * f0
+        dlog = np.log(np.asarray(f)[2] / f0)       # step between adjacent log modes
+        assert df0 == pytest.approx(2.0 * f0 * np.sinh(dlog / 2.0), rel=1e-2)
+
+    def test_band_power_of_a_red_spectrum_is_recovered(self, psr):
+        """sum S(f_i) df_i must approximate the integral of S(f) over the band."""
+        from scipy.integrate import quad
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 30, 6
+        f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        fref = 1.0 / (365.25 * 86400.0)
+        S = lambda x: (x / fref) ** (-13.0 / 3.0)
+        lo, hi = self._band(T, logmode, f_min, nlin, nlog)
+        exact, _ = quad(S, lo, hi, limit=400)
+        approx = (S(np.asarray(f)[::2]) * np.asarray(df)[::2]).sum()
+        assert approx == pytest.approx(exact, rel=0.15)
 
 
 # ---------------------------------------------------------------------------

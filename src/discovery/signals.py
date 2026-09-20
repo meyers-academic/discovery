@@ -493,10 +493,9 @@ def log_fourierbasis(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0):
     if T is None:
         T = getspan(psr)
 
-    f, w_lin = linBinning(T, logmode, f_min, nlin, nlog)
+    f, w = linBinning(T, logmode, f_min, nlin, nlog)
 
-    #f  = np.arange(1, components + 1, dtype=np.float64) / T
-    df = np.diff(np.concatenate((np.array([0]), f)))
+    df = np.asarray(w) ** 2   # bin widths; see linBinning
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -509,10 +508,9 @@ def log_fourierbasis_dm(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0, fr
     if T is None:
         T = getspan(psr)
 
-    f, w_lin = linBinning(T, logmode, f_min, nlin, nlog)
+    f, w = linBinning(T, logmode, f_min, nlin, nlog)
 
-    #f  = np.arange(1, components + 1, dtype=np.float64) / T
-    df = np.diff(np.concatenate((np.array([0]), f)))
+    df = np.asarray(w) ** 2   # bin widths; see linBinning
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -527,10 +525,9 @@ def log_fourierbasis_chrom(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0,
     if T is None:
         T = getspan(psr)
 
-    f, w_lin = linBinning(T, logmode, f_min, nlin, nlog)
+    f, w = linBinning(T, logmode, f_min, nlin, nlog)
 
-    #f  = np.arange(1, components + 1, dtype=np.float64) / T
-    df = np.diff(np.concatenate((np.array([0]), f)))
+    df = np.asarray(w) ** 2   # bin widths; see linBinning
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -547,10 +544,9 @@ def log_fourierbasis_chrom_fixed(psr, alpha = 4.0, T=None, logmode=-1, f_min=Non
     if T is None:
         T = getspan(psr)
 
-    f, w_lin = linBinning(T, logmode, f_min, nlin, nlog)
+    f, w = linBinning(T, logmode, f_min, nlin, nlog)
 
-    #f  = np.arange(1, components + 1, dtype=np.float64) / T
-    df = np.diff(np.concatenate((np.array([0]), f)))
+    df = np.asarray(w) ** 2   # bin widths; see linBinning
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -574,6 +570,11 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     :param f_min:   Down to which frequency we'll sample
     :param nlin:    How many linear frequencies we'll use
     :param nlog:    How many log frequencies we'll use
+
+    Modes sit at bin centres and the weights are sqrt(bin width), so w**2 is the
+    volume element to apply to S(f). Note np.diff(f) is not that: it measures back
+    to the previous centre, and its lowest bin runs from DC rather than f_min,
+    overstating band power by ~73% at gamma = 13/3.
 
     """
     if logmode < 0:

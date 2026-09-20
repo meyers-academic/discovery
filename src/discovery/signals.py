@@ -489,7 +489,7 @@ def fourierbasis(psr, components, T=None):
     return np.repeat(f, 2), np.repeat(df, 2), fmat
 
 
-def log_fourierbasis(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0):
+def log_fourierbasis(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0):
     if T is None:
         T = getspan(psr)
 
@@ -504,7 +504,7 @@ def log_fourierbasis(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0):
 
     return np.repeat(f, 2), np.repeat(df, 2), fmat
 
-def log_fourierbasis_dm(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0, fref=1400):
+def log_fourierbasis_dm(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fref=1400):
     if T is None:
         T = getspan(psr)
 
@@ -521,7 +521,7 @@ def log_fourierbasis_dm(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0, fr
 
     return np.repeat(f, 2), np.repeat(df, 2), fmat * Dm[:, None]
 
-def log_fourierbasis_chrom(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0, fref=800):
+def log_fourierbasis_chrom(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fref=800):
     if T is None:
         T = getspan(psr)
 
@@ -540,7 +540,7 @@ def log_fourierbasis_chrom(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0,
 
     return np.repeat(f, 2), np.repeat(df, 2), fmatfunc
 
-def log_fourierbasis_chrom_fixed(psr, alpha = 4.0, T=None, logmode=-1, f_min=None, nlin=30, nlog=0, fref=800):
+def log_fourierbasis_chrom_fixed(psr, alpha = 4.0, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fref=800):
     if T is None:
         T = getspan(psr)
 
@@ -575,11 +575,14 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     volume element to apply to S(f). Note np.diff(f) is not that: it measures back
     to the previous centre, and its lowest bin runs from DC rather than f_min,
     overstating band power by ~73% at gamma = 13/3.
-
     """
     if logmode < 0:
         raise ValueError(
-            "Cannot do log-spacing when all frequencies are" "linearly sampled"
+            f"linBinning: logmode must be >= 0, got {logmode}. logmode is the index of "
+            f"the lowest linear mode, so the linear grid starts at (1 + logmode) / T and "
+            f"any log-spaced modes fill in below (logmode + 0.5) / T. A negative value "
+            f"puts the first linear mode at zero frequency, and leaves no positive range "
+            f"for the log modes. Use logmode=0 for the standard k/T grid."
         )
 
     # First the linear spacing and weights

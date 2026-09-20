@@ -418,6 +418,29 @@ class TestLogFourierbasis:
         np.testing.assert_allclose(fmat1, fmat2, rtol=1e-12)
 
 
+class TestLogFourierbasisDefaults:
+    """The four log_fourierbasis* wrappers must be callable with their own defaults."""
+
+    @pytest.mark.parametrize('fn', [log_fourierbasis, log_fourierbasis_dm,
+                                    log_fourierbasis_chrom, log_fourierbasis_chrom_fixed])
+    def test_default_arguments_build_a_basis(self, psr, fn):
+        f, df, fmat = fn(psr)
+        assert f.shape == df.shape
+        assert np.all(np.asarray(f) > 0)
+
+    def test_default_matches_the_standard_linear_grid(self, psr):
+        """logmode=0 with nlog=0 is the ordinary k/T grid."""
+        T = psr.maxtoa - psr.mintoa
+        f, df, _ = log_fourierbasis(psr, T=T, nlin=10, nlog=0)
+        np.testing.assert_allclose(np.asarray(f)[::2],
+                                   np.arange(1, 11) / T, rtol=1e-12)
+        np.testing.assert_allclose(np.asarray(df), 1.0 / T, rtol=1e-12)
+
+    def test_negative_logmode_still_rejected(self):
+        with pytest.raises(ValueError, match='logmode must be >= 0'):
+            linBinning(1e9, -1, 1e-10, 10, 0)
+
+
 class TestLogFourierbasisWeights:
     """The frequency volume element on a mixed log/linear grid.
 

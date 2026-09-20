@@ -863,6 +863,9 @@ def makegp_improper_varF(psr, fmat, constant=1.0e40, name='improperGP_varF',
                     f'with a constant design matrix can be projected out.')
             mats.append(np.asarray(F_p, dtype=np.float64))
         P = np.hstack(mats)
+        # Twice, because Q_null is only orthonormal to ~eps*cond(timing model) and the
+        # SVD below amplifies what one pass leaves behind.
+        P = P - Q_null @ (Q_null.T @ P)
         P = P - Q_null @ (Q_null.T @ P)
         Up, Sp, _ = np.linalg.svd(P, full_matrices=False)
         Q_null = np.hstack([Q_null, Up[:, Sp > 1e-10 * Sp[0]]])
@@ -1489,7 +1492,7 @@ def makeglobalgp_avgcov(psrs, prior, epochavgbasis=epochavgbasis, common=[], vec
 
 # time-interpolated covariance matrix from FFT
 
-def timeinterpbasis(psr, components, modes=None, T=None, start_time=None):
+def timeinterpbasis(psr, components, T=None, start_time=None):
     if start_time is None:
         start_time = np.min(psr.toas)
     else:
@@ -1515,7 +1518,7 @@ def timeinterpbasis(psr, components, modes=None, T=None, start_time=None):
     return t_coarse, dt_coarse, Bmat
 
 def make_timeinterpbasis(start_time=None, order=1):
-    def timeinterpbasis(psr, components, modes=None, T=None):
+    def timeinterpbasis(psr, components, T=None):
         t0 = start_time if start_time is not None else np.min(psr.toas)
         if t0 > np.min(psr.toas):
             raise ValueError('Coarse time basis start must be earlier than earliest TOA.')
@@ -1575,7 +1578,7 @@ def make_dmtimeinterpbasis(alpha=2.0, tndm=False, start_time=None, order=1):
                   DeprecationWarning, stacklevel=2)
     basis = make_timeinterpbasis(start_time, order)
 
-    def dmbasis(psr, components, modes=None, T=None, fref=1400.0):
+    def dmbasis(psr, components, T=None, fref=1400.0):
         t_coarse, dt_coarse, Bmat = basis(psr, components, T=T)
 
         if tndm:

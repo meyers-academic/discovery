@@ -1253,16 +1253,34 @@ class TestChromPolyBasisRealPulsar:
 class TestChromPolyProjection:
     """`project=` removes a further basis on top of the timing model."""
 
-    def test_project_removes_a_further_basis(self, real_psr):
-        """project= takes anything with a fixed design matrix, e.g. a time-constant
-        frequency-dependent term overlapping the polynomial's constant-in-time part."""
-        extra = np.asarray(chrom_poly_basis(real_psr)(9.0), dtype=float)
+    # Functional, not precision: this is ~1 if the projection did not happen and
+    # <=1e-6 once it did. Tightening it only buys platform flakiness.
+    PROJECTION_TOL = 1e-4
+
+    @pytest.mark.parametrize('alpha_extra, alpha_eval',
+                             [(9.0, 6.0), (9.0, 8.0), (6.0, 4.0), (6.0, 1.0),
+                              (3.0, 4.0), (3.0, 2.5), (3.0, 1.0)])
+    def test_project_removes_a_further_basis(self, real_psr, alpha_extra, alpha_eval):
+        """project= takes anything with a fixed design matrix.
+
+        The two indices must differ: at a single alpha the projected-out basis *is*
+        the GP's basis and the assertion holds vacuously.
+        """
+        extra = np.asarray(chrom_poly_basis(real_psr)(alpha_extra), dtype=float)
         gp = makegp_chrom_poly_svd(real_psr, name='chrom_gp', project=extra)
-        F = _chrom_F(gp, real_psr, 6.0)
+        F = _chrom_F(gp, real_psr, alpha_eval)
 
         Qtm = _q_tm(real_psr)
         Q = np.linalg.qr(extra - Qtm @ (Qtm.T @ extra))[0]
-        assert np.abs(Q.T @ F).max() < 1e-8
+        assert np.abs(Q.T @ F).max() < self.PROJECTION_TOL
+
+    @pytest.mark.parametrize('alpha', [0.5, 1.0, 2.5, 3.0, 4.0, 6.0, 8.0])
+    def test_timing_model_is_projected_out_across_alpha(self, real_psr, alpha):
+        """Must hold at every alpha, including the low end where the chromatic
+        polynomial nears the timing model's DM terms."""
+        gp = makegp_chrom_poly_svd(real_psr, name='chrom_gp')
+        F = _chrom_F(gp, real_psr, alpha)
+        assert np.abs(_q_tm(real_psr).T @ F).max() < self.PROJECTION_TOL
 
     def test_project_refuses_a_basis_with_no_fixed_span(self, real_psr):
         other = makegp_chrom_poly_svd(real_psr, name='other')    # its F is callable

@@ -4,8 +4,8 @@ import jax.numpy as jnp
 import warnings
 from scipy import interpolate
 
-from discovery import const
-from discovery import matrix
+from . import const
+from . import matrix
 
 AU_light_sec = const.AU / const.c  # 1 AU in light seconds
 AU_pc = const.AU / const.pc        # 1 AU in parsecs (for DM normalization)
@@ -142,7 +142,7 @@ def fourierbasis_solar_dm(psr,
     """
 
     # Lazy import to avoid circular dependency
-    from discovery.signals import fourierbasis
+    from .signals import fourierbasis
 
     # get base Fourier design matrix and frequencies
     f, df, fmat = fourierbasis(psr, components, T=T)
@@ -203,7 +203,7 @@ def makegp_timedomain_solar_dm(psr, covariance, dt=1.0, Umat=None, nodes=None, c
     DM signature.
     """
     # Lazy import to avoid circular dependency
-    from discovery.signals import quantize
+    from .signals import quantize
 
     argspec = inspect.getfullargspec(covariance)
     argmap = [(arg if arg in common else f'{name}_{arg}' if f'{name}_{arg}' in common else f'{psr.name}_{name}_{arg}')

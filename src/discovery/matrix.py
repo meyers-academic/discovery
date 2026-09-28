@@ -899,6 +899,8 @@ class WoodburyKernel_novar(ConstantKernel):
         FtNmF = F.T @ self.NmF
 
         Pinv, ldP = P.inv()
+        # scipy >= 1.18 gives `lower` as a 0-d ndarray; jax needs it hashable as a
+        # static arg, hence the bool() in the make_* methods below.
         self.cf = sp.linalg.cho_factor(Pinv + FtNmF)
         self.ld = ldN + ldP + 2.0 * np.logdet(np.diag(self.cf[0]))
 
@@ -922,7 +924,7 @@ class WoodburyKernel_novar(ConstantKernel):
     def make_kernelproduct(self, y):
         if callable(y):
             y_var, N_solve_1d = y, self.N.make_solve_1d()
-            NmF, cf, ld = jnparray(self.NmF), (jnparray(self.cf[0]), self.cf[1]), self.ld
+            NmF, cf, ld = jnparray(self.NmF), (jnparray(self.cf[0]), bool(self.cf[1])), self.ld
 
             def kernelproduct(params):
                 yp = y_var(params)
@@ -992,7 +994,7 @@ class WoodburyKernel_novar(ConstantKernel):
         if callable(T):
             Nmy, Nmf = jnparray(Nmy), jnparray(NmF)
             N_solve_2d = self.N.make_solve_2d()
-            cf = (jnparray(self.cf[0]), self.cf[1])
+            cf = (jnparray(self.cf[0]), bool(self.cf[1]))
             F, FtNmy, FtNmF = jnparray(self.F), jnparray(FtNmy), jnparray(FtNmF)
 
             def kernelsolve(params):
@@ -1036,7 +1038,7 @@ class WoodburyKernel_novar(ConstantKernel):
     def make_solve_1d(self):
         N_solve_1d = self.N.make_solve_1d()
         NmF = jnparray(self.NmF)
-        cf = (jnparray(self.cf[0]), self.cf[1])
+        cf = (jnparray(self.cf[0]), bool(self.cf[1]))
         ld = jnp.array(self.ld)
 
         # closes on N_solve_1d, NmF, cf, ld
@@ -1051,7 +1053,7 @@ class WoodburyKernel_novar(ConstantKernel):
     def make_solve_2d(self):
         N_solve_2d = self.N.make_solve_2d()
         NmF = jnparray(self.NmF)
-        cf = (jnparray(self.cf[0]), self.cf[1])
+        cf = (jnparray(self.cf[0]), bool(self.cf[1]))
         ld = jnp.array(self.ld)
 
         def solve_2d(F):

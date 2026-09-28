@@ -18,6 +18,7 @@ from discovery.signals import (
     fourierbasis_chrom,
     make_fourierbasis_chrom,
     log_fourierbasis,
+    linBinning,
     log_fourierbasis_dm,
     log_fourierbasis_chrom,
     log_fourierbasis_chrom_fixed,
@@ -415,6 +416,90 @@ class TestLogFourierbasis:
         f2, df2, fmat2 = log_fourierbasis(psr, T=T, logmode=0, nlin=10, nlog=0)
         np.testing.assert_allclose(np.asarray(f1), np.asarray(f2), rtol=1e-12)
         np.testing.assert_allclose(fmat1, fmat2, rtol=1e-12)
+
+
+class TestLogFourierbasisDefaults:
+    """The four log_fourierbasis* wrappers must be callable with their own defaults."""
+
+    @pytest.mark.parametrize('fn', [log_fourierbasis, log_fourierbasis_dm,
+                                    log_fourierbasis_chrom, log_fourierbasis_chrom_fixed])
+    def test_default_arguments_build_a_basis(self, psr, fn):
+        f, df, fmat = fn(psr)
+        assert f.shape == df.shape
+        assert np.all(np.asarray(f) > 0)
+
+    def test_default_matches_the_standard_linear_grid(self, psr):
+        """logmode=0 with nlog=0 is the ordinary k/T grid."""
+        T = psr.maxtoa - psr.mintoa
+        f, df, _ = log_fourierbasis(psr, T=T, nlin=10, nlog=0)
+        np.testing.assert_allclose(np.asarray(f)[::2],
+                                   np.arange(1, 11) / T, rtol=1e-12)
+        np.testing.assert_allclose(np.asarray(df), 1.0 / T, rtol=1e-12)
+
+    def test_negative_logmode_still_rejected(self):
+        with pytest.raises(ValueError, match='logmode must be >= 0'):
+            linBinning(1e9, -1, 1e-10, 10, 0)
+
+
+class TestLogFourierbasisWeights:
+    """The frequency volume element on a mixed log/linear grid.
+
+    These need nlog>0: with linear modes alone every bin is 1/T and the weighting
+    conventions agree.
+    """
+
+    @staticmethod
+    def _band(T, logmode, f_min, nlin, nlog):
+        """Range the modes tile: f_min to half a linear bin past the highest mode."""
+        return f_min, (logmode + nlin + 0.5) / T
+
+    def test_df_is_the_linbinning_weight_squared(self, psr):
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
+        f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        _, w = linBinning(T, logmode, f_min, nlin, nlog)
+        np.testing.assert_allclose(np.asarray(df), np.repeat(np.asarray(w) ** 2, 2),
+                                   rtol=1e-12)
+
+    def test_linear_modes_have_df_equal_to_one_over_T(self, psr):
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
+        _, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        np.testing.assert_allclose(np.asarray(df)[2 * nlog:], 1.0 / T, rtol=1e-12)
+
+    def test_weights_tile_the_band(self, psr):
+        """Per-mode widths must sum to the range covered. np.diff instead telescopes
+        to the highest mode, independent of f_min."""
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
+        f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        lo, hi = self._band(T, logmode, f_min, nlin, nlog)
+        total = np.asarray(df)[::2].sum()          # df is repeated for sin and cos
+        assert total == pytest.approx(hi - lo, rel=2e-2)
+
+    def test_lowest_log_mode_is_not_given_the_dc_bin(self, psr):
+        """Regression: np.diff hands mode 0 the whole of [0, f_0], swamping a red
+        spectrum. Its width is its own log bin, not its distance from zero."""
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
+        f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        f0, df0 = np.asarray(f)[0], np.asarray(df)[0]
+        assert df0 < 0.75 * f0
+        dlog = np.log(np.asarray(f)[2] / f0)       # step between adjacent log modes
+        assert df0 == pytest.approx(2.0 * f0 * np.sinh(dlog / 2.0), rel=1e-2)
+
+    def test_band_power_of_a_red_spectrum_is_recovered(self, psr):
+        """sum S(f_i) df_i must approximate the integral of S(f) over the band."""
+        from scipy.integrate import quad
+        T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 30, 6
+        f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
+                                    nlin=nlin, nlog=nlog)
+        fref = 1.0 / (365.25 * 86400.0)
+        S = lambda x: (x / fref) ** (-13.0 / 3.0)
+        lo, hi = self._band(T, logmode, f_min, nlin, nlog)
+        exact, _ = quad(S, lo, hi, limit=400)
+        approx = (S(np.asarray(f)[::2]) * np.asarray(df)[::2]).sum()
+        assert approx == pytest.approx(exact, rel=0.15)
 
 
 # ---------------------------------------------------------------------------
@@ -1253,16 +1338,34 @@ class TestChromPolyBasisRealPulsar:
 class TestChromPolyProjection:
     """`project=` removes a further basis on top of the timing model."""
 
-    def test_project_removes_a_further_basis(self, real_psr):
-        """project= takes anything with a fixed design matrix, e.g. a time-constant
-        frequency-dependent term overlapping the polynomial's constant-in-time part."""
-        extra = np.asarray(chrom_poly_basis(real_psr)(9.0), dtype=float)
+    # Functional, not precision: this is ~1 if the projection did not happen and
+    # <=1e-6 once it did. Tightening it only buys platform flakiness.
+    PROJECTION_TOL = 1e-4
+
+    @pytest.mark.parametrize('alpha_extra, alpha_eval',
+                             [(9.0, 6.0), (9.0, 8.0), (6.0, 4.0), (6.0, 1.0),
+                              (3.0, 4.0), (3.0, 2.5), (3.0, 1.0)])
+    def test_project_removes_a_further_basis(self, real_psr, alpha_extra, alpha_eval):
+        """project= takes anything with a fixed design matrix.
+
+        The two indices must differ: at a single alpha the projected-out basis *is*
+        the GP's basis and the assertion holds vacuously.
+        """
+        extra = np.asarray(chrom_poly_basis(real_psr)(alpha_extra), dtype=float)
         gp = makegp_chrom_poly_svd(real_psr, name='chrom_gp', project=extra)
-        F = _chrom_F(gp, real_psr, 6.0)
+        F = _chrom_F(gp, real_psr, alpha_eval)
 
         Qtm = _q_tm(real_psr)
         Q = np.linalg.qr(extra - Qtm @ (Qtm.T @ extra))[0]
-        assert np.abs(Q.T @ F).max() < 1e-8
+        assert np.abs(Q.T @ F).max() < self.PROJECTION_TOL
+
+    @pytest.mark.parametrize('alpha', [0.5, 1.0, 2.5, 3.0, 4.0, 6.0, 8.0])
+    def test_timing_model_is_projected_out_across_alpha(self, real_psr, alpha):
+        """Must hold at every alpha, including the low end where the chromatic
+        polynomial nears the timing model's DM terms."""
+        gp = makegp_chrom_poly_svd(real_psr, name='chrom_gp')
+        F = _chrom_F(gp, real_psr, alpha)
+        assert np.abs(_q_tm(real_psr).T @ F).max() < self.PROJECTION_TOL
 
     def test_project_refuses_a_basis_with_no_fixed_span(self, real_psr):
         other = makegp_chrom_poly_svd(real_psr, name='other')    # its F is callable

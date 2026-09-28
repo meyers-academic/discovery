@@ -489,14 +489,13 @@ def fourierbasis(psr, components, T=None):
     return np.repeat(f, 2), np.repeat(df, 2), fmat
 
 
-def log_fourierbasis(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0):
+def log_fourierbasis(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0):
     if T is None:
         T = getspan(psr)
 
-    f, w_lin = linBinning(T, logmode, f_min, nlin, nlog)
+    f, w = linBinning(T, logmode, f_min, nlin, nlog)
 
-    #f  = np.arange(1, components + 1, dtype=np.float64) / T
-    df = np.diff(np.concatenate((np.array([0]), f)))
+    df = np.asarray(w) ** 2   # bin widths; see linBinning
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -505,14 +504,13 @@ def log_fourierbasis(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0):
 
     return np.repeat(f, 2), np.repeat(df, 2), fmat
 
-def log_fourierbasis_dm(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0, fref=1400):
+def log_fourierbasis_dm(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fref=1400):
     if T is None:
         T = getspan(psr)
 
-    f, w_lin = linBinning(T, logmode, f_min, nlin, nlog)
+    f, w = linBinning(T, logmode, f_min, nlin, nlog)
 
-    #f  = np.arange(1, components + 1, dtype=np.float64) / T
-    df = np.diff(np.concatenate((np.array([0]), f)))
+    df = np.asarray(w) ** 2   # bin widths; see linBinning
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -523,14 +521,13 @@ def log_fourierbasis_dm(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0, fr
 
     return np.repeat(f, 2), np.repeat(df, 2), fmat * Dm[:, None]
 
-def log_fourierbasis_chrom(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0, fref=800):
+def log_fourierbasis_chrom(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fref=800):
     if T is None:
         T = getspan(psr)
 
-    f, w_lin = linBinning(T, logmode, f_min, nlin, nlog)
+    f, w = linBinning(T, logmode, f_min, nlin, nlog)
 
-    #f  = np.arange(1, components + 1, dtype=np.float64) / T
-    df = np.diff(np.concatenate((np.array([0]), f)))
+    df = np.asarray(w) ** 2   # bin widths; see linBinning
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -543,14 +540,13 @@ def log_fourierbasis_chrom(psr, T=None, logmode=-1, f_min=None, nlin=30, nlog=0,
 
     return np.repeat(f, 2), np.repeat(df, 2), fmatfunc
 
-def log_fourierbasis_chrom_fixed(psr, alpha = 4.0, T=None, logmode=-1, f_min=None, nlin=30, nlog=0, fref=800):
+def log_fourierbasis_chrom_fixed(psr, alpha = 4.0, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fref=800):
     if T is None:
         T = getspan(psr)
 
-    f, w_lin = linBinning(T, logmode, f_min, nlin, nlog)
+    f, w = linBinning(T, logmode, f_min, nlin, nlog)
 
-    #f  = np.arange(1, components + 1, dtype=np.float64) / T
-    df = np.diff(np.concatenate((np.array([0]), f)))
+    df = np.asarray(w) ** 2   # bin widths; see linBinning
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -575,10 +571,18 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     :param nlin:    How many linear frequencies we'll use
     :param nlog:    How many log frequencies we'll use
 
+    Modes sit at bin centres and the weights are sqrt(bin width), so w**2 is the
+    volume element to apply to S(f). Note np.diff(f) is not that: it measures back
+    to the previous centre, and its lowest bin runs from DC rather than f_min,
+    overstating band power by ~73% at gamma = 13/3.
     """
     if logmode < 0:
         raise ValueError(
-            "Cannot do log-spacing when all frequencies are" "linearly sampled"
+            f"linBinning: logmode must be >= 0, got {logmode}. logmode is the index of "
+            f"the lowest linear mode, so the linear grid starts at (1 + logmode) / T and "
+            f"any log-spaced modes fill in below (logmode + 0.5) / T. A negative value "
+            f"puts the first linear mode at zero frequency, and leaves no positive range "
+            f"for the log modes. Use logmode=0 for the standard k/T grid."
         )
 
     # First the linear spacing and weights
@@ -863,6 +867,9 @@ def makegp_improper_varF(psr, fmat, constant=1.0e40, name='improperGP_varF',
                     f'with a constant design matrix can be projected out.')
             mats.append(np.asarray(F_p, dtype=np.float64))
         P = np.hstack(mats)
+        # Twice, because Q_null is only orthonormal to ~eps*cond(timing model) and the
+        # SVD below amplifies what one pass leaves behind.
+        P = P - Q_null @ (Q_null.T @ P)
         P = P - Q_null @ (Q_null.T @ P)
         Up, Sp, _ = np.linalg.svd(P, full_matrices=False)
         Q_null = np.hstack([Q_null, Up[:, Sp > 1e-10 * Sp[0]]])
@@ -1489,7 +1496,7 @@ def makeglobalgp_avgcov(psrs, prior, epochavgbasis=epochavgbasis, common=[], vec
 
 # time-interpolated covariance matrix from FFT
 
-def timeinterpbasis(psr, components, modes=None, T=None, start_time=None):
+def timeinterpbasis(psr, components, T=None, start_time=None):
     if start_time is None:
         start_time = np.min(psr.toas)
     else:
@@ -1515,7 +1522,7 @@ def timeinterpbasis(psr, components, modes=None, T=None, start_time=None):
     return t_coarse, dt_coarse, Bmat
 
 def make_timeinterpbasis(start_time=None, order=1):
-    def timeinterpbasis(psr, components, modes=None, T=None):
+    def timeinterpbasis(psr, components, T=None):
         t0 = start_time if start_time is not None else np.min(psr.toas)
         if t0 > np.min(psr.toas):
             raise ValueError('Coarse time basis start must be earlier than earliest TOA.')
@@ -1575,7 +1582,7 @@ def make_dmtimeinterpbasis(alpha=2.0, tndm=False, start_time=None, order=1):
                   DeprecationWarning, stacklevel=2)
     basis = make_timeinterpbasis(start_time, order)
 
-    def dmbasis(psr, components, modes=None, T=None, fref=1400.0):
+    def dmbasis(psr, components, T=None, fref=1400.0):
         t_coarse, dt_coarse, Bmat = basis(psr, components, T=T)
 
         if tndm:

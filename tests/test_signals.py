@@ -1,6 +1,7 @@
 """Tests for make_combined_crn signature merging and numerical correctness."""
 
 import inspect
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -330,28 +331,28 @@ class TestLogFourierbasis:
     def test_log_fourierbasis_shape(self, psr):
         """log_fourierbasis returns arrays of shape (2*nlin, ) and (ntoa, 2*nlin)."""
         nlin = 20
-        f, df, fmat = log_fourierbasis(psr, logmode=0, nlin=nlin, nlog=0)
+        f, df, fmat = log_fourierbasis(psr, logmode=0, components=nlin, nlog=0)
         assert f.shape == (2 * nlin,)
         assert df.shape == (2 * nlin,)
         assert fmat.shape == (len(psr.toas), 2 * nlin)
 
     def test_log_fourierbasis_frequencies_positive(self, psr):
         """All frequencies returned by log_fourierbasis must be positive."""
-        f, df, fmat = log_fourierbasis(psr, logmode=0, nlin=15, nlog=0)
+        f, df, fmat = log_fourierbasis(psr, logmode=0, components=15, nlog=0)
         assert np.all(f > 0)
 
     def test_log_fourierbasis_with_logmodes(self, psr):
         """log_fourierbasis with logmode>=0 and nlog>0 returns nlin+nlog frequencies."""
         nlin, nlog = 10, 5
         T = psr.maxtoa - psr.mintoa
-        f, df, fmat = log_fourierbasis(psr, T=T, logmode=0, f_min=0.5/T, nlin=nlin, nlog=nlog)
+        f, df, fmat = log_fourierbasis(psr, T=T, logmode=0, f_min=0.5/T, components=nlin + nlog, nlog=nlog)
         assert f.shape == (2 * (nlin + nlog),)
         assert fmat.shape == (len(psr.toas), 2 * (nlin + nlog))
 
     def test_log_fourierbasis_sin_cos_columns(self, psr):
         """Even/odd columns are sin/cos at return frequencies."""
         nlin = 5
-        f, df, fmat = log_fourierbasis(psr, logmode=0, nlin=nlin, nlog=0)
+        f, df, fmat = log_fourierbasis(psr, logmode=0, components=nlin, nlog=0)
         freq = f[::2]  # unique frequencies (before repeat)
         for i, fi in enumerate(freq):
             np.testing.assert_allclose(
@@ -366,7 +367,7 @@ class TestLogFourierbasis:
     def test_log_fourierbasis_dm_shape(self, psr):
         """log_fourierbasis_dm returns same shape as log_fourierbasis."""
         nlin = 15
-        f, df, fmat = log_fourierbasis_dm(psr, logmode=0, nlin=nlin, nlog=0)
+        f, df, fmat = log_fourierbasis_dm(psr, logmode=0, components=nlin, nlog=0)
         assert f.shape == (2 * nlin,)
         assert fmat.shape == (len(psr.toas), 2 * nlin)
 
@@ -374,8 +375,8 @@ class TestLogFourierbasis:
         """log_fourierbasis_dm = log_fourierbasis * (fref/freqs)^2."""
         nlin = 10
         fref = 1400.0
-        f_plain, _, fmat_plain = log_fourierbasis(psr, logmode=0, nlin=nlin, nlog=0)
-        f_dm, _, fmat_dm = log_fourierbasis_dm(psr, logmode=0, nlin=nlin, nlog=0, fref=fref)
+        f_plain, _, fmat_plain = log_fourierbasis(psr, logmode=0, components=nlin, nlog=0)
+        f_dm, _, fmat_dm = log_fourierbasis_dm(psr, logmode=0, components=nlin, nlog=0, fref=fref)
         Dm = (fref / psr.freqs) ** 2
         np.testing.assert_allclose(fmat_dm, fmat_plain * Dm[:, None], rtol=1e-10)
         np.testing.assert_allclose(f_plain, f_dm, rtol=1e-12)
@@ -383,13 +384,13 @@ class TestLogFourierbasis:
     def test_log_fourierbasis_chrom_returns_callable(self, psr):
         """log_fourierbasis_chrom returns a callable fmat."""
         nlin = 10
-        f, df, fmat = log_fourierbasis_chrom(psr, logmode=0, nlin=nlin, nlog=0)
+        f, df, fmat = log_fourierbasis_chrom(psr, logmode=0, components=nlin, nlog=0)
         assert callable(fmat)
 
     def test_log_fourierbasis_chrom_callable_shape(self, psr):
         """Calling the free-chromatic fmat with an index gives correct shape."""
         nlin = 10
-        f, df, fmat = log_fourierbasis_chrom(psr, logmode=0, nlin=nlin, nlog=0)
+        f, df, fmat = log_fourierbasis_chrom(psr, logmode=0, components=nlin, nlog=0)
         result = fmat(4.0)
         assert result.shape == (len(psr.toas), 2 * nlin)
 
@@ -398,22 +399,22 @@ class TestLogFourierbasis:
         nlin = 8
         idx = 3.7
         fref = 800.0
-        _, _, fmat_free = log_fourierbasis_chrom(psr, logmode=0, nlin=nlin, nlog=0, fref=fref)
-        _, _, fmat_fixed = log_fourierbasis_chrom_fixed(psr, alpha=idx, logmode=0, nlin=nlin, nlog=0, fref=fref)
+        _, _, fmat_free = log_fourierbasis_chrom(psr, logmode=0, components=nlin, nlog=0, fref=fref)
+        _, _, fmat_fixed = log_fourierbasis_chrom_fixed(psr, alpha=idx, logmode=0, components=nlin, nlog=0, fref=fref)
         np.testing.assert_allclose(np.asarray(fmat_free(idx)), np.asarray(fmat_fixed), rtol=1e-10)
 
     def test_log_fourierbasis_chrom_fixed_shape(self, psr):
         """log_fourierbasis_chrom_fixed returns an array (not callable)."""
         nlin = 12
-        f, df, fmat = log_fourierbasis_chrom_fixed(psr, alpha=4.0, logmode=0, nlin=nlin, nlog=0)
+        f, df, fmat = log_fourierbasis_chrom_fixed(psr, alpha=4.0, logmode=0, components=nlin, nlog=0)
         assert hasattr(fmat, 'shape') or isinstance(fmat, np.ndarray)
         assert np.asarray(fmat).shape == (len(psr.toas), 2 * nlin)
 
     def test_log_fourierbasis_consistent_with_explicit_T(self, psr):
         """Passing T explicitly gives same result as letting it be auto-computed."""
         T = psr.maxtoa - psr.mintoa
-        f1, df1, fmat1 = log_fourierbasis(psr, logmode=0, nlin=10, nlog=0)
-        f2, df2, fmat2 = log_fourierbasis(psr, T=T, logmode=0, nlin=10, nlog=0)
+        f1, df1, fmat1 = log_fourierbasis(psr, logmode=0, components=10, nlog=0)
+        f2, df2, fmat2 = log_fourierbasis(psr, T=T, logmode=0, components=10, nlog=0)
         np.testing.assert_allclose(np.asarray(f1), np.asarray(f2), rtol=1e-12)
         np.testing.assert_allclose(fmat1, fmat2, rtol=1e-12)
 
@@ -431,7 +432,7 @@ class TestLogFourierbasisDefaults:
     def test_default_matches_the_standard_linear_grid(self, psr):
         """logmode=0 with nlog=0 is the ordinary k/T grid."""
         T = psr.maxtoa - psr.mintoa
-        f, df, _ = log_fourierbasis(psr, T=T, nlin=10, nlog=0)
+        f, df, _ = log_fourierbasis(psr, T=T, components=10, nlog=0)
         np.testing.assert_allclose(np.asarray(f)[::2],
                                    np.arange(1, 11) / T, rtol=1e-12)
         np.testing.assert_allclose(np.asarray(df), 1.0 / T, rtol=1e-12)
@@ -439,6 +440,52 @@ class TestLogFourierbasisDefaults:
     def test_negative_logmode_still_rejected(self):
         with pytest.raises(ValueError, match='logmode must be >= 0'):
             linBinning(1e9, -1, 1e-10, 10, 0)
+
+    def test_log_modes_need_f_min(self):
+        with pytest.raises(ValueError, match='f_min'):
+            linBinning(1e9, 0, None, 10, 4)
+
+    def test_nlog_cannot_exceed_components(self, psr):
+        with pytest.raises(ValueError, match='nlog'):
+            log_fourierbasis(psr, 4, nlog=5, f_min=1e-10)
+
+    def test_components_must_be_an_int(self, psr):
+        with pytest.raises(TypeError, match='components'):
+            log_fourierbasis(psr, np.array([1e-9, 2e-9]))
+
+
+class TestLogFourierbasisInGP:
+    """The log bases plug into the GP builders as ``fourierbasis``: ``components`` is
+    the total number of modes, ``nlog`` of them log-spaced."""
+
+    @pytest.mark.parametrize('fn', [log_fourierbasis, log_fourierbasis_dm,
+                                    log_fourierbasis_chrom, log_fourierbasis_chrom_fixed])
+    def test_makegp_fourier_accepts_log_basis(self, psr, fn):
+        T = psr.maxtoa - psr.mintoa
+        gp = makegp_fourier(psr, ds.freespectrum, 14, T=T, name='rn',
+                            fourierbasis=partial(fn, nlog=4, f_min=0.1 / T))
+
+        assert list(gp.index) == [f'{psr.name}_rn_coefficients(28)']
+        assert f'{psr.name}_rn_log10_rho(14)' in gp.Phi.params
+
+    def test_logL_with_log_basis(self, psr):
+        T = psr.maxtoa - psr.mintoa
+        gp = makegp_fourier(psr, ds.freespectrum, 14, T=T, name='rn',
+                            fourierbasis=partial(log_fourierbasis, nlog=4, f_min=0.1 / T))
+        white = matrix.NoiseMatrix1D_novar(jnp.full(len(psr.toas), 1e-12))
+        logL = ds.PulsarLikelihood([psr.residuals, white, gp]).logL
+
+        (rho,) = logL.params
+        assert np.isfinite(float(logL({rho: -7.0 * np.ones(14)})))
+
+    def test_global_gp_accepts_log_basis(self):
+        psrs = [_MockPulsar(seed=s) for s in (1, 2)]
+        for p, name, pos in zip(psrs, ['J0000+0000', 'J0001+0001'], [[1., 0, 0], [0, 1., 0]]):
+            p.name, p.pos = name, np.array(pos)
+        T = max(p.maxtoa for p in psrs) - min(p.mintoa for p in psrs)
+        gp = ds.makeglobalgp_fourier(psrs, ds.freespectrum, ds.hd_orf, 14, T, name='gw',
+                                     fourierbasis=partial(log_fourierbasis, nlog=4, f_min=0.1 / T))
+        assert gp.Phi.params == ['gw_log10_rho(14)']
 
 
 class TestLogFourierbasisWeights:
@@ -456,7 +503,7 @@ class TestLogFourierbasisWeights:
     def test_df_is_the_linbinning_weight_squared(self, psr):
         T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
         f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
-                                    nlin=nlin, nlog=nlog)
+                                    components=nlin + nlog, nlog=nlog)
         _, w = linBinning(T, logmode, f_min, nlin, nlog)
         np.testing.assert_allclose(np.asarray(df), np.repeat(np.asarray(w) ** 2, 2),
                                    rtol=1e-12)
@@ -464,7 +511,7 @@ class TestLogFourierbasisWeights:
     def test_linear_modes_have_df_equal_to_one_over_T(self, psr):
         T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
         _, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
-                                    nlin=nlin, nlog=nlog)
+                                    components=nlin + nlog, nlog=nlog)
         np.testing.assert_allclose(np.asarray(df)[2 * nlog:], 1.0 / T, rtol=1e-12)
 
     def test_weights_tile_the_band(self, psr):
@@ -472,7 +519,7 @@ class TestLogFourierbasisWeights:
         to the highest mode, independent of f_min."""
         T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
         f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
-                                    nlin=nlin, nlog=nlog)
+                                    components=nlin + nlog, nlog=nlog)
         lo, hi = self._band(T, logmode, f_min, nlin, nlog)
         total = np.asarray(df)[::2].sum()          # df is repeated for sin and cos
         assert total == pytest.approx(hi - lo, rel=2e-2)
@@ -482,7 +529,7 @@ class TestLogFourierbasisWeights:
         spectrum. Its width is its own log bin, not its distance from zero."""
         T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 8, 6
         f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
-                                    nlin=nlin, nlog=nlog)
+                                    components=nlin + nlog, nlog=nlog)
         f0, df0 = np.asarray(f)[0], np.asarray(df)[0]
         assert df0 < 0.75 * f0
         dlog = np.log(np.asarray(f)[2] / f0)       # step between adjacent log modes
@@ -493,7 +540,7 @@ class TestLogFourierbasisWeights:
         from scipy.integrate import quad
         T, logmode, f_min, nlin, nlog = 1e9, 1, 1e-10, 30, 6
         f, df, _ = log_fourierbasis(psr, T=T, logmode=logmode, f_min=f_min,
-                                    nlin=nlin, nlog=nlog)
+                                    components=nlin + nlog, nlog=nlog)
         fref = 1.0 / (365.25 * 86400.0)
         S = lambda x: (x / fref) ** (-13.0 / 3.0)
         lo, hi = self._band(T, logmode, f_min, nlin, nlog)

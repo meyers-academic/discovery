@@ -489,13 +489,29 @@ def fourierbasis(psr, components, T=None):
     return np.repeat(f, 2), np.repeat(df, 2), fmat
 
 
-def log_fourierbasis(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0):
+def _log_frequencies(psr, components, T, logmode, f_min, nlog):
+    """Mode frequencies and bin widths for the log_fourierbasis* wrappers.
+
+    ``components`` is the total number of modes, as for :func:`fourierbasis`, so these
+    bases drop into the GP builders unchanged: ``nlog`` of them are log-spaced and the
+    remaining ``components - nlog`` are linear. See :func:`linBinning`.
+    """
+    if not isinstance(components, (int, np.integer)):
+        raise TypeError(f"log_fourierbasis: components must be an int (the total number "
+                        f"of modes), got {type(components).__name__}.")
+    if not 0 <= nlog <= components:
+        raise ValueError(f"log_fourierbasis: nlog must be between 0 and components "
+                         f"({components}), got {nlog}.")
+
     if T is None:
         T = getspan(psr)
 
-    f, w = linBinning(T, logmode, f_min, nlin, nlog)
+    f, w = linBinning(T, logmode, f_min, components - nlog, nlog)
 
-    df = np.asarray(w) ** 2   # bin widths; see linBinning
+    return f, np.asarray(w) ** 2   # bin widths; see linBinning
+
+def log_fourierbasis(psr, components=30, T=None, logmode=0, f_min=None, nlog=0):
+    f, df = _log_frequencies(psr, components, T, logmode, f_min, nlog)
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -504,13 +520,8 @@ def log_fourierbasis(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0):
 
     return np.repeat(f, 2), np.repeat(df, 2), fmat
 
-def log_fourierbasis_dm(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fref=1400):
-    if T is None:
-        T = getspan(psr)
-
-    f, w = linBinning(T, logmode, f_min, nlin, nlog)
-
-    df = np.asarray(w) ** 2   # bin widths; see linBinning
+def log_fourierbasis_dm(psr, components=30, T=None, logmode=0, f_min=None, nlog=0, fref=1400):
+    f, df = _log_frequencies(psr, components, T, logmode, f_min, nlog)
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -521,13 +532,8 @@ def log_fourierbasis_dm(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fre
 
     return np.repeat(f, 2), np.repeat(df, 2), fmat * Dm[:, None]
 
-def log_fourierbasis_chrom(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fref=800):
-    if T is None:
-        T = getspan(psr)
-
-    f, w = linBinning(T, logmode, f_min, nlin, nlog)
-
-    df = np.asarray(w) ** 2   # bin widths; see linBinning
+def log_fourierbasis_chrom(psr, components=30, T=None, logmode=0, f_min=None, nlog=0, fref=800):
+    f, df = _log_frequencies(psr, components, T, logmode, f_min, nlog)
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -540,13 +546,8 @@ def log_fourierbasis_chrom(psr, T=None, logmode=0, f_min=None, nlin=30, nlog=0, 
 
     return np.repeat(f, 2), np.repeat(df, 2), fmatfunc
 
-def log_fourierbasis_chrom_fixed(psr, alpha = 4.0, T=None, logmode=0, f_min=None, nlin=30, nlog=0, fref=800):
-    if T is None:
-        T = getspan(psr)
-
-    f, w = linBinning(T, logmode, f_min, nlin, nlog)
-
-    df = np.asarray(w) ** 2   # bin widths; see linBinning
+def log_fourierbasis_chrom_fixed(psr, components=30, T=None, alpha=4.0, logmode=0, f_min=None, nlog=0, fref=800):
+    f, df = _log_frequencies(psr, components, T, logmode, f_min, nlog)
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
     for i in range(len(f)):
@@ -589,7 +590,7 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     Raises
     ------
     ValueError
-        If ``logmode < 0``.
+        If ``logmode < 0``, or if ``nlog > 0`` and ``f_min`` is None.
 
     Notes
     -----
@@ -614,6 +615,10 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     w_lin = jnp.sqrt(df_lin * jnp.ones(nlin))
 
     if nlog > 0:
+        if f_min is None:
+            raise ValueError(
+                f"linBinning: nlog={nlog} log-spaced modes need f_min, the lowest frequency "
+                f"they cover, in Hz; got None.")
         # Now the log-spacing, and weights
         f_min_log = jnp.log(f_min)
         f_max_log = jnp.log((logmode + 0.5) / T)

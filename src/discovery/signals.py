@@ -980,6 +980,22 @@ def makegp_improper_varF(psr, fmat, constant=1.0e40, name='improperGP_varF',
 
 def normalise_tm_basis(psr, scale=1.0):
     """Timing-model design matrix with unit-norm columns.
+
+    Parameters
+    ----------
+    psr : Pulsar
+        Discovery Pulsar object.
+    scale : float, optional
+        Factor applied to ``psr.Mmat`` before normalising. Default is 1.0.
+
+    Returns
+    -------
+    ndarray
+        ``(N_toa, N_col)`` matrix whose columns have unit norm. ``N_col`` is the
+        number of non-zero columns of ``psr.Mmat``.
+
+    Notes
+    -----
     All-zero columns, which arise when a fitted par-file parameter has no TOAs
     behind it, are dropped and reported. Dividing by their zero norm would give
     NaNs, and they span nothing, so removing them leaves the column space
@@ -1001,14 +1017,28 @@ def normalise_tm_basis(psr, scale=1.0):
 
 def chrom_poly_basis(psr, fref=None):
     """Callable chromatic polynomial basis ``U * (fref/freq)**alpha``.
+
+    For use with :func:`makegp_improper_varF`.
+
+    Parameters
+    ----------
+    psr : Pulsar
+        Discovery Pulsar object.
+    fref : float, optional
+        Reference frequency in MHz. Defaults to the geometric mean of the TOA
+        frequencies.
+
+    Returns
+    -------
+    callable
+        ``fmat(alpha) -> (N_toa, 3)`` array, with attributes ``ncol`` (3), ``fref``
+        and ``svd``, a dict of the temporal SVD factors ``S`` and ``Vt``.
+
+    Notes
+    -----
     ``U`` is the SVD-orthonormalised [1, t, t**2] temporal design matrix. The SVD is a
     fixed right-multiplication of the raw polynomial, so it leaves the column span, and
     hence the marginal likelihood under an orthonormalising GP, unchanged.
-    Returns ``fmat(alpha) -> (N_toa, 3)``, carrying ``ncol``, the reference frequency
-    ``fref`` and the temporal ``svd`` factors, for use with
-    :func:`makegp_improper_varF`.
-    psr:  Discovery Pulsar object
-    fref: reference frequency; defaults to the geometric mean of the TOA frequencies
     """
     t0_sec  = float(np.mean(psr.toas))
     toas_yr = (psr.toas - t0_sec) / const.yr
@@ -1034,18 +1064,36 @@ def chrom_poly_basis(psr, fref=None):
 def makegp_chrom_poly_svd(psr, fref=None, constant=1e40, name='chrom_gp', project=None,
                           noisedict={}):
     """SVD-orthogonalised chromatic polynomial GP, marginalised analytically.
+
     A :func:`chrom_poly_basis` carried by :func:`makegp_improper_varF`, so the timing
     model is projected out and the basis orthonormalised at every alpha.
     Shares ``alpha`` with a companion chromatic Fourier (or FFTint) GP via the
-    parameter name ``{psr}_{name}_alpha``.
-    psr:       Discovery Pulsar object
-    fref:      reference frequency; defaults to the geometric mean of the TOA frequencies
-    constant:  diagonal of the flat improper prior over the coefficients
-    name:      base name for the GP parameters
-    project:   further bases to remove alongside the timing model -- an array or a GP
-               with a non-callable ``F``
-    noisedict: fixed value for ``{psr}_{name}_alpha``; if present the basis is
-               evaluated once and a ConstantGP returned
+    parameter name ``{psr.name}_{name}_alpha``.
+
+    Parameters
+    ----------
+    psr : Pulsar
+        Discovery Pulsar object.
+    fref : float, optional
+        Reference frequency in MHz. Defaults to the geometric mean of the TOA
+        frequencies.
+    constant : float, optional
+        Prior variance on each coefficient, in s^2. Default is 1e40. See the Notes of
+        :func:`makegp_improper_varF` before comparing models.
+    name : str, optional
+        Base name for the GP parameters. Default is 'chrom_gp'.
+    project : array, GP, or list of these, optional
+        Further bases to remove alongside the timing model. Each is an array or a GP
+        with a non-callable ``F``.
+    noisedict : dict, optional
+        Fixed parameter values. If ``{psr.name}_{name}_alpha`` is present, the basis
+        is evaluated once and a :class:`~discovery.matrix.ConstantGP` is returned.
+
+    Returns
+    -------
+    ConstantGP or VariableGP
+        The GP from :func:`makegp_improper_varF`, with an extra ``svd`` attribute
+        holding the temporal SVD factors from :func:`chrom_poly_basis`.
     """
     fmat = chrom_poly_basis(psr, fref=fref)
 
@@ -1079,6 +1127,11 @@ def makegp_timedomain_dm(psr, covariance, dt=1.0, Umat=None, nodes=None, common=
         Design matrix mapping the low-rank GP to the TOA residuals. If None,
         it will be constructed by quantizing the TOAs and weighting by the DM signature.
         Default is None.
+    nodes : ndarray, optional
+        Time in seconds of each column of ``Umat``. The GP covariance is evaluated
+        at the separations between nodes. Required if ``Umat`` is given. If
+        ``Umat`` is None, each node is the mean TOA of its bin, weighted by the
+        DM signature. Default is None.
     common : list, optional
         List of parameter names that should be treated as common (shared) across
         pulsars rather than pulsar-specific. Default is [].
@@ -1106,9 +1159,6 @@ def makegp_timedomain_dm(psr, covariance, dt=1.0, Umat=None, nodes=None, common=
     The design matrix Umat maps the low-rank GP (evaluated at quantized TOAs)
     to the full TOA residuals, scaled by the frequency-dependent DM signature.
     """
-    # Lazy import to avoid circular dependency
-    from discovery.signals import quantize
-
     argspec = inspect.getfullargspec(covariance)
     argmap = [(arg if arg in common else f'{name}_{arg}' if f'{name}_{arg}' in common else f'{psr.name}_{name}_{arg}')
               for arg in argspec.args if arg not in ['tau']]

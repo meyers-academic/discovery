@@ -1294,7 +1294,7 @@ class WoodburyKernel_varNP(VariableKernel):
 
             return TtSy, TtST
 
-        kernelsolve.params = sorted(set(self.N_var.params + P_var_inv.params))
+        kernelsolve.params = sorted(set(self.N_var.params + P_var_inv.params + Ffunc.params))
 
         return kernelsolve
 
@@ -1353,7 +1353,7 @@ class WoodburyKernel_varNP(VariableKernel):
 
             return N_solve_2d(params, Fr)[0] - NmFl @ matrix_solve(cf, NmFltFr), ld
 
-        solve_2d.params = sorted(set(self.N_var.params + P_var.params))
+        solve_2d.params = sorted(set(self.N_var.params + P_var.params + Ffunc.params))
 
         return solve_2d
 
@@ -1381,7 +1381,7 @@ class WoodburyKernel_varNP(VariableKernel):
 
             return N_solve_1d(params, y)[0] - NmF @ matrix_solve(cf, NmFty), ld
 
-        solve_1d.params = sorted(set(self.N_var.params + P_var.params))
+        solve_1d.params = sorted(set(self.N_var.params + P_var.params + Ffunc.params))
 
         return solve_1d
 
@@ -1434,7 +1434,7 @@ class WoodburyKernel_varNP(VariableKernel):
 
             return a, b, c
 
-        kernelterms.params = sorted(set(self.N_var.params + self.P_var.params))
+        kernelterms.params = sorted(set(self.N_var.params + self.P_var.params + Ffunc.params))
 
         return kernelterms
 

@@ -519,6 +519,40 @@ class TestLikelihood:
         assert np.isfinite(l1)
         assert np.allclose(l1, l2)
 
+    @staticmethod
+    def _varF_only_model(psr, T):
+        # the chromatic index appears only in the varF basis, never in phi, and the
+        # white noise is free, so the noise kernel is a WoodburyKernel_varNP
+        quad = ds.makegp_improper_varF(psr, ds.chromatic_quad_basis(psr),
+                                       name='chrom_gp', param_names=['alpha'])
+        rn = ds.makegp_fourier(psr, ds.powerlaw, components=10, T=T, name='rednoise')
+        return ds.PulsarLikelihood([psr.residuals, ds.makenoise_measurement(psr),
+                                    ds.makegp_timing(psr, svd=True), quad, rn])
+
+    def test_varNP_callable_F_params(self):
+        """Regression: WoodburyKernel_varNP methods must list the callable F's params."""
+        data_dir = Path(__file__).resolve().parent.parent / "data"
+        psrs = [ds.Pulsar.read_feather(data_dir / f"v1p1_de440_pint_bipm2019-{name}.feather")
+                for name in ['B1855+09', 'B1937+21']]
+        T = ds.getspan(psrs)
+
+        N = self._varF_only_model(psrs[0], T).N
+        assert type(N).__name__ == 'WoodburyKernel_varNP'
+
+        T0 = np.ones((len(psrs[0].toas), 1))
+        alpha = 'B1855+09_chrom_gp_alpha'
+        for fn in [N.make_solve_1d(), N.make_solve_2d(),
+                   N.make_kernelsolve(psrs[0].residuals, T0),
+                   N.make_kernelterms(psrs[0].residuals, T0)]:
+            assert alpha in fn.params
+
+        gl = ds.GlobalLikelihood([self._varF_only_model(psr, T) for psr in psrs],
+                                 ds.makeglobalgp_fourier(psrs, ds.powerlaw, ds.hd_orf,
+                                                         5, T, name='gw'))
+        assert {p for p in gl.logL.params if p.endswith('chrom_gp_alpha')} == \
+               {'B1855+09_chrom_gp_alpha', 'B1937+21_chrom_gp_alpha'}
+        assert np.isfinite(gl.logL(ds.sample_uniform(gl.logL.params)))
+
 class TestConditionalAllVariable:
     """Regression: all-variable GPs must support conditional / sample_conditional."""
 

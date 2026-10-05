@@ -288,6 +288,25 @@ def test_makenoise_measurement_outliers():
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize('tnequad', [False, True])
+@pytest.mark.parametrize('vectorize', [True, False])
+def test_makenoise_measurement_outliers_scale_variance(tnequad, vectorize):
+    """alpha_scaling multiplies the variance, not the error, on every code path"""
+    psr = MockPulsar('J0437-4715', ntoas=50, nbackends=1)
+    backend = sorted(set(psr.backend_flags))[0]
+    equad = 'tnequad' if tnequad else 't2equad'
+
+    noise = signals.makenoise_measurement(psr, noisedict={}, outliers=True,
+                                          tnequad=tnequad, vectorize=vectorize)
+    alpha = 2.5 * np.ones(psr.toas.size)
+    params = {f'{psr.name}_{backend}_efac': 1.0,
+              f'{psr.name}_{backend}_log10_{equad}': -20.0,
+              f'{psr.name}_alpha_scaling({psr.toas.size})': alpha}
+
+    np.testing.assert_allclose(noise.getN(params), alpha * psr.toaerrs**2 + 1e-40, rtol=1e-10)
+
+
+@pytest.mark.unit
 def test_makenoise_measurement_outliers_error_fixed():
     """Test that outliers=True raises error when noise is fixed"""
     psr = MockPulsar('J0437-4715', ntoas=50, nbackends=1)

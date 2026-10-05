@@ -211,7 +211,7 @@ def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=Fal
             if tnequad:
                 def getnoise(params):
                     alpha_scaling = params[toaerr_scaling] if outliers else 1.0
-                    base = sum(mask * (params[efac]**2 * (alpha_scaling * toaerrs)**2
+                    base = sum(mask * (params[efac]**2 * alpha_scaling * toaerrs**2
                                        + 10.0**(2 * (logscale + params[log10_equad])))
                                for mask, efac, log10_equad in zip(masks_list, efacs, log10_equads))
                     if chromequad:

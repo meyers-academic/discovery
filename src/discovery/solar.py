@@ -176,6 +176,11 @@ def makegp_timedomain_solar_dm(psr, covariance, dt=1.0, Umat=None, nodes=None, c
         Design matrix mapping the low-rank GP to the TOA residuals. If None,
         it will be constructed by quantizing the TOAs and weighting by the solar wind DM signature.
         Default is None.
+    nodes : ndarray, optional
+        Time in seconds of each column of ``Umat``. The GP covariance is evaluated
+        at the separations between nodes. Required if ``Umat`` is given. If
+        ``Umat`` is None, each node is the mean TOA of its bin, weighted by the
+        solar wind DM signature. Default is None.
     common : list, optional
         List of parameter names that should be treated as common (shared) across
         pulsars rather than pulsar-specific. Default is [].

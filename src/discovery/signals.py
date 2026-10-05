@@ -559,22 +559,44 @@ def log_fourierbasis_chrom_fixed(psr, alpha = 4.0, T=None, logmode=0, f_min=None
     return np.repeat(f, 2), np.repeat(df, 2), fmat
 
 def linBinning(T, logmode, f_min, nlin, nlog):
-    """
-    Copied from enterprise_extensions.
-    Get the frequency binning for the low-rank approximations, including
-    log-spaced low-frequency coverage.
-    Credit: van Haasteren & Vallisneri, MNRAS, Vol. 446, Iss. 2 (2015)
+    """Frequency binning for low-rank Fourier bases with log-spaced low end.
 
-    :param T:       Duration experiment
-    :param logmode: From which linear mode to switch to log
-    :param f_min:   Down to which frequency we'll sample
-    :param nlin:    How many linear frequencies we'll use
-    :param nlog:    How many log frequencies we'll use
+    Copied from enterprise_extensions. Credit: van Haasteren & Vallisneri,
+    MNRAS 446, 2 (2015).
 
-    Modes sit at bin centres and the weights are sqrt(bin width), so w**2 is the
-    volume element to apply to S(f). Note np.diff(f) is not that: it measures back
-    to the previous centre, and its lowest bin runs from DC rather than f_min,
-    overstating band power by ~73% at gamma = 13/3.
+    Parameters
+    ----------
+    T : float
+        Duration of the experiment in seconds.
+    logmode : int
+        Index of the lowest linear mode, which sits at ``(1 + logmode) / T``.
+        Log-spaced modes fill in below ``(logmode + 0.5) / T``. Must be >= 0.
+    f_min : float
+        Lowest frequency covered by the log-spaced modes, in Hz. Only used if
+        ``nlog > 0``.
+    nlin : int
+        Number of linearly spaced frequencies.
+    nlog : int
+        Number of log-spaced frequencies.
+
+    Returns
+    -------
+    f : jnp.ndarray
+        Mode frequencies in Hz, log-spaced modes first, at bin centres.
+    w : jnp.ndarray
+        Square roots of the bin widths.
+
+    Raises
+    ------
+    ValueError
+        If ``logmode < 0``.
+
+    Notes
+    -----
+    Modes sit at bin centres and the weights are sqrt(bin width), so ``w**2`` is
+    the volume element to apply to :math:`S(f)`. ``np.diff(f)`` is not that: it
+    measures back to the previous centre, and its lowest bin runs from DC rather
+    than ``f_min``, overstating band power by ~73% at :math:`\\gamma = 13/3`.
     """
     if logmode < 0:
         raise ValueError(
@@ -830,27 +852,65 @@ def custom_blocked_interpolation_basis(
 def makegp_improper_varF(psr, fmat, constant=1.0e40, name='improperGP_varF',
                          param_names=[], noisedict={}, project=None):
     """Improper GP with a parameter-dependent design matrix.
+
     Like :func:`makegp_improper`, but the design matrix comes from a callable basis
     whose columns depend on fit parameters -- for example :func:`chrom_poly_basis`,
     whose columns depend on the chromatic index. The varying parameter is named
     ``{psr.name}_{name}_{param}``, so it is shared with any other signal carrying the
     same name, such as a chromatic Fourier GP.
+
     The timing-model column span is removed and the basis is orthonormalised at every
     evaluation. Neither is optional: the timing model carries an improper prior over its
     own directions, and an improper prior over a basis whose scale varies with the
     parameters scores them on that scale rather than on the data.
-    psr:            Discovery Pulsar object
-    fmat:           basis factory ``fmat(*param_values) -> (N_toa, N_col)`` array. May
-                    carry an ``ncol`` attribute giving its column count; if absent the
-                    width is found by evaluating it once
-    constant:       diagonal of the flat improper prior over the coefficients
-    name:           base name for the GP parameters
-    param_names:    names of the parameters passed positionally to fmat
-    noisedict:      fixed parameter values; if every entry of param_names is present
-                    the basis is evaluated once and a ConstantGP returned, otherwise a
-                    VariableGP whose design matrix varies with the free parameters
-    project:        further bases to remove alongside the timing model, each an array
-                    or a GP with a non-callable ``F``
+
+    Parameters
+    ----------
+    psr : Pulsar
+        Discovery Pulsar object.
+    fmat : callable
+        Basis factory, ``fmat(*param_values) -> (N_toa, N_col)`` array. May carry an
+        ``ncol`` attribute giving its column count; if absent, the width is found by
+        evaluating it once.
+    constant : float, optional
+        Prior variance on each coefficient, in s^2. The basis columns are
+        orthonormal, so this is the variance per unit-norm column. The default,
+        1e40, is effectively flat and matches enterprise. See Notes before
+        comparing models.
+    name : str, optional
+        Base name for the GP parameters.
+    param_names : list of str, optional
+        Names of the parameters passed positionally to ``fmat``.
+    noisedict : dict, optional
+        Fixed parameter values, keyed by full parameter name. If every parameter in
+        ``param_names`` is present, the basis is evaluated once and a
+        :class:`~discovery.matrix.ConstantGP` is returned.
+    project : array, GP, or list of these, optional
+        Further bases to remove alongside the timing model. Each is an array or a GP
+        with a non-callable ``F``.
+
+    Returns
+    -------
+    ConstantGP or VariableGP
+        A ``ConstantGP`` if every parameter is fixed by ``noisedict``, otherwise a
+        ``VariableGP`` whose design matrix varies with the free parameters.
+
+    Raises
+    ------
+    ValueError
+        If a basis passed to ``project`` has a callable ``F``.
+
+    Notes
+    -----
+    ``constant`` is harmless for parameter estimation, including the chromatic
+    index: the posterior on the coefficients is set by the data, and the
+    orthonormalisation keeps the Fisher determinant away from zero. It is not
+    harmless for model selection. The log evidence includes an Occam term of
+    roughly :math:`-\\tfrac{1}{2}\\ln(\\texttt{constant})` per column, so with the
+    default 1e40 the model is penalised by tens of nats per column for prior volume
+    the data never constrain. That biases Bayes factors against including this GP,
+    for example when testing for a chromatic GP. For evidence comparisons, set
+    ``constant`` to a physically motivated variance.
     """
     # factorised once: the timing model does not depend on the fit parameters
     Q_null, _ = np.linalg.qr(normalise_tm_basis(psr))

@@ -597,7 +597,7 @@
                   
   <section class="tex2jax_ignore mathjax_ignore" id="sampling-a-continuous-wave-signal-on-its-own-fourier-basis">
 <h1>Sampling a continuous-wave signal on its own Fourier basis<a class="headerlink" href="#sampling-a-continuous-wave-signal-on-its-own-fourier-basis" title="Link to this heading">#</a></h1>
-<p>This tutorial builds a pulsar-timing-array model that contains a <strong>continuous-wave (CW) source carried on its own Fourier basis</strong> – “Route A” – and samples it with NUTS.</p>
+<p>This tutorial builds a pulsar-timing-array model that contains a <strong>continuous-wave (CW) source carried on its own Fourier basis</strong> and samples it with NUTS.</p>
 <p>The CW is added to a Hellings-Downs (HD) gravitational-wave-background model through <code class="docutils literal notranslate"><span class="pre">ArrayLikelihood(...,</span> <span class="pre">extsignals=[...])</span></code>. Unlike a Gaussian process, the CW has no prior: its Fourier coefficients are a deterministic function of a few physical parameters. Because it lives on its own basis it can use <em>more</em> frequency components than the red-noise / GWB GPs, so it reaches the higher frequencies a CW search needs (the bin spacing is fixed at <code class="docutils literal notranslate"><span class="pre">1/T_obs</span></code> for every Fourier basis).</p>
 <p>The model has four pieces:</p>
 <ul class="simple">
@@ -609,25 +609,25 @@
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">discovery</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ds</span>
-<span class="c1"># from discovery import Params</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">metamath</span> <span class="k">as</span> <span class="n">mh</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">metamatrix</span> <span class="k">as</span> <span class="n">mm</span>
+
+<span class="c1"># Build models on the metamath (graph) kernel path. `ds.config(kernels='metamath')`</span>
+<span class="c1"># rebinds ds.ArrayLikelihood / PulsarLikelihood / GlobalLikelihood to the graph-based</span>
+<span class="c1"># classes, so constructing the model below captures metamath kernels. Call it BEFORE</span>
+<span class="c1"># building any model. The default is 'matrix' (the legacy closure path); flip back with</span>
+<span class="c1"># ds.config(kernels='matrix').</span>
+<span class="n">ds</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="n">kernels</span><span class="o">=</span><span class="s1">'metamath'</span><span class="p">)</span>
 
 <span class="c1"># enable .graph attribute on mm.func outputs so we can inspect the</span>
 <span class="c1"># computation graph after model construction.</span>
 <span class="n">mm</span><span class="o">.</span><span class="n">keepgraph</span> <span class="o">=</span> <span class="kc">True</span>
-
-<span class="c1"># pull in the metamatrix monkeypatch from the parity-test scaffold so that</span>
-<span class="c1"># building this model captures metamath kernels instead of matrix.py ones.</span>
-<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">__path__</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s1">'tests'</span><span class="p">))</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">metamatrix._patch</span><span class="w"> </span><span class="kn">import</span> <span class="n">metamatrix_patch</span>
 </pre></div>
 </div>
 </div>
@@ -664,51 +664,36 @@
 <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="ow">not</span> <span class="n">hd</span><span class="p">:</span>
-    <span class="k">with</span> <span class="n">metamatrix_patch</span><span class="p">():</span>
-        <span class="n">cw</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makecw_extsignal</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="n">n_cw</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">pulsarterm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">cw</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makecw_extsignal</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="n">n_cw</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">pulsarterm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="n">model</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span><span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
-                                <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">noisedict</span><span class="o">=</span><span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">,</span> <span class="n">ecorr</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
-                                <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">)])</span>
-            <span class="k">for</span> <span class="n">psr</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
-            <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">makepowerlaw_crn</span><span class="p">(</span><span class="mi">14</span><span class="p">),</span> <span class="n">components</span><span class="o">=</span><span class="n">n_rn</span><span class="p">,</span>
-                                            <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'red_noise'</span><span class="p">,</span> <span class="n">common</span><span class="o">=</span><span class="p">[</span><span class="s1">'crn_gamma'</span><span class="p">,</span> <span class="s1">'crn_log10_A'</span><span class="p">]),</span>
-            <span class="n">decenter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extsignals</span><span class="o">=</span><span class="p">[</span><span class="n">cw</span><span class="p">])</span>
-
-        <span class="c1"># force the cached_property to be built INSIDE the patch context so the</span>
-        <span class="c1"># graph captures metamath objects.</span>
-        <span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">clogL</span>
-        <span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">logL</span>
-
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">clogL</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> sampled parameters "</span>
-        <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cw</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> of them CW)"</span><span class="p">)</span>
-
-<span class="c1"># n_rn = 30   # red-noise Fourier components</span>
-<span class="c1"># n_gw = 14   # GWB Fourier components</span>
-<span class="c1"># n_cw = 60   # CW Fourier components (own basis -- larger on purpose)</span>
-
-<span class="c1"># T = ds.getspan(psrs)</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span><span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+                            <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">noisedict</span><span class="o">=</span><span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">,</span> <span class="n">ecorr</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                            <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">)])</span>
+        <span class="k">for</span> <span class="n">psr</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">makepowerlaw_crn</span><span class="p">(</span><span class="mi">14</span><span class="p">),</span> <span class="n">components</span><span class="o">=</span><span class="n">n_rn</span><span class="p">,</span>
+                                        <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'red_noise'</span><span class="p">,</span> <span class="n">common</span><span class="o">=</span><span class="p">[</span><span class="s1">'crn_gamma'</span><span class="p">,</span> <span class="s1">'crn_log10_A'</span><span class="p">]),</span>
+        <span class="n">decenter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extsignals</span><span class="o">=</span><span class="p">[</span><span class="n">cw</span><span class="p">])</span>
 <span class="k">else</span><span class="p">:</span>
-    <span class="k">with</span> <span class="n">metamatrix_patch</span><span class="p">():</span>
-        <span class="n">cw</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makecw_extsignal</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="n">n_cw</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">pulsarterm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">cw</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makecw_extsignal</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="n">n_cw</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">pulsarterm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="n">model</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span><span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
-                                <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">noisedict</span><span class="o">=</span><span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">,</span> <span class="n">ecorr</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
-                                <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">)])</span>
-            <span class="k">for</span> <span class="n">psr</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
-            <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="n">n_rn</span><span class="p">,</span>
-                                            <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'red_noise'</span><span class="p">),</span>
-            <span class="n">globalgp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makeglobalgp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">hd_orf</span><span class="p">,</span>
-                                            <span class="n">components</span><span class="o">=</span><span class="n">n_gw</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'gw'</span><span class="p">),</span>
-            <span class="n">decenter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extsignals</span><span class="o">=</span><span class="p">[</span><span class="n">cw</span><span class="p">])</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span><span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+                            <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">noisedict</span><span class="o">=</span><span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">,</span> <span class="n">ecorr</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                            <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">)])</span>
+        <span class="k">for</span> <span class="n">psr</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="n">n_rn</span><span class="p">,</span>
+                                        <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'red_noise'</span><span class="p">),</span>
+        <span class="n">globalgp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makeglobalgp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">hd_orf</span><span class="p">,</span>
+                                        <span class="n">components</span><span class="o">=</span><span class="n">n_gw</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'gw'</span><span class="p">),</span>
+        <span class="n">decenter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extsignals</span><span class="o">=</span><span class="p">[</span><span class="n">cw</span><span class="p">])</span>
 
-        <span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">clogL</span>
-        <span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">logL</span>
+<span class="c1"># build the cached_property likelihoods now that the model is constructed</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">clogL</span>
+<span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">logL</span>
 
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">clogL</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> sampled parameters "</span>
-        <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cw</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> of them CW)"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">clogL</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> sampled parameters "</span>
+    <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cw</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> of them CW)"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>

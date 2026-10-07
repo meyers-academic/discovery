@@ -69,6 +69,8 @@ class PulsarLikelihood(summary.SummaryMixin):
         noise = [arg for arg in args if isinstance(arg, matrix.Kernel)]
         cgps  = [arg for arg in args if isinstance(arg, matrix.ConstantGP)]
         vgps  = [arg for arg in args if isinstance(arg, matrix.VariableGP)]
+        if any(isinstance(arg, matrix.CoefficientTerm) for arg in args):
+            raise NotImplementedError("Coefficient terms need ds.config(kernels='metamath').")
         # pgps  = [arg for arg in args if isinstance(arg, matrix.ComponentGP)]
 
         if len(y) == 0 and len(delay) == 0:

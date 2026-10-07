@@ -270,6 +270,18 @@ class VariableGP:
         return _gp_repr(self, 'VariableGP')
 
 
+class CoefficientTerm:
+    """An extra log-density on a pulsar's sampled GP coefficients.
+
+    Passed to `PulsarLikelihood` alongside its other components; `clogL` adds
+    `logL(cs)` at the sampled coefficients, and `ArrayLikelihood.clogL` sweeps the
+    terms up from its pulsars (after any decentering). `cs` is a dict
+    {coefficient-vector name: vector} of that pulsar's coefficients.
+    """
+    def logL(self, cs):
+        raise NotImplementedError
+
+
 class GlobalVariableGP:
     """Like VariableGP, but with per-pulsar design matrices in a list `Fs`.
     Factories returning a GlobalVariableGP should set `.index` as a dict

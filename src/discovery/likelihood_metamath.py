@@ -89,6 +89,8 @@ class PulsarLikelihood(summary.SummaryMixin):
         noise = [arg for arg in args if isinstance(arg, kh.Kernel)]
         cgps  = [arg for arg in args if isinstance(arg, kh.ConstantGP)]
         vgps  = [arg for arg in args if isinstance(arg, kh.VariableGP)]
+        # extra log-densities on the sampled GP coefficients, added by clogL
+        self.cterms = [arg for arg in args if isinstance(arg, kh.CoefficientTerm)]
 
         if len(y) == 0 and len(delay) == 0:
             raise ValueError("I need exactly one residual vector or one or more delay functions.")
@@ -206,12 +208,23 @@ class PulsarLikelihood(summary.SummaryMixin):
     @functools.cached_property
     def clogL(self):
         if hasattr(self.N, 'make_coefficientproduct'):
-            return ffunc(self.N.make_coefficientproduct(self.y))
-
-        if self.delay:
+            loglike = ffunc(self.N.make_coefficientproduct(self.y))
+        elif self.delay:
             raise NotImplementedError('No PulsarLikelihood.clogL with delays so far.')
         else:
-            return self.N.make_kernelproduct_gpcomponent(self.y)
+            loglike = self.N.make_kernelproduct_gpcomponent(self.y)
+
+        if not self.cterms:
+            return loglike
+
+        cvars, cterms = list(self.N.index), self.cterms
+
+        def loglike_terms(params):
+            cs = {cvar: params[cvar] for cvar in cvars}
+            return loglike(params) + sum(term.logL(cs) for term in cterms)
+        loglike_terms.params = loglike.params
+
+        return loglike_terms
 
     @functools.cached_property
     def logL(self):
@@ -701,7 +714,32 @@ class ArrayLikelihood(summary.SummaryMixin):
         # returns a callable. ffunc converts a graph to a `(params) -> ...`
         # callable at the outer boundary; for an already-callable result it's
         # a no-op.
-        return ffunc(loglike)
+        loglike = ffunc(loglike)
+
+        cterms = [(i, term) for i, psl in enumerate(self.psls) for term in getattr(psl, 'cterms', [])]
+        if not cterms:
+            return loglike
+
+        # Pulsar-level coefficient terms act on the physical coefficients: with
+        # reparams those are the c returned next to logp (after decentering),
+        # otherwise the coefficient parameters themselves.
+        staged = bool(reparams)
+        cvarsall = (self.vsm.index if isinstance(self.vsm.index, list)
+                    else [{par: sl} for par, sl in self.vsm.index.items()])
+
+        def coefficients(i, params, c):
+            if c is None:
+                return {cvar: params[cvar] for cvar in cvarsall[i]}
+            sizes = [sl.stop - sl.start for sl in cvarsall[i].values()]
+            return dict(zip(cvarsall[i], kh.jnp.split(c[i], np.cumsum(sizes)[:-1])))
+
+        def loglike_terms(params):
+            logp, c = loglike(params) if staged else (loglike(params), None)
+            logp = logp + sum(term.logL(coefficients(i, params, c)) for i, term in cterms)
+            return (logp, c) if staged else logp
+        loglike_terms.params = loglike.params
+
+        return loglike_terms
 
     @functools.cached_property
     def logL(self):

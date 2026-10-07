@@ -25,6 +25,7 @@ Discovery is a next-generation PTA data analysis package built on JAX.
    tutorials/simulations
    tutorials/cookbook_models
    tutorials/cw_extsignal_example
+   tutorials/fourierpta_single_pulsar
 
 .. toctree::
    :maxdepth: 1

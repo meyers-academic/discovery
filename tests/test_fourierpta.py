@@ -299,48 +299,81 @@ def test_mixture_logL_monte_carlo():
     assert np.isclose(float(logL(p)), np.log(np.mean(Z)), atol=5e-3)
 
 
+def _coefficients(summaries, rng, gw=True):
+    q = {}
+    for s in summaries:
+        q[f'{s.name}_red_noise_coefficients({N})'] = jnp.asarray(s.ahat0 + s.L0 @ rng.normal(size=N))
+        if gw:
+            q[f'{s.name}_gw_coefficients({2*NGW})'] = jnp.asarray(1e-7 * rng.normal(size=2*NGW))
+    return q
+
+
+def _logw(s, density, a):
+    y = np.linalg.solve(s.L0, np.asarray(a) - s.ahat0)
+    return float(density.log_prob(jnp.asarray(y))) + 0.5 * y @ y + 0.5 * len(y) * np.log(2 * np.pi)
+
+
+def _density(rng):
+    return fpta.GaussianMixture(0.3 * rng.normal(size=(2, N)), np.stack([1.2 * np.eye(N), 0.8 * np.eye(N)]))
+
+
+def test_correction_single_pulsar(psrs, T, summaries):
+    # the term rides on the summary's own PulsarLikelihood: clogL adds log w(a)
+    s, rng = summaries[0], np.random.default_rng(9)
+    density = _density(rng)
+    rn = lambda: ds.makegp_fourier(s, ds.powerlaw, NC, T=T, fourierbasis=fpta.summarybasis, name='red_noise')
+    plain = ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), rn()])
+    corrected = ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), rn(), fpta.makecorrection(s, density)])
+
+    q = {**_rand_params(psrs, rng), **_coefficients([s], rng, gw=False)}
+    a = q[f'{s.name}_red_noise_coefficients({N})']
+    assert np.isclose(float(corrected.clogL(q)) - float(plain.clogL(q)), _logw(s, density, a), rtol=1e-10, atol=1e-8)
+
+    # the marginalized likelihood is untouched
+    assert float(corrected.logL(q)) == float(plain.logL(q))
+
+
 def test_gaussian_density_is_no_correction(psrs, T, summaries):
-    # a "correction" equal to N(y | 0, I) leaves clogL unchanged
+    # a "correction" equal to N(y | 0, I) leaves the decentered HD clogL unchanged
     pls, irn = _stand_ins(summaries, T)
     gw = ds.makeglobalgp_fourier(summaries, ds.powerlaw, ds.hd_orf, NGW, T, fourierbasis=fpta.summarybasis, name='gw')
     plain = ds.ArrayLikelihood(pls, commongp=irn, globalgp=gw, decenter=True)
 
-    import copy
-    corrected_sums = [copy.copy(s) for s in summaries]
-    for s in corrected_sums:
-        s.density = fpta.GaussianMixture(np.zeros((1, N)), np.eye(N)[None])
-    corrected = ds.ArrayLikelihood(pls, commongp=irn, globalgp=gw, decenter=True)
-    corrected.transform = fpta.make_correction(corrected, corrected_sums)
+    unit = fpta.GaussianMixture(np.zeros((1, N)), np.eye(N)[None])
+    pls_c = [ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), fpta.makecorrection(s, unit)])
+             for s in summaries]
+    corrected = ds.ArrayLikelihood(pls_c, commongp=irn, globalgp=gw, decenter=True)
 
-    q = _rand_params(psrs, np.random.default_rng(7))
     rng = np.random.default_rng(8)
-    for s in summaries:
-        q[f'{s.name}_red_noise_coefficients({N})'] = jnp.asarray(rng.normal(size=N))
-        q[f'{s.name}_gw_coefficients({2*NGW})'] = jnp.asarray(rng.normal(size=2*NGW))
+    q = {**_rand_params(psrs, rng), **_coefficients(summaries, rng)}
+    lp, c = plain.clogL(q)
+    lc, cc = corrected.clogL(q)
+    assert np.isclose(float(lp), float(lc), rtol=1e-12) and np.allclose(c, cc)
 
-    assert np.isclose(float(plain.clogL(q)[0]), float(corrected.clogL(q)[0]), rtol=1e-12)
 
-
-def test_correction_value(psrs, T, summaries):
-    # a nontrivial density: the corrected clogL exceeds the plain one by sum_p log w_p(a_p)
+def test_correction_swept_up_by_array(psrs, T, summaries):
+    # ArrayLikelihood.clogL adds each pulsar's term at that pulsar's coefficients a_p
+    # (IRN + GW block); with decentering, at the physical coefficients it returns
     pls, irn = _stand_ins(summaries, T)
-    import copy
-    sums = [copy.copy(s) for s in summaries]
-    rng = np.random.default_rng(9)
-    sums[0].density = fpta.GaussianMixture(0.3 * rng.normal(size=(2, N)), np.stack([1.2 * np.eye(N), 0.8 * np.eye(N)]))
+    gw = ds.makeglobalgp_fourier(summaries, ds.powerlaw, ds.hd_orf, NGW, T, fourierbasis=fpta.summarybasis, name='gw')
+    rng = np.random.default_rng(11)
+    density = _density(rng)
+    pls_c = [ds.PulsarLikelihood([summaries[0].residuals, fpta.makenoise_summary(summaries[0]),
+                                  fpta.makecorrection(summaries[0], density)])] + pls[1:]
 
-    plain = ds.ArrayLikelihood(pls, commongp=irn)
-    corrected = ds.ArrayLikelihood(pls, commongp=irn)
-    corrected.transform = fpta.make_correction(corrected, sums)
-
-    q = _rand_params(psrs, rng)
-    for s in sums:
-        q[f'{s.name}_red_noise_coefficients({N})'] = jnp.asarray(s.ahat0 + s.L0 @ rng.normal(size=N))
-
-    y = np.linalg.solve(sums[0].L0, np.asarray(q[f'{sums[0].name}_red_noise_coefficients({N})']) - sums[0].ahat0)
-    logw = float(sums[0].density.log_prob(jnp.asarray(y))) + 0.5 * y @ y + 0.5 * N * np.log(2 * np.pi)
-
-    assert np.isclose(float(corrected.clogL(q)[0]) - float(plain.clogL(q)), logw, rtol=1e-10, atol=1e-8)
+    q = {**_rand_params(psrs, rng), **_coefficients(summaries, rng)}
+    for decenter in (False, True):
+        plain = ds.ArrayLikelihood(pls, commongp=irn, globalgp=gw, decenter=decenter)
+        corrected = ds.ArrayLikelihood(pls_c, commongp=irn, globalgp=gw, decenter=decenter)
+        if decenter:
+            (lp, c), (lc, _) = plain.clogL(q), corrected.clogL(q)
+            c0 = np.asarray(c[0])                        # [irn (N), gw (2 NGW)]
+        else:
+            lp, lc = plain.clogL(q), corrected.clogL(q)
+            s0 = summaries[0].name
+            c0 = np.concatenate([q[f'{s0}_red_noise_coefficients({N})'], q[f'{s0}_gw_coefficients({2*NGW})']])
+        a0 = c0[:N] + np.concatenate([c0[N:], np.zeros(N - 2*NGW)])
+        assert np.isclose(float(lc) - float(lp), _logw(summaries[0], density, a0), rtol=1e-9, atol=1e-8)
 
 
 def test_mixed_time_domain_and_summaries(psrs, T, summaries):

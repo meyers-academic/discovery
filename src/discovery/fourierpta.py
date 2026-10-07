@@ -53,6 +53,7 @@ import jax.numpy as jnp
 
 from . import _kernels as kernels
 from . import signals
+from . import utils
 
 
 @dataclasses.dataclass
@@ -285,8 +286,9 @@ def summarize_pulsar(psr, psl, params, gp='red_noise'):
 #     log w(a) = log q(y) - log N(y | 0, I)                          (Eq. 28, 34)
 #
 # on top of the Gaussian-summary likelihood above (the Jacobians |L0| cancel). A
-# correction is any object with a `log_prob(y)` method: a `GaussianMixture`, or a
-# trained flowjax distribution.
+# density is any object with a `log_prob(y)` method: a `GaussianMixture`, or a
+# trained flowjax distribution; `makecorrection` turns it into a term of the
+# summary's PulsarLikelihood.
 # ---------------------------------------------------------------------------
 
 
@@ -309,52 +311,44 @@ class GaussianMixture:
                 - jnp.log(self.K) - 0.5 * y.shape[-1] * jnp.log(2 * jnp.pi))
 
 
-def _gp_blocks(like):
-    """Column counts of the GP blocks of each pulsar's coefficient vector, in the
-    order `ArrayLikelihood.clogL` concatenates them (commongp(s), then globalgp)."""
-    gps = like.commongp if isinstance(like.commongp, (list, tuple)) else [like.commongp]
-    sizes = [np.shape(gp.F[0])[1] for gp in gps]
-    if like.globalgp is not None:
-        sizes.append(np.shape(like.globalgp.Fs[0])[1])
-    return sizes
+class SummaryCorrection(utils.CoefficientTerm):
+    """The non-Gaussian correction log w(a) of one `FourierSummary`, as a term of its
+    stand-in `PulsarLikelihood` (see `makecorrection`)."""
+
+    def __init__(self, summary, density):
+        self.n = summary.ncoeff
+        self.ahat0 = jnp.asarray(summary.ahat0)
+        self.Linv0 = jnp.asarray(np.linalg.inv(summary.L0))
+        self.density = density
+
+    def logL(self, cs):
+        # every GP on a stand-in pulsar covers the summary's lowest frequencies, so
+        # the summary coefficients are the sum of the GP blocks, a = sum_g [c_g, 0...]
+        a = sum(jnp.pad(c, (0, self.n - c.shape[0])) for c in cs.values())
+        y = self.Linv0 @ (a - self.ahat0)
+        return self.density.log_prob(y) + 0.5 * y @ y + 0.5 * self.n * jnp.log(2 * jnp.pi)
 
 
-def make_correction(like, psrs):
-    """The non-Gaussian correction sum_p log w_p(a_p) for `like.clogL`.
+def makecorrection(summary, density=None):
+    """The non-Gaussian correction for a `FourierSummary` stand-in pulsar:
 
-    `like` is the step-2 `ArrayLikelihood` over `psrs` (in the same order); the
-    correction collects `density` from every `FourierSummary` among them that has one
-    (time-domain pulsars and Gaussian summaries contribute nothing). Every GP on a
-    `FourierSummary` covers the summary's lowest frequencies, so a pulsar's summary
-    coefficients are the sum of its GP blocks, a_p = sum_g [c_g, 0...].
+        log w(a) = log q(y) - log N(y | 0, I),    y = L0^-1 (a - ahat0)    (Eq. 28, 34)
 
-    Returns a function `(params, c) -> (c, sum_p log w_p)` in the form of a
-    coefficient reparametrization, so it slots in after decentering:
+    with q = `density` (default `summary.density`). Include it in the pulsar's
+    likelihood,
 
-        like = ds.ArrayLikelihood(pls, ..., decenter=True)
-        like.transform = fpta.make_correction(like, psrs)
+        ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), ..., fpta.makecorrection(s)])
 
-    (an identity map whose "log-Jacobian" is the correction).
+    and `clogL` (of the pulsar, or of an `ArrayLikelihood` containing it, after any
+    decentering) adds it at the sampled coefficients. The marginalized `logL` does not
+    see it: a non-Gaussian correction cannot be integrated out analytically, except
+    for the GMM without inter-pulsar correlations (`mixture_logL`).
     """
-    sizes = _gp_blocks(like)
-    rows = [i for i, s in enumerate(psrs) if getattr(s, 'density', None) is not None]
-    terms = []
-    for i in rows:
-        s = psrs[i]
-        if max(sizes) > s.ncoeff:
-            raise ValueError(f"{s.name}: a GP has more coefficients than the summary.")
-        embed = np.concatenate([np.eye(s.ncoeff)[:, :m] for m in sizes], axis=1)   # a_p = embed @ c_p
-        terms.append((jnp.asarray(embed), jnp.asarray(s.ahat0), jnp.asarray(np.linalg.inv(s.L0)), s.density))
+    density = summary.density if density is None else density
+    if density is None:
+        raise ValueError(f"{summary.name}: no density to correct with; set summary.density or pass one.")
 
-    def correction(params, c):
-        logw = 0.0
-        for i, (embed, ahat0, Linv0, q) in zip(rows, terms):
-            y = Linv0 @ (embed @ c[i] - ahat0)
-            logw = logw + q.log_prob(y) + 0.5 * y @ y + 0.5 * y.shape[0] * jnp.log(2 * jnp.pi)
-        return c, logw
-    correction.params = []
-
-    return correction
+    return SummaryCorrection(summary, density)
 
 
 def _diag_prior(commongp):
@@ -383,7 +377,7 @@ def mixture_logL(summaries, commongp, K=None):
         P_k = Sigma_k^-1 + phi^-1 - phi0^-1,    b_k = Sigma_k^-1 ahat_k,
 
     and the pulsar contributes logsumexp_k log Z_k - log K. With HD (which couples
-    pulsars) use `clogL` with `make_correction` instead.
+    pulsars) use `clogL` with `makecorrection` terms instead.
     """
     phi = _diag_prior(commongp)
     n = summaries[0].ncoeff
@@ -393,9 +387,12 @@ def mixture_logL(summaries, commongp, K=None):
         idx = np.arange(len(s.ahat_samples)) if K is None else \
               np.linspace(0, len(s.ahat_samples) - 1, K).astype(int)
         ahat, Sigma = s.ahat_samples[idx], s.Sigma_samples[idx]
-        Sigma_inv = np.linalg.inv(Sigma)
+        L = np.linalg.cholesky(Sigma)
+        Linv = np.linalg.inv(L)
+        Sigma_inv = np.swapaxes(Linv, 1, 2) @ Linv
         b = np.einsum('kij,kj->ki', Sigma_inv, ahat)
-        const = (-0.5 * np.einsum('ki,ki->k', ahat, b) - 0.5 * np.linalg.slogdet(Sigma)[1]
+        logdet = 2 * np.sum(np.log(np.diagonal(L, axis1=1, axis2=2)), axis=1)
+        const = (-0.5 * np.einsum('ki,ki->k', ahat, b) - 0.5 * logdet
                  + 0.5 * np.sum(np.log(s.phi0)) - np.log(len(idx)))
         comps.append((Sigma_inv - np.diag(1.0 / s.phi0), b, const))
 

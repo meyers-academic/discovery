@@ -31,6 +31,7 @@ from .utils import (
     ConstantGP,
     VariableGP,
     GlobalVariableGP,
+    CoefficientTerm,
     ExtSignal,
     make_uind,
     smup_ind,

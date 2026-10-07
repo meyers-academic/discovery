@@ -1,0 +1,1090 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>discovery.recipes &#8212; Discovery 0.5 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=a95f357e85573c9b56d5"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
+
+    <script src="../../_static/documentation_options.js?v=db78e746"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/discovery/recipes';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Discovery 0.5 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/curn_example.html">
+    How best to run a CURN model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/overview.html">
+    Overview
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/model_summary.html">
+    Inspecting a model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../installation.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../quickstart.html">
+    Quick Start
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/basic_likelihood.html">
+    Basic Likelihood
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/params_example.html">
+    Fast likelihood evaluation with Params
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/optimal_statistic.html">
+    Optimal Statistic
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/simulations.html">
+    Simulations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/cookbook_models.html">
+    Model cookbook
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/cw_extsignal_example.html">
+    Sampling a continuous-wave signal on its own Fourier basis
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../components/noise_signals.html">
+    Noise and Signal Components
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../components/priors_spectra.html">
+    GP Priors and Spectra
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../components/delays.html">
+    Deterministic Delays
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../guide/data_model.html">
+    Data Model
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../guide/pulsar_data.html">
+    Pulsar Data
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../advanced/conditional_sampling.html">
+    Conditional Sampling of GP Coefficients
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../advanced/single_precision.html">
+    Single-precision likelihoods (and the reference–delta trick)
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../metamatrix.html">
+    Metamatrix: graph-based kernels
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../examples.html">
+    Examples
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/curn_example.html">
+    How best to run a CURN model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/overview.html">
+    Overview
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/model_summary.html">
+    Inspecting a model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../installation.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../quickstart.html">
+    Quick Start
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/basic_likelihood.html">
+    Basic Likelihood
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/params_example.html">
+    Fast likelihood evaluation with Params
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/optimal_statistic.html">
+    Optimal Statistic
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/simulations.html">
+    Simulations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/cookbook_models.html">
+    Model cookbook
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/cw_extsignal_example.html">
+    Sampling a continuous-wave signal on its own Fourier basis
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../components/noise_signals.html">
+    Noise and Signal Components
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../components/priors_spectra.html">
+    GP Priors and Spectra
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../components/delays.html">
+    Deterministic Delays
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/data_model.html">
+    Data Model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/pulsar_data.html">
+    Pulsar Data
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../advanced/conditional_sampling.html">
+    Conditional Sampling of GP Coefficients
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../advanced/single_precision.html">
+    Single-precision likelihoods (and the reference–delta trick)
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../metamatrix.html">
+    Metamatrix: graph-based kernels
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../examples.html">
+    Examples
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">discovery.recipes</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for discovery.recipes</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Ready-made model-building recipes (a small "model zoo").</span>
+
+<span class="sd">Import it explicitly (it is not pulled into the top-level ``discovery``</span>
+<span class="sd">namespace). Each function assembles a Discovery likelihood from the public API</span>
+<span class="sd">and returns it, e.g.::</span>
+
+<span class="sd">    import discovery as ds</span>
+<span class="sd">    import discovery.recipes as ds_recipes</span>
+
+<span class="sd">    model = ds_recipes.full_rn(psr)</span>
+<span class="sd">    logL  = model.logL(ds.sample_uniform(model.logL.params))</span>
+
+<span class="sd">This module is also the **single source of truth** for the parity test-suite</span>
+<span class="sd">(``tests/metamatrix/test_{pulsar,global,array}.py``) and the docs cookbook</span>
+<span class="sd">(``docs/tutorials/cookbook_models.ipynb``) — both import these same builders, so</span>
+<span class="sd">every recipe is exercised by a test that asserts the ``matrix`` and ``metamath``</span>
+<span class="sd">kernel backends agree. Every recipe works unchanged under either backend</span>
+<span class="sd">(``ds.config(kernels='matrix'|'metamath')``).</span>
+
+<span class="sd">Each function's one-line docstring is the cookbook caption; keep it to a single</span>
+<span class="sd">sentence. The ordered ``SINGLE_PULSAR`` / ``GLOBAL`` / ``ARRAY`` lists drive the</span>
+<span class="sd">cookbook's table of contents.</span>
+<span class="sd">"""</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">discovery</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ds</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Single-pulsar recipes — PulsarLikelihood([...])</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="measurement_simple">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.measurement_simple">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">measurement_simple</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""White noise only, single-backend (efac + t2equad), no selection."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement_simple</span><span class="p">(</span><span class="n">psr</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="measurement_white">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.measurement_white">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">measurement_white</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""White noise with per-backend efac/equad selection."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="ecorr_gp">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.ecorr_gp">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ecorr_gp</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""White noise plus ECORR modelled as a separate Gaussian-process component."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_ecorr</span><span class="p">(</span><span class="n">psr</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="ecorr_sm">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.ecorr_sm">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ecorr_sm</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""ECORR folded into the noise matrix via Sherman-Morrison (+ timing GP wrapper)."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">,</span> <span class="n">ecorr</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="meas_timing">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.meas_timing">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">meas_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""White noise plus an (SVD-stabilised) marginalised timing-model GP."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="full_rn">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.full_rn">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">full_rn</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Realistic single-pulsar model: white + ECORR-GP + timing + power-law red noise."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_ecorr</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fourier</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="full_rn_concat_false">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.full_rn_concat_false">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">full_rn_concat_false</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Same as full_rn but with concat=False → chained (nested) Woodbury kernels."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_ecorr</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fourier</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+    <span class="p">],</span> <span class="n">concat</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="multi_vgp">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.multi_vgp">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">multi_vgp</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Two variable GPs: achromatic red noise + a chromatic DM GP (on the DM Fourier basis)."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_ecorr</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fourier</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+        <span class="c1"># DM noise is chromatic -&gt; use the DM (nu^-2) Fourier basis, not the default</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fourier</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"dmgp"</span><span class="p">,</span>
+                          <span class="n">fourierbasis</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">dmfourierbasis</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="variable_timing">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.variable_timing">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">variable_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Timing model as a *variable* GP (coefficients sampled, not marginalised) + RN."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ecorr</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fourier</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="fftcov_2d">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.fftcov_2d">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fftcov_2d</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Red noise via an FFT-derived dense (2D) covariance basis (makegp_fftcov)."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fftcov</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">31</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_toy_delay</span><span class="p">(</span><span class="n">toas</span><span class="p">):</span>
+    <span class="c1"># deterministic, parameter-free delay (args come only from psr attributes).</span>
+    <span class="k">return</span> <span class="mf">1e-9</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">toas</span> <span class="o">-</span> <span class="n">toas</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="o">/</span> <span class="mf">3.16e8</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="delay">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.delay">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">delay</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A deterministic delay subtracted from the residuals (makedelay → CompoundDelay)."""</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makedelay</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">_toy_delay</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"toydelay"</span><span class="p">),</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="fourier_variance_fixed">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.fourier_variance_fixed">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fourier_variance_fixed</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A Fourier GP whose prior covariance is supplied directly as a fixed matrix."""</span>
+    <span class="n">comps</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">argname</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">psr</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">_fourierGP_variance(</span><span class="si">{</span><span class="n">comps</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">comps</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="si">}</span><span class="s2">)"</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">comps</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">1e-4</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fourier_variance</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="n">comps</span><span class="p">,</span> <span class="n">noisedict</span><span class="o">=</span><span class="p">{</span><span class="n">argname</span><span class="p">:</span> <span class="n">cov</span><span class="p">}),</span>
+    <span class="p">])</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Multi-pulsar: GlobalLikelihood — per-pulsar models + optional correlated GP</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_psl_with_rn</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">T</span><span class="p">):</span>
+    <span class="c1"># per-pulsar model carrying its own red noise (for GlobalLikelihood rows)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_ecorr</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fourier</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+    <span class="p">])</span>
+
+
+<div class="viewcode-block" id="no_global">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.no_global">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">no_global</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Independent pulsars — GlobalLikelihood with no correlated GP (sum of per-psr logL)."""</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">GlobalLikelihood</span><span class="p">([</span><span class="n">_psl_with_rn</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="global_hd">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.global_hd">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">global_hd</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A Hellings-Downs-correlated common GW signal across pulsars (dense 2D prior)."""</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">GlobalLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_with_rn</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">globalgp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makeglobalgp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">hd_orf</span><span class="p">,</span>
+                                         <span class="n">components</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"gw"</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="global_monopole">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.global_monopole">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">global_monopole</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A monopole-correlated common signal across pulsars."""</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">GlobalLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_with_rn</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">globalgp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makeglobalgp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">monopole_orf</span><span class="p">,</span>
+                                         <span class="n">components</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"gw"</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="global_compound">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.global_compound">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">global_compound</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Two correlated global GPs at once (HD + monopole) via a globalgp list (CompoundGlobalGP)."""</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">GlobalLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_with_rn</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">globalgp</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">makeglobalgp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">hd_orf</span><span class="p">,</span>
+                                    <span class="n">components</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"gw"</span><span class="p">),</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">makeglobalgp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">monopole_orf</span><span class="p">,</span>
+                                    <span class="n">components</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"gw_mono"</span><span class="p">),</span>
+        <span class="p">],</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Multi-pulsar: ArrayLikelihood — vectorised, with commongp / globalgp / extsignals</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_psl_skeleton</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+    <span class="c1"># per-pulsar model WITHOUT red noise (red noise lives in the commongp)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+        <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_ecorr</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="p">])</span>
+
+
+<div class="viewcode-block" id="no_common">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.no_common">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">no_common</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""ArrayLikelihood with per-pulsar red noise inline, no shared/correlated GP."""</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">([</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span>
+            <span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">makenoise_measurement</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">makegp_ecorr</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">noisedict</span><span class="p">),</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">makegp_timing</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">svd</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fourier</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+        <span class="p">])</span> <span class="k">for</span> <span class="n">psr</span> <span class="ow">in</span> <span class="n">psrs</span>
+    <span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="intrinsic_rn">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.intrinsic_rn">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">intrinsic_rn</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Per-pulsar intrinsic red noise on a shared Fourier basis (vectorised; independent amplitudes per pulsar)."""</span>
+    <span class="c1"># NOTE: a `commongp` with no `common=[...]` params is *intrinsic* (per-pulsar)</span>
+    <span class="c1"># red noise, vectorised over the array — NOT a common/correlated process.</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_skeleton</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                                         <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="intrinsic_plus_crn">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.intrinsic_plus_crn">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">intrinsic_plus_crn</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Per-pulsar intrinsic red noise + a common-spectrum (CRN) process on one shared basis, via make_combined_crn."""</span>
+    <span class="c1"># The idiomatic way to put intrinsic RN and a common-spectrum process on the</span>
+    <span class="c1"># same basis: build a single combined PSD; CRN params (gw_*) are shared</span>
+    <span class="c1"># across pulsars (passed as `common`), intrinsic params stay per-pulsar.</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="n">combined</span><span class="p">,</span> <span class="n">crn_params</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">make_combined_crn</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span>
+                                                <span class="n">crn_prefix</span><span class="o">=</span><span class="s2">"gw_"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_skeleton</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">combined</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                                         <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">,</span> <span class="n">common</span><span class="o">=</span><span class="n">crn_params</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="intrinsic_rn_plus_global_hd">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.intrinsic_rn_plus_global_hd">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">intrinsic_rn_plus_global_hd</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Per-pulsar intrinsic red noise plus an HD-correlated global GW signal (the canonical PTA model)."""</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_skeleton</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                                         <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+        <span class="n">globalgp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makeglobalgp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">hd_orf</span><span class="p">,</span>
+                                         <span class="n">components</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"gw"</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="decenter_intrinsic_rn">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.decenter_intrinsic_rn">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">decenter_intrinsic_rn</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""intrinsic_rn built in a decentered (whitened-coefficient) parameterisation."""</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_skeleton</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                                         <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+        <span class="n">decenter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="decenter_intrinsic_rn_global_hd">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.decenter_intrinsic_rn_global_hd">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">decenter_intrinsic_rn_global_hd</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Decentered intrinsic red noise + HD global GP (decentered sampling of the full model)."""</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_skeleton</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                                         <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+        <span class="n">globalgp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makeglobalgp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">hd_orf</span><span class="p">,</span>
+                                         <span class="n">components</span><span class="o">=</span><span class="mi">14</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"gw"</span><span class="p">),</span>
+        <span class="n">decenter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="means_on_commongp">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.means_on_commongp">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">means_on_commongp</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""An (intrinsic-RN) common GP with a non-zero prior mean supplied by a `means` callable."""</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">my_means</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">mean_amp</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mean_amp</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_skeleton</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                                         <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">,</span> <span class="n">means</span><span class="o">=</span><span class="n">my_means</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="extsignal_cw">
+<a class="viewcode-back" href="../../api/recipes.html#discovery.recipes.extsignal_cw">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">extsignal_cw</span><span class="p">(</span><span class="n">psrs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Intrinsic red noise plus a continuous-wave deterministic signal on its own basis."""</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">getspan</span><span class="p">(</span><span class="n">psrs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">_psl_skeleton</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">],</span>
+        <span class="n">commongp</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                                         <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rednoise"</span><span class="p">),</span>
+        <span class="n">extsignals</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">ds</span><span class="o">.</span><span class="n">makecw_extsignal</span><span class="p">(</span><span class="n">psrs</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">pulsarterm</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"cw"</span><span class="p">),</span>
+        <span class="p">],</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Ordered catalogs (drive the cookbook TOC; tests build their tables from these)</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+<span class="n">SINGLE_PULSAR</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">measurement_simple</span><span class="p">,</span> <span class="n">measurement_white</span><span class="p">,</span> <span class="n">ecorr_gp</span><span class="p">,</span> <span class="n">ecorr_sm</span><span class="p">,</span> <span class="n">meas_timing</span><span class="p">,</span>
+    <span class="n">full_rn</span><span class="p">,</span> <span class="n">full_rn_concat_false</span><span class="p">,</span> <span class="n">multi_vgp</span><span class="p">,</span> <span class="n">variable_timing</span><span class="p">,</span>
+    <span class="n">fftcov_2d</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="n">fourier_variance_fixed</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">GLOBAL</span> <span class="o">=</span> <span class="p">[</span><span class="n">no_global</span><span class="p">,</span> <span class="n">global_hd</span><span class="p">,</span> <span class="n">global_monopole</span><span class="p">,</span> <span class="n">global_compound</span><span class="p">]</span>
+
+<span class="n">ARRAY</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">no_common</span><span class="p">,</span> <span class="n">intrinsic_rn</span><span class="p">,</span> <span class="n">intrinsic_plus_crn</span><span class="p">,</span> <span class="n">intrinsic_rn_plus_global_hd</span><span class="p">,</span>
+    <span class="n">decenter_intrinsic_rn</span><span class="p">,</span> <span class="n">decenter_intrinsic_rn_global_hd</span><span class="p">,</span> <span class="n">means_on_commongp</span><span class="p">,</span> <span class="n">extsignal_cw</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Michele Vallisneri.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.19.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

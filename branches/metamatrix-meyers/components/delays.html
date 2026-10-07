@@ -638,7 +638,7 @@ they are automatically passed and excluded from the parameter list. These must c
 variable parameters.</p>
 <p><strong>Parameter Naming:</strong></p>
 <p>Parameters are named <code class="docutils literal notranslate"><span class="pre">{psrname}_{name}_{argX}</span></code> unless included in the <code class="docutils literal notranslate"><span class="pre">common</span></code> list.</p>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/signals.html#discovery.signals.makedelay" title="discovery.signals.makedelay"><code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code></a>.</p>
 </section>
 </section>
 <section id="solar-wind-dm-delay">
@@ -650,7 +650,7 @@ variable parameters.</p>
 <span class="n">delay</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makedelay</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">solardm_func</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'solardm'</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">make_solardm()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/solar.html#discovery.solar.make_solardm" title="discovery.solar.make_solardm"><code class="xref py py-func docutils literal notranslate"><span class="pre">make_solardm()</span></code></a> and <a class="reference internal" href="../api/signals.html#discovery.signals.makedelay" title="discovery.signals.makedelay"><code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code></a>.</p>
 <p>Implements a <span class="math notranslate nohighlight">\(1/r^2\)</span> solar wind density model. The delay function has signature:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">solardm_func</span><span class="p">(</span><span class="n">n_earth</span><span class="p">)</span>
 </pre></div>
@@ -688,8 +688,8 @@ variable parameters.</p>
                            <span class="n">name</span><span class="o">=</span><span class="s1">'sw_gp'</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">make_solardmfourierbasis()</span></code>, <code class="xref py py-func docutils literal notranslate"><span class="pre">makegp_fourier()</span></code>,
-and <code class="xref py py-func docutils literal notranslate"><span class="pre">powerlaw()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/solar.html#discovery.solar.make_solardmfourierbasis" title="discovery.solar.make_solardmfourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">make_solardmfourierbasis()</span></code></a>, <a class="reference internal" href="../api/signals.html#discovery.signals.makegp_fourier" title="discovery.signals.makegp_fourier"><code class="xref py py-func docutils literal notranslate"><span class="pre">makegp_fourier()</span></code></a>,
+and <a class="reference internal" href="../api/signals.html#discovery.signals.powerlaw" title="discovery.signals.powerlaw"><code class="xref py py-func docutils literal notranslate"><span class="pre">powerlaw()</span></code></a>.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">make_solardmfourierbasis</span></code> function creates a Fourier basis scaled by the solar wind
 geometry, so the GP represents fluctuations in <span class="math notranslate nohighlight">\(n_{\mathrm{Earth}}\)</span> around the mean.</p>
 </section>
@@ -704,7 +704,7 @@ These events can impact measurements of time-correlated signals (see <a class="r
 <span class="n">delay</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makedelay</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">decay_func</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'chromatic'</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">make_chromaticdelay()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/solar.html#discovery.solar.make_chromaticdelay" title="discovery.solar.make_chromaticdelay"><code class="xref py py-func docutils literal notranslate"><span class="pre">make_chromaticdelay()</span></code></a> and <a class="reference internal" href="../api/signals.html#discovery.signals.makedelay" title="discovery.signals.makedelay"><code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code></a>.</p>
 <p>The delay function has signature:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">decay_func</span><span class="p">(</span><span class="n">t0</span><span class="p">,</span> <span class="n">log10_Amp</span><span class="p">,</span> <span class="n">log10_tau</span><span class="p">,</span> <span class="n">idx</span><span class="p">)</span>
 </pre></div>
@@ -736,7 +736,7 @@ These events can impact measurements of time-correlated signals (see <a class="r
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">decay_func</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">make_chromaticdelay</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="mf">2.0</span><span class="p">)</span>  <span class="c1"># Fix to DM scaling</span>
 </pre></div>
 </div>
-<p>This removes <code class="docutils literal notranslate"><span class="pre">idx</span></code> from the parameter list. See also <code class="xref py py-func docutils literal notranslate"><span class="pre">chromaticdelay()</span></code>
+<p>This removes <code class="docutils literal notranslate"><span class="pre">idx</span></code> from the parameter list. See also <a class="reference internal" href="../api/solar.html#discovery.solar.chromaticdelay" title="discovery.solar.chromaticdelay"><code class="xref py py-func docutils literal notranslate"><span class="pre">chromaticdelay()</span></code></a>
 for the underlying delay function.</p>
 </section>
 </section>
@@ -754,7 +754,7 @@ for the underlying delay function.</p>
 <span class="n">delay</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makedelay</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">bbh_func</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'bbh'</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay_binary()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/deterministic.html#discovery.deterministic.makedelay_binary" title="discovery.deterministic.makedelay_binary"><code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay_binary()</span></code></a> and <a class="reference internal" href="../api/signals.html#discovery.signals.makedelay" title="discovery.signals.makedelay"><code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code></a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">log10_h0</span></code>: Log strain amplitude</p></li>
@@ -775,7 +775,7 @@ emitting gravitational waves. Based on the formalism from Ellis et al. (2012, 20
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">bbh_fourier</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makefourier_binary</span><span class="p">(</span><span class="n">pulsarterm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">makefourier_binary()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/deterministic.html#discovery.deterministic.makefourier_binary" title="discovery.deterministic.makefourier_binary"><code class="xref py py-func docutils literal notranslate"><span class="pre">makefourier_binary()</span></code></a>.</p>
 <p>This computes the Fourier components directly, which can be more efficient for certain
 likelihood computations.</p>
 </section>
@@ -807,7 +807,7 @@ likelihood computations.</p>
 <span class="n">delay</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makedelay</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">quadratic_spindown</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'spindown'</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/signals.html#discovery.signals.makedelay" title="discovery.signals.makedelay"><code class="xref py py-func docutils literal notranslate"><span class="pre">makedelay()</span></code></a>.</p>
 <p><strong>Requirements:</strong></p>
 <ul class="simple">
 <li><p>Must be JAX-compatible (use <code class="docutils literal notranslate"><span class="pre">jax.numpy</span></code> instead of <code class="docutils literal notranslate"><span class="pre">numpy</span></code>)</p></li>

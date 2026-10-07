@@ -598,8 +598,55 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="deterministic">
-<h1>deterministic<a class="headerlink" href="#deterministic" title="Link to this heading">#</a></h1>
+  <section id="module-discovery.deterministic">
+<span id="deterministic"></span><h1>deterministic<a class="headerlink" href="#module-discovery.deterministic" title="Link to this heading">#</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.deterministic.fpc_fast">
+<span class="sig-prename descclassname"><span class="pre">discovery.deterministic.</span></span><span class="sig-name descname"><span class="pre">fpc_fast</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gwtheta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gwphi</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/deterministic.html#fpc_fast"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.deterministic.fpc_fast" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.deterministic.makedelay_binary">
+<span class="sig-prename descclassname"><span class="pre">discovery.deterministic.</span></span><span class="sig-name descname"><span class="pre">makedelay_binary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pulsarterm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/deterministic.html#makedelay_binary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.deterministic.makedelay_binary" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.deterministic.makedelay_binary_phases">
+<span class="sig-prename descclassname"><span class="pre">discovery.deterministic.</span></span><span class="sig-name descname"><span class="pre">makedelay_binary_phases</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pulsarterm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/deterministic.html#makedelay_binary_phases"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.deterministic.makedelay_binary_phases" title="Link to this definition">#</a></dt>
+<dd><p>Factory for computing cphase and sphase vectors from binary parameters.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.deterministic.makedelay_binary_coefficients">
+<span class="sig-prename descclassname"><span class="pre">discovery.deterministic.</span></span><span class="sig-name descname"><span class="pre">makedelay_binary_coefficients</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pulsarterm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/deterministic.html#makedelay_binary_coefficients"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.deterministic.makedelay_binary_coefficients" title="Link to this definition">#</a></dt>
+<dd><p>Factory for computing coefficients to multiply phase vectors.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.deterministic.cos2comp">
+<span class="sig-prename descclassname"><span class="pre">discovery.deterministic.</span></span><span class="sig-name descname"><span class="pre">cos2comp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/deterministic.html#cos2comp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.deterministic.cos2comp" title="Link to this definition">#</a></dt>
+<dd><p>Project signal A * cos(2pi f t + phi) onto Fourier basis
+cos(2pi k t/T), sin(2pi k t/T) for t in [t0, t0+T].</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.deterministic.makefourier_binary">
+<span class="sig-prename descclassname"><span class="pre">discovery.deterministic.</span></span><span class="sig-name descname"><span class="pre">makefourier_binary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pulsarterm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/deterministic.html#makefourier_binary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.deterministic.makefourier_binary" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.deterministic.makecw_extsignal">
+<span class="sig-prename descclassname"><span class="pre">discovery.deterministic.</span></span><span class="sig-name descname"><span class="pre">makecw_extsignal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pulsarterm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">common</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cw'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/deterministic.html#makecw_extsignal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.deterministic.makecw_extsignal" title="Link to this definition">#</a></dt>
+<dd><p>Continuous-wave (CW) signal on its OWN Fourier basis.</p>
+<p>Returns a <code class="docutils literal notranslate"><span class="pre">utils.ExtSignal</span></code> for <code class="docutils literal notranslate"><span class="pre">ArrayLikelihood(extsignals=[...])</span></code>.
+Gets its own <code class="docutils literal notranslate"><span class="pre">components</span></code> – typically more than the red-noise / GWB GPs –
+so the basis reaches the higher frequencies a CW search needs. The
+likelihood folds it in via GP-CW cross-terms; the CW parameters never enter
+the GP prior.</p>
+<p>Thin wrapper over <code class="docutils literal notranslate"><span class="pre">signals.make_extsignal_fourier</span></code> with the analytic
+monochromatic projection <code class="docutils literal notranslate"><span class="pre">makefourier_binary</span></code> as the coefficient map.</p>
+</dd></dl>
+
 </section>
 
 
@@ -640,6 +687,24 @@
                 <dialog id="pst-secondary-sidebar-modal"></dialog>
                 <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
 
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.deterministic.fpc_fast"><code class="docutils literal notranslate"><span class="pre">fpc_fast()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.deterministic.makedelay_binary"><code class="docutils literal notranslate"><span class="pre">makedelay_binary()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.deterministic.makedelay_binary_phases"><code class="docutils literal notranslate"><span class="pre">makedelay_binary_phases()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.deterministic.makedelay_binary_coefficients"><code class="docutils literal notranslate"><span class="pre">makedelay_binary_coefficients()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.deterministic.cos2comp"><code class="docutils literal notranslate"><span class="pre">cos2comp()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.deterministic.makefourier_binary"><code class="docutils literal notranslate"><span class="pre">makefourier_binary()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.deterministic.makecw_extsignal"><code class="docutils literal notranslate"><span class="pre">makecw_extsignal()</span></code></a></li>
+</ul>
+  </nav></div>
 
   <div class="sidebar-secondary-item">
 

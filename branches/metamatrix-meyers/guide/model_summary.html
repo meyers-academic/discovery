@@ -711,8 +711,133 @@ truncated to the first few pulsars for large arrays.</p></li>
 behaves identically under either kernel backend
 (<code class="docutils literal notranslate"><span class="pre">ds.config(kernels='matrix'|'metamath')</span></code>).</p>
 </section>
-<section id="api">
-<h2>API<a class="headerlink" href="#api" title="Link to this heading">#</a></h2>
+<section id="module-discovery.summary">
+<span id="api"></span><h2>API<a class="headerlink" href="#module-discovery.summary" title="Link to this heading">#</a></h2>
+<p>Human-readable snapshots of a built model.</p>
+<p>A discovery likelihood is assembled from a <em>list</em> of components –
+<code class="docutils literal notranslate"><span class="pre">psr.residuals</span></code>, a white-noise kernel, and one or more Gaussian-process
+signals (timing model, ECORR, red noise, a correlated GW process, …). Once
+assembled those components are folded into a single Woodbury kernel, so the
+obvious handle, <code class="docutils literal notranslate"><span class="pre">logL.params</span></code>, only reports the <em>free</em> parameters and hides
+everything that was fixed (e.g. white noise pinned from a noise dictionary) or
+that contributes a basis but no free parameter (the timing-model and ECORR
+GPs). That makes it hard to see, at a glance, what model you actually built.</p>
+<p>This module reconstructs that picture from the original components (which the
+likelihood objects now retain) and renders it three ways, mirroring
+enterprise’s <code class="docutils literal notranslate"><span class="pre">pta.summary()</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">model.summary()</span></code>      -&gt; a plain-text table (print it, or log it);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">model.summary_frame()</span></code>-&gt; a pandas <code class="docutils literal notranslate"><span class="pre">DataFrame</span></code>, one row per signal;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">model._repr_html_()</span></code>  -&gt; a rich table when displayed in a notebook.</p></li>
+</ul>
+<p>Everything here is pure introspection: it reads declarative attributes the
+factories already set and never calls into the kernel math, so it works
+unchanged under either the <code class="docutils literal notranslate"><span class="pre">matrix</span></code> or the <code class="docutils literal notranslate"><span class="pre">metamath</span></code> backend.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="discovery.summary.SignalInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">discovery.summary.</span></span><span class="sig-name descname"><span class="pre">SignalInfo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kind</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope='per-pulsar'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">basis_shape=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">varying=&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fixed=&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">handle=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slices=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/summary.html#SignalInfo"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.summary.SignalInfo" title="Link to this definition">#</a></dt>
+<dd><p>One row of a model summary: a single signal in one signal collection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>kind</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>scope</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>basis_shape</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>varying</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>)</p></li>
+<li><p><strong>fixed</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>)</p></li>
+<li><p><strong>handle</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>slices</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.summary.SignalInfo.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></em><a class="headerlink" href="#discovery.summary.SignalInfo.name" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.summary.SignalInfo.kind">
+<span class="sig-name descname"><span class="pre">kind</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></em><a class="headerlink" href="#discovery.summary.SignalInfo.kind" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.summary.SignalInfo.scope">
+<span class="sig-name descname"><span class="pre">scope</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'per-pulsar'</span></em><a class="headerlink" href="#discovery.summary.SignalInfo.scope" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.summary.SignalInfo.basis_shape">
+<span class="sig-name descname"><span class="pre">basis_shape</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></a> <span class="pre">|</span> <a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#discovery.summary.SignalInfo.basis_shape" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.summary.SignalInfo.varying">
+<span class="sig-name descname"><span class="pre">varying</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a></em><a class="headerlink" href="#discovery.summary.SignalInfo.varying" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.summary.SignalInfo.fixed">
+<span class="sig-name descname"><span class="pre">fixed</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></a></em><a class="headerlink" href="#discovery.summary.SignalInfo.fixed" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.summary.SignalInfo.handle">
+<span class="sig-name descname"><span class="pre">handle</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a> <span class="pre">|</span> <a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#discovery.summary.SignalInfo.handle" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.summary.SignalInfo.slices">
+<span class="sig-name descname"><span class="pre">slices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></a> <span class="pre">|</span> <a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#discovery.summary.SignalInfo.slices" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.summary.summary">
+<span class="sig-prename descclassname"><span class="pre">discovery.summary.</span></span><span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_free</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_fixed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_access</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_stdout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/summary.html#summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.summary.summary" title="Link to this definition">#</a></dt>
+<dd><p>Build (or print) a plain-text snapshot of <em>model</em>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>show_free</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – List each signal’s free / fixed parameters (with uniform prior ranges
+for the free ones) beneath its row. Independent toggles.</p></li>
+<li><p><strong>show_fixed</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – List each signal’s free / fixed parameters (with uniform prior ranges
+for the free ones) beneath its row. Independent toggles.</p></li>
+<li><p><strong>show_access</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Add an <code class="docutils literal notranslate"><span class="pre">access</span></code> column with the live <code class="docutils literal notranslate"><span class="pre">signals[i]</span></code> / <code class="docutils literal notranslate"><span class="pre">commongp</span></code> /
+<code class="docutils literal notranslate"><span class="pre">globalgp</span></code> handle for each signal.</p></li>
+<li><p><strong>include_params</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – Back-compatible alias: <code class="docutils literal notranslate"><span class="pre">True</span></code> -&gt; show both free and fixed, <code class="docutils literal notranslate"><span class="pre">False</span></code>
+-&gt; show neither. Overrides <code class="docutils literal notranslate"><span class="pre">show_free</span></code> / <code class="docutils literal notranslate"><span class="pre">show_fixed</span></code> when given.</p></li>
+<li><p><strong>to_stdout</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Print the summary instead of returning it.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.summary.summary_frame">
+<span class="sig-prename descclassname"><span class="pre">discovery.summary.</span></span><span class="sig-name descname"><span class="pre">summary_frame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/summary.html#summary_frame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.summary.summary_frame" title="Link to this definition">#</a></dt>
+<dd><p>One row per signal as a pandas <code class="docutils literal notranslate"><span class="pre">DataFrame</span></code> for programmatic use.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.summary.summary_html">
+<span class="sig-prename descclassname"><span class="pre">discovery.summary.</span></span><span class="sig-name descname"><span class="pre">summary_html</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/summary.html#summary_html"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.summary.summary_html" title="Link to this definition">#</a></dt>
+<dd><p>A notebook-friendly HTML rendering (used by <code class="docutils literal notranslate"><span class="pre">_repr_html_</span></code>).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.summary.tree">
+<span class="sig-prename descclassname"><span class="pre">discovery.summary.</span></span><span class="sig-name descname"><span class="pre">tree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">literal</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_stdout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/summary.html#tree"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.summary.tree" title="Link to this definition">#</a></dt>
+<dd><p>Visualize the model as a tree.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">literal=False</span></code> (default) this is the <em>composition</em> tree — one node
+per signal, showing how the signals stack into the covariance, with the
+live <code class="docutils literal notranslate"><span class="pre">signals[i]</span></code> / <code class="docutils literal notranslate"><span class="pre">commongp</span></code> / <code class="docutils literal notranslate"><span class="pre">globalgp</span></code> handle on each. With
+<code class="docutils literal notranslate"><span class="pre">literal=True</span></code> it mirrors the actual nested Woodbury kernel
+(<code class="docutils literal notranslate"><span class="pre">model.N.N…</span></code>), where constant GPs fused by <code class="docutils literal notranslate"><span class="pre">concat=True</span></code> appear as a
+single layer with their column slices.</p>
+</dd></dl>
+
 </section>
 </section>
 
@@ -768,7 +893,24 @@ behaves identically under either kernel backend
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#toggles">Toggles</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualizing-the-kernel">Visualizing the kernel</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#other-formats">Other formats</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-discovery.summary">API</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.SignalInfo"><code class="docutils literal notranslate"><span class="pre">SignalInfo</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.SignalInfo.name"><code class="docutils literal notranslate"><span class="pre">SignalInfo.name</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.SignalInfo.kind"><code class="docutils literal notranslate"><span class="pre">SignalInfo.kind</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.SignalInfo.scope"><code class="docutils literal notranslate"><span class="pre">SignalInfo.scope</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.SignalInfo.basis_shape"><code class="docutils literal notranslate"><span class="pre">SignalInfo.basis_shape</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.SignalInfo.varying"><code class="docutils literal notranslate"><span class="pre">SignalInfo.varying</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.SignalInfo.fixed"><code class="docutils literal notranslate"><span class="pre">SignalInfo.fixed</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.SignalInfo.handle"><code class="docutils literal notranslate"><span class="pre">SignalInfo.handle</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.SignalInfo.slices"><code class="docutils literal notranslate"><span class="pre">SignalInfo.slices</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.summary"><code class="docutils literal notranslate"><span class="pre">summary()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.summary_frame"><code class="docutils literal notranslate"><span class="pre">summary_frame()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.summary_html"><code class="docutils literal notranslate"><span class="pre">summary_html()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.summary.tree"><code class="docutils literal notranslate"><span class="pre">tree()</span></code></a></li>
+</ul>
+</li>
 </ul>
   </nav></div>
 

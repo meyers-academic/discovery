@@ -598,8 +598,62 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="pulsar">
-<h1>pulsar<a class="headerlink" href="#pulsar" title="Link to this heading">#</a></h1>
+  <section id="module-discovery.pulsar">
+<span id="pulsar"></span><h1>pulsar<a class="headerlink" href="#module-discovery.pulsar" title="Link to this heading">#</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.pulsar.read_chain">
+<span class="sig-prename descclassname"><span class="pre">discovery.pulsar.</span></span><span class="sig-name descname"><span class="pre">read_chain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fileordir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/pulsar.html#read_chain"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.pulsar.read_chain" title="Link to this definition">#</a></dt>
+<dd><p>Read a Discovery Feather chain or a PTMCMC chain directory to a Pandas table.
+Look in <cite>attrs</cite> for priors, runtime_info, and noisedict.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.pulsar.save_chain">
+<span class="sig-prename descclassname"><span class="pre">discovery.pulsar.</span></span><span class="sig-name descname"><span class="pre">save_chain</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/pulsar.html#save_chain"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.pulsar.save_chain" title="Link to this definition">#</a></dt>
+<dd><p>Saves Pandas chain table to Feather, preserving <cite>attrs</cite> in <cite>schema.metadata[‘json’]</cite>.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="discovery.pulsar.Pulsar">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">discovery.pulsar.</span></span><span class="sig-name descname"><span class="pre">Pulsar</span></span><a class="reference internal" href="../_modules/discovery/pulsar.html#Pulsar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.pulsar.Pulsar" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.pulsar.Pulsar.columns">
+<span class="sig-name descname"><span class="pre">columns</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['toas',</span> <span class="pre">'stoas',</span> <span class="pre">'toaerrs',</span> <span class="pre">'residuals',</span> <span class="pre">'freqs',</span> <span class="pre">'backend_flags']</span></em><a class="headerlink" href="#discovery.pulsar.Pulsar.columns" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.pulsar.Pulsar.vector_columns">
+<span class="sig-name descname"><span class="pre">vector_columns</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['Mmat',</span> <span class="pre">'sunssb',</span> <span class="pre">'pos_t']</span></em><a class="headerlink" href="#discovery.pulsar.Pulsar.vector_columns" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.pulsar.Pulsar.tensor_columns">
+<span class="sig-name descname"><span class="pre">tensor_columns</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['planetssb']</span></em><a class="headerlink" href="#discovery.pulsar.Pulsar.tensor_columns" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="discovery.pulsar.Pulsar.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['name',</span> <span class="pre">'dm',</span> <span class="pre">'dmx',</span> <span class="pre">'pdist',</span> <span class="pre">'pos',</span> <span class="pre">'phi',</span> <span class="pre">'theta',</span> <span class="pre">'fitpars',</span> <span class="pre">'setpars']</span></em><a class="headerlink" href="#discovery.pulsar.Pulsar.metadata" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="discovery.pulsar.Pulsar.read_feather">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read_feather</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/pulsar.html#Pulsar.read_feather"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.pulsar.Pulsar.read_feather" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="discovery.pulsar.Pulsar.to_list">
+<span class="sig-name descname"><span class="pre">to_list</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#discovery.pulsar.Pulsar.to_list" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="discovery.pulsar.Pulsar.save_feather">
+<span class="sig-name descname"><span class="pre">save_feather</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisedict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/pulsar.html#Pulsar.save_feather"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.pulsar.Pulsar.save_feather" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
 </section>
 
 
@@ -640,6 +694,29 @@
                 <dialog id="pst-secondary-sidebar-modal"></dialog>
                 <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
 
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.read_chain"><code class="docutils literal notranslate"><span class="pre">read_chain()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.save_chain"><code class="docutils literal notranslate"><span class="pre">save_chain()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.Pulsar"><code class="docutils literal notranslate"><span class="pre">Pulsar</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.Pulsar.columns"><code class="docutils literal notranslate"><span class="pre">Pulsar.columns</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.Pulsar.vector_columns"><code class="docutils literal notranslate"><span class="pre">Pulsar.vector_columns</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.Pulsar.tensor_columns"><code class="docutils literal notranslate"><span class="pre">Pulsar.tensor_columns</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.Pulsar.metadata"><code class="docutils literal notranslate"><span class="pre">Pulsar.metadata</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.Pulsar.read_feather"><code class="docutils literal notranslate"><span class="pre">Pulsar.read_feather()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.Pulsar.to_list"><code class="docutils literal notranslate"><span class="pre">Pulsar.to_list()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.pulsar.Pulsar.save_feather"><code class="docutils literal notranslate"><span class="pre">Pulsar.save_feather()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
 
   <div class="sidebar-secondary-item">
 

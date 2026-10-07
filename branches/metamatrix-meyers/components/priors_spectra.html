@@ -644,7 +644,7 @@ This assumes Fourier modes are independent, which is an approximation for finite
 \[\begin{split}S(f) = \\frac{10^{2 \log_{10}(A)}}{12\pi^2} f^{-\gamma} T_{\mathrm{yr}}^{\gamma-3} \, \Delta f\end{split}\]</div>
 <p>where <span class="math notranslate nohighlight">\(\log_{10}(A)\)</span> = <code class="docutils literal notranslate"><span class="pre">log10_A</span></code> is the log-amplitude, <span class="math notranslate nohighlight">\(\gamma\)</span> = <code class="docutils literal notranslate"><span class="pre">gamma</span></code> is the
 spectral index, and <span class="math notranslate nohighlight">\(T_{\mathrm{yr}} = 365.25 \times 86400\)</span> s converts to per-year normalization.</p>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">powerlaw()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/signals.html#discovery.signals.powerlaw" title="discovery.signals.powerlaw"><code class="xref py py-func docutils literal notranslate"><span class="pre">powerlaw()</span></code></a>.</p>
 </section>
 <section id="free-spectrum">
 <h3>Free Spectrum<a class="headerlink" href="#free-spectrum" title="Link to this heading">#</a></h3>
@@ -665,7 +665,7 @@ treated as a vector parameter:</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">typing.Sequence</span></code> annotation tells Discovery to treat this parameter as a vector
 in the parameter dictionary (otherwise it assumes scalar parameters). Discovery automatically
 creates parameter names like <code class="docutils literal notranslate"><span class="pre">B1855+09_freespectrum_log10_rho(30)</span></code> when <code class="docutils literal notranslate"><span class="pre">components=30</span></code>.</p>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">freespectrum()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/signals.html#discovery.signals.freespectrum" title="discovery.signals.freespectrum"><code class="xref py py-func docutils literal notranslate"><span class="pre">freespectrum()</span></code></a>.</p>
 </section>
 </section>
 <section id="combined-priors">
@@ -694,9 +694,9 @@ creates parameter names like <code class="docutils literal notranslate"><span cl
 <li><p>Intrinsic: <code class="docutils literal notranslate"><span class="pre">{psrname}_rednoise_log10_A</span></code>, <code class="docutils literal notranslate"><span class="pre">{psrname}_rednoise_gamma</span></code></p></li>
 <li><p>Common: <code class="docutils literal notranslate"><span class="pre">crn_log10_A</span></code>, <code class="docutils literal notranslate"><span class="pre">crn_gamma</span></code></p></li>
 </ul>
-<p>This is particularly useful with <code class="xref py py-class docutils literal notranslate"><span class="pre">ArrayLikelihood</span></code> as it
+<p>This is particularly useful with <a class="reference internal" href="../api/likelihood.html#discovery.likelihood.ArrayLikelihood" title="discovery.likelihood.ArrayLikelihood"><code class="xref py py-class docutils literal notranslate"><span class="pre">ArrayLikelihood</span></code></a> as it
 enables vectorization across pulsars while maintaining both intrinsic and common processes.</p>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">makepowerlaw_crn()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/signals.html#discovery.signals.makepowerlaw_crn" title="discovery.signals.makepowerlaw_crn"><code class="xref py py-func docutils literal notranslate"><span class="pre">makepowerlaw_crn()</span></code></a>.</p>
 </section>
 </section>
 <section id="time-domain-covariance-fftcov">
@@ -732,9 +732,9 @@ way to estimate the dense (non-diagonal) covariance matrix from the power spectr
 <p>The FFTCov approach computes the time-domain covariance function from the PSD via inverse FFT,
 then uses time-interpolated basis functions to construct the GP efficiently.</p>
 <p>For details, see <a class="reference external" href="https://arxiv.org/abs/2506.13866">Crisostomi et al. (2025)</a>.</p>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">makegp_fftcov()</span></code>,
-<code class="xref py py-func docutils literal notranslate"><span class="pre">makecommongp_fftcov()</span></code>, and
-<code class="xref py py-func docutils literal notranslate"><span class="pre">makeglobalgp_fftcov()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/signals.html#discovery.signals.makegp_fftcov" title="discovery.signals.makegp_fftcov"><code class="xref py py-func docutils literal notranslate"><span class="pre">makegp_fftcov()</span></code></a>,
+<a class="reference internal" href="../api/signals.html#discovery.signals.makecommongp_fftcov" title="discovery.signals.makecommongp_fftcov"><code class="xref py py-func docutils literal notranslate"><span class="pre">makecommongp_fftcov()</span></code></a>, and
+<a class="reference internal" href="../api/signals.html#discovery.signals.makeglobalgp_fftcov" title="discovery.signals.makeglobalgp_fftcov"><code class="xref py py-func docutils literal notranslate"><span class="pre">makeglobalgp_fftcov()</span></code></a>.</p>
 </section>
 <section id="custom-priors">
 <h2>Custom Priors<a class="headerlink" href="#custom-priors" title="Link to this heading">#</a></h2>

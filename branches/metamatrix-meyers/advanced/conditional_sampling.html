@@ -662,9 +662,9 @@ while <span class="math notranslate nohighlight">\(\Sigma_a\)</span> quantifies 
 <li><p><code class="docutils literal notranslate"><span class="pre">cf</span></code>: Cholesky factor of covariance matrix <span class="math notranslate nohighlight">\(\Sigma_a\)</span></p></li>
 </ul>
 <p>The covariance can be reconstructed as <span class="math notranslate nohighlight">\(\Sigma_a = L L^T\)</span> where <code class="docutils literal notranslate"><span class="pre">L</span> <span class="pre">=</span> <span class="pre">cf[0]</span></code>.</p>
-<p><strong>Note:</strong> <code class="xref py py-func docutils literal notranslate"><span class="pre">makegp_timing()</span></code> does not produce coefficients in the
+<p><strong>Note:</strong> <a class="reference internal" href="../api/signals.html#discovery.signals.makegp_timing" title="discovery.signals.makegp_timing"><code class="xref py py-func docutils literal notranslate"><span class="pre">makegp_timing()</span></code></a> does not produce coefficients in the
 conditional distribution (it uses an improper prior by default).</p>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">conditional()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/likelihood.html#discovery.likelihood.PulsarLikelihood.conditional" title="discovery.likelihood.PulsarLikelihood.conditional"><code class="xref py py-func docutils literal notranslate"><span class="pre">conditional()</span></code></a>.</p>
 </section>
 <section id="sampling-from-the-conditional">
 <h3>Sampling from the Conditional<a class="headerlink" href="#sampling-from-the-conditional" title="Link to this heading">#</a></h3>
@@ -690,12 +690,12 @@ conditional distribution (it uses an improper prior by default).</p>
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">sample_conditional()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/likelihood.html#discovery.likelihood.PulsarLikelihood.sample_conditional" title="discovery.likelihood.PulsarLikelihood.sample_conditional"><code class="xref py py-func docutils literal notranslate"><span class="pre">sample_conditional()</span></code></a>.</p>
 </section>
 </section>
 <section id="multiple-pulsars-globallikelihood">
 <h2>Multiple Pulsars (GlobalLikelihood)<a class="headerlink" href="#multiple-pulsars-globallikelihood" title="Link to this heading">#</a></h2>
-<p>For multi-pulsar analyses, use <code class="xref py py-class docutils literal notranslate"><span class="pre">GlobalLikelihood</span></code>:</p>
+<p>For multi-pulsar analyses, use <a class="reference internal" href="../api/likelihood.html#discovery.likelihood.GlobalLikelihood" title="discovery.likelihood.GlobalLikelihood"><code class="xref py py-class docutils literal notranslate"><span class="pre">GlobalLikelihood</span></code></a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">discovery</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ds</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
 
@@ -732,7 +732,7 @@ conditional distribution (it uses an improper prior by default).</p>
 </pre></div>
 </div>
 <p><strong>Coefficient structure:</strong></p>
-<p>For <code class="xref py py-class docutils literal notranslate"><span class="pre">GlobalLikelihood</span></code>, the coefficients dictionary contains
+<p>For <a class="reference internal" href="../api/likelihood.html#discovery.likelihood.GlobalLikelihood" title="discovery.likelihood.GlobalLikelihood"><code class="xref py py-class docutils literal notranslate"><span class="pre">GlobalLikelihood</span></code></a>, the coefficients dictionary contains
 separate entries for each pulsar’s red noise GP and for each pulsar’s contribution to the
 global GW signal:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
@@ -747,7 +747,7 @@ global GW signal:</p>
 </div>
 <p>Each pulsar has separate coefficient arrays for its intrinsic processes (red noise) and its
 contribution to the global correlated signal (GW).</p>
-<p>See <code class="xref py py-func docutils literal notranslate"><span class="pre">sample_conditional()</span></code>.</p>
+<p>See <a class="reference internal" href="../api/likelihood.html#discovery.likelihood.GlobalLikelihood.sample_conditional" title="discovery.likelihood.GlobalLikelihood.sample_conditional"><code class="xref py py-func docutils literal notranslate"><span class="pre">sample_conditional()</span></code></a>.</p>
 <section id="multiple-samples">
 <h3>Multiple Samples<a class="headerlink" href="#multiple-samples" title="Link to this heading">#</a></h3>
 <p>To draw multiple independent samples:</p>
@@ -797,10 +797,10 @@ signals and perform posterior predictive checks. See <a class="reference externa
 <ul class="simple">
 <li><p><a class="reference internal" href="../guide/data_model.html"><span class="doc">Data Model</span></a> - GP mathematical framework</p></li>
 <li><p><a class="reference internal" href="../tutorials/simulations.html"><span class="doc">Simulations</span></a> - Data simulation workflows</p></li>
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">PulsarLikelihood</span></code> - Likelihood API</p></li>
-<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">GlobalLikelihood</span></code> - Multi-pulsar likelihood API</p></li>
-<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">conditional()</span></code> - Get conditional parameters</p></li>
-<li><p><code class="xref py py-func docutils literal notranslate"><span class="pre">sample_conditional()</span></code> - Sample from conditional</p></li>
+<li><p><a class="reference internal" href="../api/likelihood.html#discovery.likelihood.PulsarLikelihood" title="discovery.likelihood.PulsarLikelihood"><code class="xref py py-class docutils literal notranslate"><span class="pre">PulsarLikelihood</span></code></a> - Likelihood API</p></li>
+<li><p><a class="reference internal" href="../api/likelihood.html#discovery.likelihood.GlobalLikelihood" title="discovery.likelihood.GlobalLikelihood"><code class="xref py py-class docutils literal notranslate"><span class="pre">GlobalLikelihood</span></code></a> - Multi-pulsar likelihood API</p></li>
+<li><p><a class="reference internal" href="../api/likelihood.html#discovery.likelihood.PulsarLikelihood.conditional" title="discovery.likelihood.PulsarLikelihood.conditional"><code class="xref py py-func docutils literal notranslate"><span class="pre">conditional()</span></code></a> - Get conditional parameters</p></li>
+<li><p><a class="reference internal" href="../api/likelihood.html#discovery.likelihood.PulsarLikelihood.sample_conditional" title="discovery.likelihood.PulsarLikelihood.sample_conditional"><code class="xref py py-func docutils literal notranslate"><span class="pre">sample_conditional()</span></code></a> - Sample from conditional</p></li>
 <li><p><a class="reference internal" href="../api/prior.html#discovery.prior.sample_uniform" title="discovery.prior.sample_uniform"><code class="xref py py-func docutils literal notranslate"><span class="pre">sample_uniform()</span></code></a> - Sample from uniform priors</p></li>
 </ul>
 </section>

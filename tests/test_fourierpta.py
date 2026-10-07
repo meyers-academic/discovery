@@ -245,3 +245,123 @@ def test_summarybasis_checks(summaries, T):
         fpta.summarybasis(s, NC + 1, T)
     with pytest.raises(ValueError):
         fpta.summarybasis(s, NC, 2 * T)
+
+
+# ---------------------------------------------------------------------------
+# non-Gaussian corrections, mixing with time-domain pulsars
+
+
+def _fake_summary(rng, d=4, K=3, name='fake', phi0=None):
+    """A small summary with K per-sample conditionals, all well inside the prior phi0."""
+    phi0 = np.full(d, 1.0) if phi0 is None else phi0
+    sc = np.sqrt(phi0)
+    ahat = 0.3 * rng.normal(size=(K, d)) * sc
+    A = 0.3 * rng.normal(size=(K, d, d))
+    Sigma = sc[:, None] * (0.1 * np.eye(d) + A @ np.swapaxes(A, 1, 2) * 0.1) * sc[None, :]
+    ahat0 = ahat.mean(0)
+    Sigma0 = Sigma.mean(0) + np.cov(ahat.T)
+    return fpta.FourierSummary(name=name, pos=np.array([0.0, 0.0, 1.0]), f=np.repeat(np.arange(1, d//2 + 1) / 10.0, 2),
+                               df=np.full(d, 0.1), ahat0=ahat0, Sigma0_inv=np.linalg.inv(Sigma0), phi0=phi0,
+                               ahat_samples=ahat, Sigma_samples=Sigma)
+
+
+def test_mixture_density_normalized():
+    s = _fake_summary(np.random.default_rng(5), d=2, K=4)
+    q = s.mixture()
+    x = np.linspace(-12, 12, 801)
+    X, Y = np.meshgrid(x, x)
+    pts = jnp.asarray(np.stack([X.ravel(), Y.ravel()], axis=1))
+    integral = np.sum(np.exp(jax.vmap(q.log_prob)(pts))) * (x[1] - x[0])**2
+    assert np.isclose(integral, 1.0, rtol=1e-6)
+
+
+def test_mixture_logL_monte_carlo():
+    # Z_k = E_{a ~ N(ahat_k, Sigma_k)} [N(a | 0, phi) / N(a | 0, phi0)], checked by sampling
+    rng = np.random.default_rng(6)
+    d = 4
+    f, df = np.repeat(np.arange(1, d//2 + 1) / 10.0, 2), np.full(d, 0.1)
+    p = {'fake_red_noise_log10_A': -14.0, 'fake_red_noise_gamma': 3.0}
+    phi = np.asarray(ds.powerlaw(f, df, -14.0, 3.0))
+
+    # reference prior a bit broader than the model prior at p
+    s = _fake_summary(rng, d=d, phi0=1.5 * phi)
+    irn = ds.makecommongp_fourier([s], ds.powerlaw, d // 2, s.T, fourierbasis=fpta.summarybasis, name='red_noise')
+    logL = fpta.mixture_logL([s], irn)
+    assert np.allclose(np.asarray(irn.Phi.getN(p))[0], phi)
+
+    def lognorm(a, var):
+        return -0.5 * np.sum(a**2 / var, axis=-1) - 0.5 * np.sum(np.log(2 * np.pi * var))
+
+    Z = []
+    for ahat, Sigma in zip(s.ahat_samples, s.Sigma_samples):
+        a = rng.multivariate_normal(ahat, Sigma, size=400000)
+        Z.append(np.mean(np.exp(lognorm(a, phi) - lognorm(a, s.phi0))))
+    assert np.isclose(float(logL(p)), np.log(np.mean(Z)), atol=5e-3)
+
+
+def test_gaussian_density_is_no_correction(psrs, T, summaries):
+    # a "correction" equal to N(y | 0, I) leaves clogL unchanged
+    pls, irn = _stand_ins(summaries, T)
+    gw = ds.makeglobalgp_fourier(summaries, ds.powerlaw, ds.hd_orf, NGW, T, fourierbasis=fpta.summarybasis, name='gw')
+    plain = ds.ArrayLikelihood(pls, commongp=irn, globalgp=gw, decenter=True)
+
+    import copy
+    corrected_sums = [copy.copy(s) for s in summaries]
+    for s in corrected_sums:
+        s.density = fpta.GaussianMixture(np.zeros((1, N)), np.eye(N)[None])
+    corrected = ds.ArrayLikelihood(pls, commongp=irn, globalgp=gw, decenter=True)
+    corrected.transform = fpta.make_correction(corrected, corrected_sums)
+
+    q = _rand_params(psrs, np.random.default_rng(7))
+    rng = np.random.default_rng(8)
+    for s in summaries:
+        q[f'{s.name}_red_noise_coefficients({N})'] = jnp.asarray(rng.normal(size=N))
+        q[f'{s.name}_gw_coefficients({2*NGW})'] = jnp.asarray(rng.normal(size=2*NGW))
+
+    assert np.isclose(float(plain.clogL(q)[0]), float(corrected.clogL(q)[0]), rtol=1e-12)
+
+
+def test_correction_value(psrs, T, summaries):
+    # a nontrivial density: the corrected clogL exceeds the plain one by sum_p log w_p(a_p)
+    pls, irn = _stand_ins(summaries, T)
+    import copy
+    sums = [copy.copy(s) for s in summaries]
+    rng = np.random.default_rng(9)
+    sums[0].density = fpta.GaussianMixture(0.3 * rng.normal(size=(2, N)), np.stack([1.2 * np.eye(N), 0.8 * np.eye(N)]))
+
+    plain = ds.ArrayLikelihood(pls, commongp=irn)
+    corrected = ds.ArrayLikelihood(pls, commongp=irn)
+    corrected.transform = fpta.make_correction(corrected, sums)
+
+    q = _rand_params(psrs, rng)
+    for s in sums:
+        q[f'{s.name}_red_noise_coefficients({N})'] = jnp.asarray(s.ahat0 + s.L0 @ rng.normal(size=N))
+
+    y = np.linalg.solve(sums[0].L0, np.asarray(q[f'{sums[0].name}_red_noise_coefficients({N})']) - sums[0].ahat0)
+    logw = float(sums[0].density.log_prob(jnp.asarray(y))) + 0.5 * y @ y + 0.5 * N * np.log(2 * np.pi)
+
+    assert np.isclose(float(corrected.clogL(q)[0]) - float(plain.clogL(q)), logw, rtol=1e-10, atol=1e-8)
+
+
+def test_mixed_time_domain_and_summaries(psrs, T, summaries):
+    # at fixed white noise the Gaussian summary is exact, so replacing one summary by
+    # the pulsar's full time-domain likelihood changes the step-2 logL only by a constant
+    psr = psrs[0]
+    real = ds.PulsarLikelihood([psr.residuals, ds.makegp_timing(psr, svd=True),
+                                ds.makenoise_measurement(psr, noisedict=psr.noisedict, ecorr=True)])
+    mixed = [psr] + summaries[1:]
+
+    def hd_logL(members, pls):
+        irn = ds.makecommongp_fourier(members, ds.powerlaw, NC, T, fourierbasis=fpta.summarybasis, name='red_noise')
+        gw = ds.makeglobalgp_fourier(members, ds.powerlaw, ds.hd_orf, NGW, T, fourierbasis=fpta.summarybasis, name='gw')
+        return jax.jit(ds.ArrayLikelihood(pls, commongp=irn, globalgp=gw).logL)
+
+    pls_sum, _ = _stand_ins(summaries, T)
+    all_summ = hd_logL(summaries, pls_sum)
+    with_real = hd_logL(mixed, [real] + pls_sum[1:])
+
+    rng = np.random.default_rng(10)
+    ps = [_rand_params(psrs, rng) for _ in range(4)]
+    a = np.array([float(all_summ(p)) for p in ps])
+    b = np.array([float(with_real(p)) for p in ps])
+    assert np.allclose(a[1:] - a[0], b[1:] - b[0], rtol=1e-7, atol=1e-6)

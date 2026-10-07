@@ -52,6 +52,7 @@ import jax
 import jax.numpy as jnp
 
 from . import _kernels as kernels
+from . import signals
 
 
 @dataclasses.dataclass
@@ -77,6 +78,11 @@ class FourierSummary:
     # over noise samples; these are the components of the GMM generalization
     ahat_samples: Optional[np.ndarray] = None    # (K, n)
     Sigma_samples: Optional[np.ndarray] = None   # (K, n, n)
+
+    # non-Gaussian replacement q(y) for N(y | 0, I) in the whitened coordinates
+    # y = L0^-1 (a - ahat0): anything with `log_prob(y)`, e.g. `self.mixture(K)` or a
+    # trained flowjax flow. None keeps the Gaussian summary (VvH25).
+    density: Optional[object] = None
 
     # eigenvalues of TtNT below rtol * max are roundoff, treated as zero (the
     # stand-in data then have fewer than n entries)
@@ -107,6 +113,29 @@ class FourierSummary:
     @property
     def Sigma0(self):
         return np.linalg.inv(self.Sigma0_inv)
+
+    @property
+    def L0(self):
+        """chol(Sigma0): the whitening y = L0^-1 (a - ahat0) under which the Gaussian
+        summary is N(y | 0, I), and in which the corrections q(y) are defined."""
+        return np.linalg.cholesky(self.Sigma0)
+
+    def mixture(self, K=None):
+        """The GMM generalization of the summary (paper Eq. 19, A8): the per-sample
+        conditionals N(a | ahat(theta_k), Sigma(theta_k)), equally weighted, as a
+        `GaussianMixture` in the whitened coordinates y. With K, use K samples evenly
+        spaced through the step-1 samples."""
+        if self.ahat_samples is None:
+            raise ValueError(f"{self.name}: no per-sample conditionals; summarize over noise samples first.")
+
+        idx = np.arange(len(self.ahat_samples)) if K is None else \
+              np.linspace(0, len(self.ahat_samples) - 1, K).astype(int)
+        L0 = self.L0
+        Linv0 = np.linalg.inv(L0)
+
+        mu = (self.ahat_samples[idx] - self.ahat0) @ Linv0.T
+        C = Linv0 @ self.Sigma_samples[idx] @ Linv0.T
+        return GaussianMixture(mu, np.linalg.cholesky(0.5 * (C + np.swapaxes(C, 1, 2))))
 
     @property
     def _standin(self):
@@ -154,8 +183,12 @@ def summarybasis(psr, components, T=None):
 
     Returns the leading 2*components columns of the stand-in basis, so a GP with
     fewer components than the summary (e.g. a GWB on the lowest frequencies) picks
-    out the matching coefficients.
+    out the matching coefficients. Any other pulsar gets the ordinary Fourier basis,
+    so summaries and time-domain pulsars can share one array likelihood.
     """
+    if not isinstance(psr, FourierSummary):
+        return signals.fourierbasis(psr, components, T)
+
     n = 2 * components
     if n > psr.ncoeff:
         raise ValueError(f"{psr.name}: requested {components} components, summary has {psr.components}.")
@@ -241,3 +274,142 @@ def summarize_pulsar(psr, psl, params, gp='red_noise'):
                           ahat0=ahat0, Sigma0_inv=Sigma0_inv, phi0=phi0,
                           ahat_samples=mus, Sigma_samples=Sigmas)
 
+
+# ---------------------------------------------------------------------------
+# Non-Gaussian corrections (paper Sec. 2.3-2.5)
+#
+# The Gaussian summary N(a | ahat0, Sigma0) is replaced by a better density q(a)
+# per pulsar -- a Gaussian mixture or a normalizing flow -- defined in the whitened
+# coordinates y = L0^-1 (a - ahat0). Step 2 then picks up, per pulsar,
+#
+#     log w(a) = log q(y) - log N(y | 0, I)                          (Eq. 28, 34)
+#
+# on top of the Gaussian-summary likelihood above (the Jacobians |L0| cancel). A
+# correction is any object with a `log_prob(y)` method: a `GaussianMixture`, or a
+# trained flowjax distribution.
+# ---------------------------------------------------------------------------
+
+
+class GaussianMixture:
+    """Equally weighted Gaussian mixture (1/K) sum_k N(y | mu_k, L_k L_k^T)."""
+
+    def __init__(self, mu, L):
+        self.mu = jnp.asarray(mu)                                       # (K, d)
+        self.L = jnp.asarray(L)                                         # (K, d, d) lower
+        self.Linv = jnp.linalg.inv(self.L)
+        self.logdet = jnp.sum(jnp.log(jnp.diagonal(self.L, axis1=1, axis2=2)), axis=1)   # log |L_k|
+
+    @property
+    def K(self):
+        return self.mu.shape[0]
+
+    def log_prob(self, y):
+        z = jnp.einsum('kij,kj->ki', self.Linv, y - self.mu)
+        return (jax.scipy.special.logsumexp(-0.5 * jnp.sum(z**2, axis=1) - self.logdet)
+                - jnp.log(self.K) - 0.5 * y.shape[-1] * jnp.log(2 * jnp.pi))
+
+
+def _gp_blocks(like):
+    """Column counts of the GP blocks of each pulsar's coefficient vector, in the
+    order `ArrayLikelihood.clogL` concatenates them (commongp(s), then globalgp)."""
+    gps = like.commongp if isinstance(like.commongp, (list, tuple)) else [like.commongp]
+    sizes = [np.shape(gp.F[0])[1] for gp in gps]
+    if like.globalgp is not None:
+        sizes.append(np.shape(like.globalgp.Fs[0])[1])
+    return sizes
+
+
+def make_correction(like, psrs):
+    """The non-Gaussian correction sum_p log w_p(a_p) for `like.clogL`.
+
+    `like` is the step-2 `ArrayLikelihood` over `psrs` (in the same order); the
+    correction collects `density` from every `FourierSummary` among them that has one
+    (time-domain pulsars and Gaussian summaries contribute nothing). Every GP on a
+    `FourierSummary` covers the summary's lowest frequencies, so a pulsar's summary
+    coefficients are the sum of its GP blocks, a_p = sum_g [c_g, 0...].
+
+    Returns a function `(params, c) -> (c, sum_p log w_p)` in the form of a
+    coefficient reparametrization, so it slots in after decentering:
+
+        like = ds.ArrayLikelihood(pls, ..., decenter=True)
+        like.transform = fpta.make_correction(like, psrs)
+
+    (an identity map whose "log-Jacobian" is the correction).
+    """
+    sizes = _gp_blocks(like)
+    rows = [i for i, s in enumerate(psrs) if getattr(s, 'density', None) is not None]
+    terms = []
+    for i in rows:
+        s = psrs[i]
+        if max(sizes) > s.ncoeff:
+            raise ValueError(f"{s.name}: a GP has more coefficients than the summary.")
+        embed = np.concatenate([np.eye(s.ncoeff)[:, :m] for m in sizes], axis=1)   # a_p = embed @ c_p
+        terms.append((jnp.asarray(embed), jnp.asarray(s.ahat0), jnp.asarray(np.linalg.inv(s.L0)), s.density))
+
+    def correction(params, c):
+        logw = 0.0
+        for i, (embed, ahat0, Linv0, q) in zip(rows, terms):
+            y = Linv0 @ (embed @ c[i] - ahat0)
+            logw = logw + q.log_prob(y) + 0.5 * y @ y + 0.5 * y.shape[0] * jnp.log(2 * jnp.pi)
+        return c, logw
+    correction.params = []
+
+    return correction
+
+
+def _diag_prior(commongp):
+    """params -> (npsr, n) prior variances on each pulsar's summary coefficients,
+    summing (lowest-frequency-aligned) commongp blocks, e.g. IRN + CRN."""
+    gps = commongp if isinstance(commongp, (list, tuple)) else [commongp]
+
+    def phi(params):
+        blocks = [jnp.asarray(gp.Phi.getN(params)) for gp in gps]
+        n = max(b.shape[1] for b in blocks)
+        return sum(jnp.pad(b, ((0, 0), (0, n - b.shape[1]))) for b in blocks)
+    phi.params = sorted(set(sum([list(gp.Phi.getN.params) for gp in gps], [])))
+
+    return phi
+
+
+def mixture_logL(summaries, commongp, K=None):
+    """Marginalized step-2 likelihood with the GMM correction, for priors that do not
+    correlate pulsars (SPNA, IRN, CURN): paper Eq. 21, which factorizes over pulsars.
+
+    Per pulsar, each component k is a Gaussian summary N(a | ahat_k, Sigma_k), whose
+    evidence against the prior swap phi0 -> phi(eta) is analytic:
+
+        log Z_k = 1/2 b_k^T P_k^-1 b_k - 1/2 ahat_k^T b_k - 1/2 log|Sigma_k| - 1/2 log|P_k|
+                  - 1/2 log|phi| + 1/2 log|phi0|,
+        P_k = Sigma_k^-1 + phi^-1 - phi0^-1,    b_k = Sigma_k^-1 ahat_k,
+
+    and the pulsar contributes logsumexp_k log Z_k - log K. With HD (which couples
+    pulsars) use `clogL` with `make_correction` instead.
+    """
+    phi = _diag_prior(commongp)
+    n = summaries[0].ncoeff
+
+    comps = []
+    for s in summaries:
+        idx = np.arange(len(s.ahat_samples)) if K is None else \
+              np.linspace(0, len(s.ahat_samples) - 1, K).astype(int)
+        ahat, Sigma = s.ahat_samples[idx], s.Sigma_samples[idx]
+        Sigma_inv = np.linalg.inv(Sigma)
+        b = np.einsum('kij,kj->ki', Sigma_inv, ahat)
+        const = (-0.5 * np.einsum('ki,ki->k', ahat, b) - 0.5 * np.linalg.slogdet(Sigma)[1]
+                 + 0.5 * np.sum(np.log(s.phi0)) - np.log(len(idx)))
+        comps.append((Sigma_inv - np.diag(1.0 / s.phi0), b, const))
+
+    TtNT, b, const = (jnp.asarray(np.array(x)) for x in zip(*comps))    # (npsr, K, n, n), (npsr, K, n), (npsr, K)
+
+    def loglike(params):
+        phis = phi(params)                                                # (npsr, n)
+        P = TtNT + jax.vmap(jnp.diag)(1.0 / phis)[:, None, :, :]
+        cf = jnp.linalg.cholesky(P)
+        x = jax.scipy.linalg.cho_solve((cf, True), b[..., None])[..., 0]
+        logZ = (const + 0.5 * jnp.sum(b * x, axis=-1)
+                - jnp.sum(jnp.log(jnp.diagonal(cf, axis1=-2, axis2=-1)), axis=-1)
+                - 0.5 * jnp.sum(jnp.log(phis), axis=-1)[:, None])
+        return jnp.sum(jax.scipy.special.logsumexp(logZ, axis=1))
+    loglike.params = phi.params
+
+    return loglike

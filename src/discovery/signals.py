@@ -307,6 +307,7 @@ def makegp_fourier(psr, prior, components, T=None, mean=None, fourierbasis=fouri
     gp.index = {f'{psr.name}_{name}_coefficients({len(f)})': slice(0,len(f))} # better for cosine
     gp.name, gp.pos = psr.name, psr.pos
     gp.gpname, gp.gpcommon = name, common
+    gp.f, gp.df = f, df
 
     if mean is not None:
         margspec = inspect.getfullargspec(mean)

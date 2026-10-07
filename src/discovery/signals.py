@@ -472,62 +472,268 @@ def makeglobalgp_fourier(psrs, priors, orfs, components, T, fourierbasis=fourier
     fs, dfs, fmats = zip(*[fourierbasis(psr, components, T) for psr in psrs])
     f, df = utils.jnparray(fs[0]), utils.jnparray(dfs[0])
 
-    orfmats = [utils.jnparray([[orf(p1.pos, p2.pos) for p1 in psrs] for p2 in psrs]) for orf in orfs]
+    # ORF parameters live in their own `_orf_` namespace: without it an ORF argument
+    # and a prior argument sharing a name (say `gamma`) would both map to
+    # `{name}_{orfname}_{arg}` and silently become one parameter.
+    orfargmaps = []
+    for orf in orfs:
+        orfspec = inspect.getfullargspec(orf)
+        orfargs = [arg for arg in orfspec.args[2:] if arg not in exclude]
+        if orfargs:
+            orfname = f'{name}' if len(orfs) == 1 else f'{name}_{re.sub("_", "", orf.__name__)}'
+            orfargmaps.append([f'{orfname}_orf_{arg}' + (f'({components})' if orfspec.annotations.get(arg) == typing.Sequence else '')
+                               for arg in orfargs])
+        else:
+            orfargmaps.append(None)
+
+    npsr, nmode = len(psrs), len(f)
+    positions = utils.jnparray(np.array([psr.pos for psr in psrs]))
+    modeidx = np.arange(nmode)
+
+    def makeorfmat(orf, orfargmap):
+        """Decide, once, whether this ORF is a constant or has to be evaluated per call.
+
+        A parameter-free ORF is evaluated here and returned as an array, so it stays a
+        constant that metamath can fold -- the path every built-in ORF takes. A
+        parameter-dependent one is returned as a callable instead, vectorized over both
+        pulsar axes (a Python double loop over pairs is ~200x slower once the ORF returns
+        a basis vector per pair). Such an ORF must be jax-traceable -- no Python branching
+        on the positions, so the usual `if np.all(pos1 == pos2)` pulsar-term trick has to
+        be written arithmetically -- and is assumed symmetric in its two positions.
+        """
+        if orfargmap is None:
+            return utils.jnparray([[orf(p1.pos, p2.pos) for p1 in psrs] for p2 in psrs])
+
+        nargs = len(orfargmap)
+        return jax.vmap(jax.vmap(orf, in_axes=(None, 0) + (None,) * nargs),
+                        in_axes=(0, None) + (None,) * nargs)
+
+    orfmats = [makeorfmat(orf, orfargmap) for orf, orfargmap in zip(orfs, orfargmaps)]
+
+    def getorf(orfmat, orfargmap, params):
+        """Produce this term's Gamma, hiding whether it was a build-time constant or not.
+
+        Lets everything downstream be written once, without caring which kind of ORF it got.
+        """
+        return orfmat if orfargmap is None else orfmat(positions, positions, *[params[arg] for arg in orfargmap])
+
+    def scatterblocks(blocks):
+        """Reassemble per-mode blocks into the dense matrix the rest of discovery expects.
+
+        The block-structured routines work in (nmode, npsr, npsr); this is what puts the
+        result back into the pulsar-major/mode-inner layout that `GlobalWoodburyKernel`
+        consumes, so exploiting the structure stays invisible to callers.
+        """
+        return jnp.zeros((npsr, nmode, npsr, nmode)).at[:, modeidx, :, modeidx].set(blocks).reshape(npsr * nmode, npsr * nmode)
+
+    def densifyblocks(blocks):
+        """Same reassembly as `scatterblocks`, for terms that fill the frequency block.
+
+        Used when a spectrum correlates frequency bins, so there is no diagonal to scatter
+        onto and the (nmode, nmode) sub-block is carried over whole.
+        """
+        return jnp.transpose(blocks, (2, 0, 3, 1)).reshape(npsr * nmode, npsr * nmode)
+
+    def stackterm(G, phi):
+        """Build one term's contribution as one (npsr x npsr) matrix per frequency mode.
+
+        This is the representation that makes the cheap inverse possible, and it is shared
+        by every branch below: a single ORF, a pixel basis, or a sum of terms (which just
+        add, mode by mode). Handles a scalar Gamma and a basis-valued one alike.
+        """
+        return jnp.einsum('abp,kp->kab', G, phi) if G.ndim == 3 else jnp.einsum('ab,k->kab', G, phi)
+
+    def denseterm(G, phi):
+        """As `stackterm`, for a term whose spectrum is a full matrix over frequency.
+
+        There is no per-mode block to speak of, so the frequency pair (k, l) is carried
+        explicitly and the term can only be assembled, not decomposed.
+        """
+        return jnp.einsum('abp,klp->klab', G, phi) if G.ndim == 3 else jnp.einsum('ab,kl->klab', G, phi)
+
+    def iscorrelated(G, phi):
+        """Report whether a term couples frequency bins, which is what picks the route below.
+
+        True when the spectrum is a full (m x m) matrix rather than one value per bin; a
+        single such term destroys the block structure for the whole prior, so it forces the
+        dense path even when every other term is well behaved.
+        """
+        return phi.ndim == G.ndim
+
+    def stackedinv(blocks):
+        """Invert a block-diagonal-in-frequency Phi one mode at a time -- the fast path.
+
+        nmode small inverses instead of one (npsr*nmode)^3, ~200x fewer flops at full-array
+        sizes, which is the difference between a likelihood call being dominated by the Phi
+        inverse or by the (irreducibly dense) Sigma solve downstream. Returns the dense
+        inverse and log|Phi|, matching the generic `make_inv` contract.
+        """
+        return scatterblocks(jnp.linalg.inv(blocks)), jnp.sum(jnp.linalg.slogdet(blocks)[1])
+
+    def denseinv(Phi):
+        """Invert an assembled Phi with no structure left to exploit -- the fallback path.
+
+        Mirrors `NoiseMatrix2D_var.make_inv` (one factorization, log-determinant read off
+        its diagonal) so that taking this route costs no more than supplying no `Phi_inv`
+        at all. Goes through `utils.matrix_factor` rather than importing it, so that
+        `ds.config()` switching between Cholesky and LU is still honoured.
+        """
+        cf = utils.matrix_factor(Phi)
+        return (utils.matrix_solve(cf, jnp.eye(cf[0].shape[0])),
+                utils.matrix_norm * jnp.logdet(jnp.diag(cf[0])))
+
+    # (Gamma^-1, params -> (S^-1, log|Phi|)) when Phi = Gamma (x) S with a constant scalar ORF,
+    # so a sampled-coefficient prior can use the Kronecker factors directly; None otherwise
+    kronfactors = None
 
     if len(priors) == 1 and len(orfs) == 1:
-        prior, orfmat, argmap = priors[0], orfmats[0], argmaps[0]
+        prior, orfmat, argmap, orfargmap = priors[0], orfmats[0], argmaps[0], orfargmaps[0]
 
-        def priorfunc(params):
-            phi = prior(f, df, *[params[arg] for arg in argmap])
-
-            # the jnp.dot handles the "pixel basis" case where the elements of orfmat are n-vectors
-            # and phidiag is an (m x n)-matrix; here n is the number of pixels and m of Fourier components
-            return jnp.block([[jnp.make2d(jnp.dot(phi, val)) for val in row] for row in orfmat])
-        priorfunc.params = argmap
-        priorfunc.type = jax.Array
-
-        # if we're not in the pixel-basis case we can take a shortcut in making the inverse
-        if orfmat.ndim == 2:
-            invorf, orflogdet = utils.jnparray(np.linalg.inv(orfmat)), np.linalg.slogdet(orfmat)[1]
-            def invprior(params):
+        if orfargmap is None:
+            def priorfunc(params):
                 phi = prior(f, df, *[params[arg] for arg in argmap])
-                invphi = 1.0 / phi if phi.ndim == 1 else jnp.linalg.inv(phi)
-                logdetphi = jnp.sum(jnp.log(phi)) if phi.ndim == 1 else jnp.linalg.slogdet(phi)[1]
 
-                # |S_ij Gamma_ab| = prod_i (|S_i Gamma_ab|) = prod_i (S_i^npsr |Gamma_ab|)
-                # log |S_ij Gamma_ab| = log (prod_i S_i^npsr) + log prod_i |Gamma_ab|
-                #                     = npsr * sum_i log S_i + nfreqs |Gamma_ab|
-                return (jnp.block([[jnp.make2d(val * invphi) for val in row] for row in invorf]),
-                        phi.shape[0] * orflogdet + orfmat.shape[0] * logdetphi)
-                        # was -orfmat.shape[0] * jnp.sum(jnp.log(invphidiag)))
-            invprior.params = argmap
+                # scalar ORF: Phi = Gamma (x) S, one Kronecker product. Block (a, b) is
+                # Gamma_ab S, the same pulsar-major layout as the block form below, but a
+                # single op instead of npsr^2 of them in the traced graph.
+                if orfmat.ndim == 2:
+                    return jnp.kron(orfmat, jnp.make2d(phi))
+
+                # the jnp.dot handles the "pixel basis" case where the elements of orfmat are n-vectors
+                # and phidiag is an (m x n)-matrix; here n is the number of pixels and m of Fourier components
+                return jnp.block([[jnp.make2d(jnp.dot(phi, val)) for val in row] for row in orfmat])
+            priorfunc.params = argmap
+            priorfunc.type = jax.Array
+
+            # if we're not in the pixel-basis case we can take a shortcut in making the inverse
+            if orfmat.ndim == 2:
+                invorf, orflogdet = utils.jnparray(np.linalg.inv(orfmat)), np.linalg.slogdet(orfmat)[1]
+                def invprior(params):
+                    phi = prior(f, df, *[params[arg] for arg in argmap])
+                    invphi = 1.0 / phi if phi.ndim == 1 else jnp.linalg.inv(phi)
+                    logdetphi = jnp.sum(jnp.log(phi)) if phi.ndim == 1 else jnp.linalg.slogdet(phi)[1]
+
+                    # |S_ij Gamma_ab| = prod_i (|S_i Gamma_ab|) = prod_i (S_i^npsr |Gamma_ab|)
+                    # log |S_ij Gamma_ab| = log (prod_i S_i^npsr) + log prod_i |Gamma_ab|
+                    #                     = npsr * sum_i log S_i + nfreqs |Gamma_ab|
+                    # Phi^-1 = Gamma^-1 (x) S^-1, one Kronecker product (as in priorfunc)
+                    return (jnp.kron(invorf, jnp.make2d(invphi)),
+                            phi.shape[0] * orflogdet + orfmat.shape[0] * logdetphi)
+                            # was -orfmat.shape[0] * jnp.sum(jnp.log(invphidiag)))
+                invprior.params = argmap
+                invprior.type = jax.Array
+
+                orfcf = utils.jsp.linalg.cho_factor(orfmat)
+                def factors(params):
+                    phi = prior(f, df, *[params[arg] for arg in argmap])
+                    phicf = utils.jsp.linalg.cho_factor(phi)
+
+                    return orfcf, phicf
+                factors.params = argmap
+
+                # the spectral half of Phi^-1 = Gamma^-1 (x) S^-1 (Gamma^-1 is the constant invorf)
+                def invspectrum(params):
+                    phi = prior(f, df, *[params[arg] for arg in argmap])
+                    invphi = 1.0 / phi if phi.ndim == 1 else jnp.linalg.inv(phi)
+                    logdetphi = jnp.sum(jnp.log(phi)) if phi.ndim == 1 else jnp.linalg.slogdet(phi)[1]
+                    return invphi, phi.shape[0] * orflogdet + orfmat.shape[0] * logdetphi
+                invspectrum.params = argmap
+                kronfactors = (invorf, invspectrum)
+            else:
+                # Vector-valued ("pixel basis") ORF: orfmat is (npsr, npsr, nbasis) and the
+                # prior returns one spectrum per basis element, so Phi is block-diagonal in
+                # frequency with a *different* (npsr x npsr) block per mode -- no Kronecker
+                # factorization, but we can still invert one mode at a time. That is
+                # nmode * npsr^3 instead of (npsr*nmode)^3, ~200x fewer flops at full-array
+                # sizes, and it is the difference between the pixel likelihood being
+                # dominated by the Phi inverse or by the (irreducibly dense) Sigma solve.
+                def invprior(params):
+                    phi = prior(f, df, *[params[arg] for arg in argmap])
+
+                    if iscorrelated(orfmat, phi):
+                        return denseinv(priorfunc(params))
+
+                    return stackedinv(stackterm(orfmat, phi))
+                invprior.params = argmap
+                invprior.type = jax.Array
+
+                # `factors` encodes the Kronecker structure above, which a basis-valued ORF
+                # does not have.
+                factors = None
+        else:
+            # Parameter-dependent ORF: Gamma is no longer a build-time constant, so neither
+            # the precomputed Gamma^-1 nor the cho_factor shortcut is available. Everything
+            # is decided at trace time from the shapes the ORF and prior actually return.
+            allargs = sorted(set(argmap) | set(orfargmap))
+
+            def priorfunc(params):
+                G = getorf(orfmat, orfargmap, params)
+                phi = prior(f, df, *[params[arg] for arg in argmap])
+
+                return (densifyblocks(denseterm(G, phi)) if iscorrelated(G, phi)
+                        else scatterblocks(stackterm(G, phi)))
+            priorfunc.params = allargs
+            priorfunc.type = jax.Array
+
+            def invprior(params):
+                G = getorf(orfmat, orfargmap, params)
+                phi = prior(f, df, *[params[arg] for arg in argmap])
+
+                if iscorrelated(G, phi):
+                    return denseinv(densifyblocks(denseterm(G, phi)))
+
+                return stackedinv(stackterm(G, phi))
+            invprior.params = allargs
             invprior.type = jax.Array
 
-            orfcf = utils.jsp.linalg.cho_factor(orfmat)
-            def factors(params):
-                phi = prior(f, df, *[params[arg] for arg in argmap])
-                phicf = utils.jsp.linalg.cho_factor(phi)
-
-                return orfcf, phicf
-            factors.params = argmap
-        else:
-            invprior, factors = None, None
+            factors = None
     else:
-        def priorfunc(params):
-            phis = [prior(f, df, *[params[arg] for arg in argmap]) for prior, argmap in zip(priors, argmaps)]
+        allargs = sorted(set.union(*[set(argmap) for argmap in argmaps]) |
+                         set.union(*[set(orfargmap or []) for orfargmap in orfargmaps]))
 
-            return sum(jnp.block([[jnp.make2d(val * phi) for val in row] for row in orfmat])
-                       for phi, orfmat in zip(phis, orfmats))
-        priorfunc.params = sorted(set.union(*[set(argmap) for argmap in argmaps]))
+        def getterms(params):
+            """Evaluate every (Gamma, spectrum) pair once, for both priorfunc and invprior.
+
+            Each term is independent; the branches below decide how to combine them.
+            """
+            return [(getorf(orfmat, orfargmap, params), prior(f, df, *[params[arg] for arg in argmap]))
+                    for prior, orfmat, orfargmap, argmap in zip(priors, orfmats, orfargmaps, argmaps)]
+
+        def priorfunc(params):
+            terms = getterms(params)
+
+            if any(iscorrelated(G, phi) for G, phi in terms):
+                # promote the frequency-independent terms to the full (m x m) form so they
+                # can be added to the correlated ones
+                return densifyblocks(sum(denseterm(G, phi) if iscorrelated(G, phi)
+                                         else jnp.einsum('kab,kl->klab', stackterm(G, phi), jnp.eye(nmode))
+                                         for G, phi in terms))
+
+            return scatterblocks(sum(stackterm(G, phi) for G, phi in terms))
+        priorfunc.params = allargs
         priorfunc.type = jax.Array
 
-        invprior, factors = None, None
+        # Each term contributes Gamma_t (x) S_t, so the sum is still block-diagonal in
+        # frequency as long as no term correlates bins -- the per-mode blocks just add,
+        # and we can stack and batch-invert exactly as in the single-ORF case.
+        def invprior(params):
+            terms = getterms(params)
+
+            if any(iscorrelated(G, phi) for G, phi in terms):
+                return denseinv(priorfunc(params))
+
+            return stackedinv(sum(stackterm(G, phi) for G, phi in terms))
+        invprior.params = allargs
+        invprior.type = jax.Array
+
+        factors = None
     # hack for metamath to properly
     # set phiinv
     nm =kernels.NoiseMatrix12D_var(priorfunc)
     nm.inv =invprior
     gp = utils.GlobalVariableGP(nm, fmats)
     gp.Phi_inv, gp.factors = invprior, factors
+    gp.Phi_inv_kron = kronfactors
 
     gp.index = {f'{psr.name}_{name}_coefficients({len(f)})':
                 slice(len(f)*i, len(f)*(i+1)) for i, psr in enumerate(psrs)}

@@ -1456,7 +1456,13 @@ class CompoundGP:
           - dense Phi (NoiseMatrix2D, e.g. HD globalgp):
               `-0.5 c_flat^T Phi^-1 c_flat - 0.5 logdet(Phi)`,
             where c_flat is c_g.reshape(-1) (row-major: per-pulsar order
-            matches gp.index slice ordering).
+            matches gp.index slice ordering). In order of preference:
+              - `gp.Phi_inv_kron = (Gamma^-1, params -> (S^-1, log|Phi|))` for
+                Phi = Gamma (x) S (constant scalar ORF, `makeglobalgp_fourier`):
+                `sum_{ab,mn} c_am Gamma^-1_ab S^-1_mn c_bn`, no (npsr m)^2 matrix;
+              - `gp.Phi_inv(params) -> (Phi^-1, log|Phi|)`, a structured inverse
+                (e.g. per-mode for anisotropic ORFs): a dense quadratic form;
+              - otherwise Phi is solved densely.
         """
         b = mm.GraphBuilder()
         c_for_prior = b.leaf(None, name='c_for_prior')
@@ -1476,6 +1482,24 @@ class CompoundGP:
             return (-0.5 * cf @ jnp.linalg.solve(Phi_, cf)
                     - 0.5 * jnp.linalg.slogdet(Phi_)[1])
 
+        def _kron_contrib(c_, orf_inv_, spectrum_inv_):
+            # Phi = Gamma (x) S, c_ shape (npsr, m):
+            #   c^T Phi^-1 c = sum_{ab,mn} c_am (Gamma^-1)_ab (S^-1)_mn c_bn
+            # O(npsr^2 m) with no (npsr m)^2 matrix; S^-1 is a vector for a diagonal spectrum
+            S_inv_, logdet_ = spectrum_inv_
+            if S_inv_.ndim == 1:
+                quad = jnp.einsum('am,ab,bm,m->', c_, orf_inv_, c_, S_inv_)
+            else:
+                quad = jnp.einsum('am,ab,bn,mn->', c_, orf_inv_, c_, S_inv_)
+            return -0.5 * quad - 0.5 * logdet_
+
+        def _inv_contrib(c_, inv_):
+            # inv_ = gp.Phi_inv(params) = (Phi^-1, log|Phi|): the GP's own structured
+            # inverse (e.g. Gamma^-1 (x) S^-1 for HD), so Phi is never factorized here
+            Phi_inv_, logdet_ = inv_
+            cf = c_.reshape(-1)
+            return -0.5 * cf @ (Phi_inv_ @ cf) - 0.5 * logdet_
+
         def _diag_contrib(c_, Phi_):
             return (-0.5 * jnp.sum(c_ * c_ / Phi_)
                     - 0.5 * jnp.sum(jnp.log(jnp.abs(Phi_))))
@@ -1483,13 +1507,27 @@ class CompoundGP:
         contribs = []
         for i, gp in enumerate(gplist):
             s, e = offsets[i], offsets[i + 1]
-            phi_n_leaf = b.leaf(gp.Phi.N, name=f'gp{i}_phiN')
             c_slice = b.node(_slice_op(s, e), [c_for_prior],
                              description=f'c_for_prior[:,{s}:{e}]')
-            if isinstance(gp.Phi, NoiseMatrix2D):
+            if isinstance(gp.Phi, NoiseMatrix2D) and getattr(gp, 'Phi_inv_kron', None) is not None:
+                # Kronecker factors: constant Gamma^-1 and live S^-1 as separate leaves,
+                # so the constant folds (never bundled with the live spectrum)
+                orf_inv, spectrum_inv = gp.Phi_inv_kron
+                orf_inv_leaf = b.leaf(orf_inv, name=f'gp{i}_orfinv')
+                spectrum_inv_leaf = b.leaf(spectrum_inv, name=f'gp{i}_spectruminv')
+                contrib = b.node(_kron_contrib, [c_slice, orf_inv_leaf, spectrum_inv_leaf],
+                                 description=f'gp{i} Kronecker logprior')
+            elif isinstance(gp.Phi, NoiseMatrix2D) and getattr(gp, 'Phi_inv', None) is not None:
+                # prefer the GP's structured inverse, as matrix.VectorCompoundGP does
+                phi_inv_leaf = b.leaf(gp.Phi_inv, name=f'gp{i}_phiinv')
+                contrib = b.node(_inv_contrib, [c_slice, phi_inv_leaf],
+                                 description=f'gp{i} structured-inverse logprior')
+            elif isinstance(gp.Phi, NoiseMatrix2D):
+                phi_n_leaf = b.leaf(gp.Phi.N, name=f'gp{i}_phiN')
                 contrib = b.node(_dense_contrib, [c_slice, phi_n_leaf],
                                  description=f'gp{i} dense logprior')
             else:
+                phi_n_leaf = b.leaf(gp.Phi.N, name=f'gp{i}_phiN')
                 contrib = b.node(_diag_contrib, [c_slice, phi_n_leaf],
                                  description=f'gp{i} diag logprior')
             contribs.append(contrib)

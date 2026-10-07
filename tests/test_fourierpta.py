@@ -483,3 +483,75 @@ def test_mixture_logL_curn_combined(psrs, T, summaries):
     for _ in range(3):
         p = {par: rng.uniform(*((-15, -13) if 'log10_A' in par else (1, 5))) for par in gaussian.params}
         assert np.isclose(float(mixture(p)), float(gaussian(p)) + sum(s.logL0 for s in sums), rtol=1e-10, atol=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# mixture reduction
+
+
+def _moments(q):
+    w, mu = np.asarray(q.weights), np.asarray(q.mu)
+    C = np.asarray(q.L) @ np.swapaxes(np.asarray(q.L), 1, 2)
+    mean = w @ mu
+    d = mu - mean
+    return mean, np.einsum('k,kij->ij', w, C) + np.einsum('k,ki,kj->ij', w, d, d)
+
+
+def test_weighted_mixture_normalized():
+    rng = np.random.default_rng(15)
+    q = fpta.GaussianMixture(rng.normal(size=(3, 2)), np.stack([np.eye(2) * s for s in (0.5, 1.0, 1.5)]),
+                             weights=[0.2, 0.5, 0.3])
+    x = np.linspace(-12, 12, 801)
+    X, Y = np.meshgrid(x, x)
+    pts = jnp.asarray(np.stack([X.ravel(), Y.ravel()], axis=1))
+    assert np.isclose(np.sum(np.exp(jax.vmap(q.log_prob)(pts))) * (x[1] - x[0])**2, 1.0, rtol=1e-6)
+
+
+def test_reduce_mixture_preserves_moments():
+    s = _fake_summary(np.random.default_rng(16), d=4, K=40)
+    q = s.mixture()
+    mean, cov = _moments(q)
+    for K in (40, 10, 3, 1):
+        r = fpta.reduce_mixture(q, K, method='runnalls')
+        assert r.K == K and np.isclose(float(np.sum(r.weights)), 1.0)
+        m, c = _moments(r)
+        assert np.allclose(m, mean, atol=1e-10) and np.allclose(c, cov, atol=1e-10)
+
+    # one component: the moment-matched Gaussian, centred on the summary mean (y = 0).
+    # (Its covariance is the mixture's, which differs from Sigma0 = I only by Sigma0's
+    # 1/(K-1) sample-covariance normalization of the between-sample term.)
+    one = fpta.reduce_mixture(q, 1)
+    assert np.allclose(one.mu[0], 0, atol=1e-10)
+
+    with pytest.raises(ValueError):
+        fpta.reduce_mixture(q, 3, method='unknown')
+
+
+def test_mixture_kl():
+    s = _fake_summary(np.random.default_rng(17), d=4, K=40)
+    q = s.mixture()
+    key = jax.random.key(0)
+    kl0, err0 = fpta.mixture_kl(q, q, key, n=2000)
+    assert kl0 == 0.0 and err0 == 0.0
+    kl, err = fpta.mixture_kl(q, fpta.reduce_mixture(q, 1), key, n=20000)
+    assert kl > 3 * err                                # merging everything loses information
+
+
+def test_mixture_logL_uses_reduced_density():
+    # a reduced, weighted mixture attached as the density is what mixture_logL uses;
+    # with K = all components it reproduces the full mixture
+    rng = np.random.default_rng(18)
+    d = 4
+    f, df = np.repeat(np.arange(1, d//2 + 1) / 10.0, 2), np.full(d, 0.1)
+    phi = np.asarray(ds.powerlaw(f, df, -14.0, 3.0))
+    s = _fake_summary(rng, d=d, K=12, phi0=1.5 * phi)
+    irn = ds.makecommongp_fourier([s], ds.powerlaw, d // 2, s.T, fourierbasis=fpta.summarybasis, name='red_noise')
+    p = {'fake_red_noise_log10_A': -14.0, 'fake_red_noise_gamma': 3.0}
+
+    full = float(fpta.mixture_logL([s], irn)(p))
+    s.density = fpta.reduce_mixture(s.mixture(), 12)              # no merges
+    assert np.isclose(float(fpta.mixture_logL([s], irn)(p)), full, rtol=1e-10)
+
+    s.density = fpta.reduce_mixture(s.mixture(), 3)
+    reduced = float(fpta.mixture_logL([s], irn)(p))
+    assert np.isfinite(reduced) and reduced != full

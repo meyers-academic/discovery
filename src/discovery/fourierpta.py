@@ -547,15 +547,18 @@ def summarize_pulsar(psr, psl, params, gp='red_noise'):
 
 
 class GaussianMixture:
-    r"""Equally weighted Gaussian mixture
+    r"""Gaussian mixture
 
     .. math::
 
-        q(\mathbf y) = \frac1K\sum_{k=1}^K
+        q(\mathbf y) = \sum_{k=1}^K w_k\,
         \mathcal N\big(\mathbf y\mid\boldsymbol\mu_k,\mathbf L_k\mathbf L_k^\top\big),
+        \qquad \sum_k w_k = 1,
 
-    usable as a :class:`FourierSummary` ``density`` (built by
-    :meth:`FourierSummary.mixture` in the whitened coordinates :math:`\mathbf y`).
+    usable as a :class:`FourierSummary` ``density``. :meth:`FourierSummary.mixture` builds
+    the equally weighted mixture of the step-1 conditionals in the whitened coordinates
+    :math:`\mathbf y`; :func:`reduce_mixture` merges it into fewer, unequally weighted
+    components.
 
     Parameters
     ----------
@@ -563,27 +566,154 @@ class GaussianMixture:
         Component means :math:`\boldsymbol\mu_k`.
     L : array, shape (K, d, d)
         Lower Cholesky factors :math:`\mathbf L_k` of the component covariances.
+    weights : array, shape (K,), optional
+        Component weights :math:`w_k` (normalized here); equal if omitted.
     """
 
-    def __init__(self, mu, L):
+    def __init__(self, mu, L, weights=None):
         self.mu = jnp.asarray(mu)                                       # (K, d)
         self.L = jnp.asarray(L)                                         # (K, d, d) lower
         self.Linv = jnp.linalg.inv(self.L)
         self.logdet = jnp.sum(jnp.log(jnp.diagonal(self.L, axis1=1, axis2=2)), axis=1)   # log |L_k|
+        w = np.full(self.mu.shape[0], 1.0) if weights is None else np.asarray(weights, dtype=float)
+        self.logw = jnp.asarray(np.log(w / w.sum()))                   # log w_k
 
     @property
     def K(self):
+        """Number of components."""
         return self.mu.shape[0]
+
+    @property
+    def weights(self):
+        r"""Component weights :math:`w_k`."""
+        return jnp.exp(self.logw)
 
     def log_prob(self, y):
         r""":math:`\log q(\mathbf y)`. The mixture is a sum of probabilities, so the log is a
-        log-sum-exp over the components' log-densities
-        :math:`-\tfrac12|\mathbf L_k^{-1}(\mathbf y-\boldsymbol\mu_k)|^2 - \log|\mathbf L_k|`
-        (computed stably), minus :math:`\log K` and the shared
-        :math:`\tfrac d2\log 2\pi`."""
+        log-sum-exp over the components' weighted log-densities
+        :math:`\log w_k - \tfrac12|\mathbf L_k^{-1}(\mathbf y-\boldsymbol\mu_k)|^2 - \log|\mathbf L_k|`
+        (computed stably), minus the shared :math:`\tfrac d2\log 2\pi`."""
         z = jnp.einsum('kij,kj->ki', self.Linv, y - self.mu)
-        return (jax.scipy.special.logsumexp(-0.5 * jnp.sum(z**2, axis=1) - self.logdet)
-                - jnp.log(self.K) - 0.5 * y.shape[-1] * jnp.log(2 * jnp.pi))
+        return (jax.scipy.special.logsumexp(self.logw - 0.5 * jnp.sum(z**2, axis=1) - self.logdet)
+                - 0.5 * y.shape[-1] * jnp.log(2 * jnp.pi))
+
+    def sample(self, key, n):
+        """``n`` draws from the mixture: a component by weight, then a Gaussian draw from it."""
+        kc, kz = jax.random.split(key)
+        k = jax.random.categorical(kc, self.logw, shape=(n,))
+        z = jax.random.normal(kz, (n, self.mu.shape[1]))
+        return self.mu[k] + jnp.einsum('nij,nj->ni', self.L[k], z)
+
+
+def _merge_cost(w, mu, C, logdetC, i, idx):
+    """Runnalls' upper bound on the KL cost of merging component i with each of idx:
+    B = 1/2 [(w_i + w_j) log|C_ij| - w_i log|C_i| - w_j log|C_j|], with C_ij the
+    moment-preserving merge."""
+    wi, wj = w[i], w[idx]
+    wij = wi + wj
+    dmu = mu[idx] - mu[i]
+    Cij = ((wi * C[i])[None] + wj[:, None, None] * C[idx]) / wij[:, None, None] \
+          + (wi * wj / wij**2)[:, None, None] * dmu[:, :, None] * dmu[:, None, :]
+    logdetCij = 2 * np.sum(np.log(np.diagonal(np.linalg.cholesky(Cij), axis1=1, axis2=2)), axis=1)
+    return 0.5 * (wij * logdetCij - wi * logdetC[i] - wj * logdetC[idx])
+
+
+def reduce_mixture(q, K, method='runnalls'):
+    r"""Reduce a Gaussian mixture to ``K`` components (the reduction announced in
+    draft Sec. 2.3).
+
+    ``method='runnalls'`` (Runnalls 2007, IEEE Trans. Aerosp. Electron. Syst. 43, 989;
+    the method used by A. Tresnjic) greedily merges the pair of components with the smallest upper bound on the
+    Kullback-Leibler cost of merging,
+
+    .. math::
+
+        B_{ij} = \tfrac12\big[(w_i + w_j)\log|\mathbf C_{ij}| - w_i\log|\mathbf C_i| - w_j\log|\mathbf C_j|\big],
+
+    replacing them by the single Gaussian with the same total weight, mean and
+    covariance,
+
+    .. math::
+
+        w_{ij} = w_i + w_j,\quad
+        \boldsymbol\mu_{ij} = \frac{w_i\boldsymbol\mu_i + w_j\boldsymbol\mu_j}{w_{ij}},\quad
+        \mathbf C_{ij} = \frac{w_i\mathbf C_i + w_j\mathbf C_j}{w_{ij}}
+          + \frac{w_i w_j}{w_{ij}^2}(\boldsymbol\mu_i-\boldsymbol\mu_j)(\boldsymbol\mu_i-\boldsymbol\mu_j)^\top .
+
+    Each merge preserves the mixture's overall mean and covariance, so the reduced
+    mixture always has the same first two moments; what is lost is shape (tails,
+    skewness). The Kullback-Leibler divergence is unchanged by affine changes of
+    coordinates, so the reduction can be done directly in the whitened coordinates.
+    Check the loss with :func:`mixture_kl`.
+
+    Parameters
+    ----------
+    q : GaussianMixture
+    K : int
+        Number of components to keep.
+    method : {'runnalls'}
+        Reduction method.
+
+    Returns
+    -------
+    GaussianMixture
+        With unequal weights.
+    """
+    if method == 'runnalls':
+        return _reduce_runnalls(q, K)
+    raise ValueError(f"Unknown mixture reduction method '{method}'.")
+
+
+def _reduce_runnalls(q, K):
+    w = np.asarray(q.weights, dtype=float).copy()
+    mu = np.asarray(q.mu, dtype=float).copy()
+    L = np.asarray(q.L, dtype=float)
+    C = L @ np.swapaxes(L, 1, 2)
+    logdetC = 2 * np.asarray(q.logdet, dtype=float).copy()
+    alive = np.ones(len(w), dtype=bool)
+
+    # cost[i, j] for j > i, i.e. each pair once; recomputed for a merged component only
+    n = len(w)
+    cost = np.full((n, n), np.inf)
+    for i in range(n - 1):
+        cost[i, i + 1:] = _merge_cost(w, mu, C, logdetC, i, np.arange(i + 1, n))
+
+    for _ in range(n - K):
+        i, j = np.unravel_index(np.argmin(cost), cost.shape)
+        wij = w[i] + w[j]
+        dmu = mu[i] - mu[j]
+        C[i] = (w[i] * C[i] + w[j] * C[j]) / wij + (w[i] * w[j] / wij**2) * np.outer(dmu, dmu)
+        mu[i] = (w[i] * mu[i] + w[j] * mu[j]) / wij
+        w[i] = wij
+        logdetC[i] = 2 * np.sum(np.log(np.diag(np.linalg.cholesky(C[i]))))
+
+        alive[j] = False
+        cost[j, :] = cost[:, j] = np.inf
+        others = np.flatnonzero(alive)
+        others = others[others != i]
+        if len(others):
+            c = _merge_cost(w, mu, C, logdetC, i, others)
+            lo, hi = others < i, others > i
+            cost[others[lo], i] = c[lo]
+            cost[i, others[hi]] = c[hi]
+
+    keep = np.flatnonzero(alive)
+    return GaussianMixture(mu[keep], np.linalg.cholesky(C[keep]), weights=w[keep])
+
+
+def mixture_kl(p, q, key, n=10000):
+    r"""Monte Carlo estimate of the Kullback-Leibler divergence
+
+    .. math::
+
+        D_\mathrm{KL}(p\,\|\,q) = \mathbb E_{\mathbf y\sim p}\big[\log p(\mathbf y) - \log q(\mathbf y)\big]
+
+    from ``n`` draws of ``p``, e.g. between a full mixture and a reduced one
+    (:func:`reduce_mixture`). Returns ``(estimate, standard error)``.
+    """
+    y = p.sample(key, n)
+    d = np.asarray(jax.vmap(p.log_prob)(y) - jax.vmap(q.log_prob)(y))
+    return float(d.mean()), float(d.std(ddof=1) / np.sqrt(n))
 
 
 class SummaryCorrection(utils.CoefficientTerm):
@@ -659,7 +789,7 @@ def mixture_logL(summaries, commongp, K=None):
         \mathbf P_k = \boldsymbol\Sigma_k^{-1} + \boldsymbol\varphi^{-1} - \boldsymbol\varphi_0^{-1},\quad
         \mathbf b_k = \boldsymbol\Sigma_k^{-1}\hat{\mathbf a}_k .
 
-    The pulsar contributes :math:`\operatorname{logsumexp}_k \log Z_k - \log K` plus its
+    The pulsar contributes :math:`\operatorname{logsumexp}_k (\log w_k + \log Z_k)` plus its
     step-1 log-evidence ``logL0``, normalized like the stand-in likelihoods of
     :class:`FourierSummary`. Each call costs one Cholesky factorization per component.
     With HD (which couples pulsars) use ``clogL`` with :func:`makecorrection` terms
@@ -674,20 +804,28 @@ def mixture_logL(summaries, commongp, K=None):
         only its prior spectrum is used. For intrinsic red noise plus a common process
         (CURN), build the spectrum with ``make_combined_crn``, as for time-domain arrays.
     K : int, optional
-        Use ``K`` components spaced evenly through the samples (default: all).
+        Use ``K`` step-1 conditionals spaced evenly through the samples
+        (:meth:`FourierSummary.mixture`). If omitted, a summary whose ``density`` is a
+        :class:`GaussianMixture` (e.g. reduced with :func:`reduce_mixture`) uses that, and
+        otherwise all its step-1 conditionals.
     """
     phi = commongp.Phi.getN
 
     comps = []
     for s in summaries:
-        ahat, Sigma = s._components(K)
-        L = np.linalg.cholesky(Sigma)
+        q = s.density if (K is None and isinstance(s.density, GaussianMixture)) else s.mixture(K)
+
+        # components back in the coefficients a = ahat0 + L0 y: mean ahat0 + L0 mu_k,
+        # covariance with Cholesky factor L0 L_k
+        L0 = s.L0
+        ahat = s.ahat0 + np.asarray(q.mu) @ L0.T
+        L = L0 @ np.asarray(q.L)
         Linv = np.linalg.inv(L)
         Sigma_inv = np.swapaxes(Linv, 1, 2) @ Linv
         b = np.einsum('kij,kj->ki', Sigma_inv, ahat)
         logdet = 2 * np.sum(np.log(np.diagonal(L, axis1=1, axis2=2)), axis=1)
         const = (-0.5 * np.einsum('ki,ki->k', ahat, b) - 0.5 * logdet
-                 + 0.5 * np.sum(np.log(s.phi0)) - np.log(len(ahat)))
+                 + 0.5 * np.sum(np.log(s.phi0)) + np.asarray(q.logw))
         comps.append((Sigma_inv - np.diag(1.0 / s.phi0), b, const))
 
     TtNT, b, const = (jnp.asarray(np.array(x)) for x in zip(*comps))    # (npsr, K, n, n), (npsr, K, n), (npsr, K)

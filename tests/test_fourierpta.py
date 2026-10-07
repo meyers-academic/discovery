@@ -117,8 +117,8 @@ def test_summary_matches_conditional(psrs, T, summaries):
 def test_standin_reproduces_TtNT_and_b0(summaries):
     for s in summaries:
         F, y = s.Fmat, s.residuals
-        assert np.allclose(F.T @ F, s.TtNT, atol=1e-12 * np.abs(s.TtNT).max())
-        assert np.allclose(F.T @ y, s.b0, atol=1e-8 * np.abs(s.b0).max())
+        assert np.allclose(F.T @ F / s.noise, s.TtNT, atol=1e-12 * np.abs(s.TtNT).max())
+        assert np.allclose(F.T @ y / s.noise, s.b0, atol=1e-8 * np.abs(s.b0).max())
 
 
 def test_standin_rank_deficient():
@@ -132,8 +132,8 @@ def test_standin_rank_deficient():
                             ahat0=ahat0, Sigma0_inv=TtNT + np.diag(1 / phi0), phi0=phi0)
 
     assert len(s.residuals) == 3
-    assert np.allclose(s.Fmat.T @ s.Fmat, TtNT)
-    assert np.allclose(s.Fmat.T @ s.residuals, s.b0)
+    assert np.allclose(s.Fmat.T @ s.Fmat / s.noise, TtNT)
+    assert np.allclose(s.Fmat.T @ s.residuals / s.noise, s.b0)
 
 
 def test_sampled_noise_law_of_total_covariance(psrs, T):
@@ -376,9 +376,74 @@ def test_correction_swept_up_by_array(psrs, T, summaries):
         assert np.isclose(float(lc) - float(lp), _logw(summaries[0], density, a0), rtol=1e-9, atol=1e-8)
 
 
+def _log_relative_evidence(s, phi):
+    """log int da N(a | ahat0, Sigma0) N(a | 0, phi) / N(a | 0, phi0), in closed form."""
+    P = s.Sigma0_inv + np.diag(1 / phi - 1 / s.phi0)
+    b = s.b0
+    return (0.5 * b @ np.linalg.solve(P, b) - 0.5 * s.ahat0 @ b + 0.5 * np.linalg.slogdet(s.Sigma0_inv)[1]
+            - 0.5 * np.linalg.slogdet(P)[1] - 0.5 * np.sum(np.log(phi)) + 0.5 * np.sum(np.log(s.phi0)))
+
+
+def test_standin_normalization(psrs, T, summaries):
+    # logL = log p(dt | eta) - log p(dt | eta0) + logL0 exactly, not just up to a constant;
+    # clogL = log N(a | ahat0, Sigma0) - log N(a | 0, phi0) + log N(a | 0, phi) (+ discovery's
+    # missing 2 pi of the coefficient prior) + logL0
+    rng = np.random.default_rng(12)
+    for s in summaries:
+        rn = ds.makegp_fourier(s, ds.powerlaw, NC, T=T, fourierbasis=fpta.summarybasis, name='red_noise')
+        psl = ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), rn])
+        p = {f'{s.name}_red_noise_log10_A': -14.2, f'{s.name}_red_noise_gamma': 4.0}
+        phi = np.asarray(rn.Phi.getN(p))
+        assert np.isclose(float(psl.logL(p)), _log_relative_evidence(s, phi), rtol=1e-10, atol=1e-6)
+
+        a = s.ahat0 + s.L0 @ rng.normal(size=N)
+        lognorm = lambda x, m, C: -0.5 * (x - m) @ np.linalg.solve(C, x - m) - 0.5 * np.linalg.slogdet(2 * np.pi * C)[1]
+        ref = (lognorm(a, s.ahat0, s.Sigma0) - lognorm(a, 0, np.diag(s.phi0)) + lognorm(a, 0, np.diag(phi))
+               + 0.5 * N * np.log(2 * np.pi))
+        q = {**p, f'{s.name}_red_noise_coefficients({N})': jnp.asarray(a)}
+        assert np.isclose(float(psl.clogL(q)), ref, rtol=1e-10, atol=1e-6)
+
+
+def test_mixture_logL_one_component_is_standin(psrs, T, summaries):
+    # a one-component "mixture" at (ahat0, Sigma0) is the Gaussian summary, normalization included
+    import copy
+    s = copy.copy(summaries[0])
+    s.ahat_samples, s.Sigma_samples = s.ahat0[None], s.Sigma0[None]
+    s.logL0 = 123.4
+    rn = ds.makegp_fourier(s, ds.powerlaw, NC, T=T, fourierbasis=fpta.summarybasis, name='red_noise')
+    psl = ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), rn])
+    irn = ds.makecommongp_fourier([s], ds.powerlaw, NC, T, fourierbasis=fpta.summarybasis, name='red_noise')
+    p = {f'{s.name}_red_noise_log10_A': -14.2, f'{s.name}_red_noise_gamma': 4.0}
+    assert np.isclose(float(fpta.mixture_logL([s], irn)(p)), float(psl.logL(p)) + s.logL0, rtol=1e-10, atol=1e-6)
+
+
+def test_summaries_reproduce_time_domain_evidence(psrs, T, summaries):
+    # at fixed white noise the Gaussian summary is exact: with each pulsar's step-1
+    # log-evidence logL0 added, the step-2 HD logL over summaries equals the
+    # time-domain HD logL, constant included
+    pls_real = [ds.PulsarLikelihood([psr.residuals, ds.makegp_timing(psr, svd=True),
+                                     ds.makenoise_measurement(psr, noisedict=psr.noisedict, ecorr=True)])
+                for psr in psrs]
+
+    def hd_logL(members, pls):
+        irn = ds.makecommongp_fourier(members, ds.powerlaw, NC, T, fourierbasis=fpta.summarybasis, name='red_noise')
+        gw = ds.makeglobalgp_fourier(members, ds.powerlaw, ds.hd_orf, NGW, T, fourierbasis=fpta.summarybasis, name='gw')
+        return jax.jit(ds.ArrayLikelihood(pls, commongp=irn, globalgp=gw).logL)
+
+    pls_sum, _ = _stand_ins(summaries, T)
+    time_domain = hd_logL(psrs, pls_real)
+    fourier = hd_logL(summaries, pls_sum)
+    logL0 = sum(s.logL0 for s in summaries)
+
+    rng = np.random.default_rng(13)
+    for p in [_rand_params(psrs, rng) for _ in range(3)]:
+        assert np.isclose(float(fourier(p)) + logL0, float(time_domain(p)), rtol=1e-10, atol=1e-5)
+
+
 def test_mixed_time_domain_and_summaries(psrs, T, summaries):
     # at fixed white noise the Gaussian summary is exact, so replacing one summary by
-    # the pulsar's full time-domain likelihood changes the step-2 logL only by a constant
+    # the pulsar's full time-domain likelihood changes the step-2 logL only by that
+    # summary's step-1 log-evidence logL0
     psr = psrs[0]
     real = ds.PulsarLikelihood([psr.residuals, ds.makegp_timing(psr, svd=True),
                                 ds.makenoise_measurement(psr, noisedict=psr.noisedict, ecorr=True)])
@@ -397,4 +462,4 @@ def test_mixed_time_domain_and_summaries(psrs, T, summaries):
     ps = [_rand_params(psrs, rng) for _ in range(4)]
     a = np.array([float(all_summ(p)) for p in ps])
     b = np.array([float(with_real(p)) for p in ps])
-    assert np.allclose(a[1:] - a[0], b[1:] - b[0], rtol=1e-7, atol=1e-6)
+    assert np.allclose(a + summaries[0].logL0, b, rtol=1e-10, atol=1e-5)

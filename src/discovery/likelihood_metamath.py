@@ -720,22 +720,29 @@ class ArrayLikelihood(summary.SummaryMixin):
         if not cterms:
             return loglike
 
-        # Pulsar-level coefficient terms act on the physical coefficients: with
-        # reparams those are the c returned next to logp (after decentering),
-        # otherwise the coefficient parameters themselves.
+        # Pulsar-level coefficient terms act on the physical coefficients c, one row
+        # per pulsar holding its GP blocks concatenated (cvarsall[i]: name -> slice,
+        # in concatenation order; the same layout the kernel's _fold builds).
         staged = bool(reparams)
         cvarsall = (self.vsm.index if isinstance(self.vsm.index, list)
                     else [{par: sl} for par, sl in self.vsm.index.items()])
 
-        def coefficients(i, params, c):
-            if c is None:
-                return {cvar: params[cvar] for cvar in cvarsall[i]}
-            sizes = [sl.stop - sl.start for sl in cvarsall[i].values()]
-            return dict(zip(cvarsall[i], kh.jnp.split(c[i], np.cumsum(sizes)[:-1])))
+        def fold(params):
+            return kh.jnp.array([kh.jnp.concatenate([params[cvar] for cvar in cvars]) for cvars in cvarsall])
+
+        def split(row, cvars):
+            sizes = [sl.stop - sl.start for sl in cvars.values()]
+            return dict(zip(cvars, kh.jnp.split(row, np.cumsum(sizes)[:-1])))
 
         def loglike_terms(params):
-            logp, c = loglike(params) if staged else (loglike(params), None)
-            logp = logp + sum(term.logL(coefficients(i, params, c)) for i, term in cterms)
+            if staged:
+                # reparametrized (e.g. decentered): the kernel returns the physical coefficients
+                logp, c = loglike(params)
+            else:
+                # not reparametrized: the coefficient parameters are the physical coefficients
+                logp, c = loglike(params), fold(params)
+
+            logp = logp + sum(term.logL(split(c[i], cvarsall[i])) for i, term in cterms)
             return (logp, c) if staged else logp
         loglike_terms.params = loglike.params
 

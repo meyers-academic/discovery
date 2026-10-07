@@ -1,45 +1,35 @@
-"""Fourier-domain PTA likelihood (Valtolina & van Haasteren 2025, "VvH25"), built
-on the standard discovery likelihoods.
+r"""Fourier-domain PTA likelihood (Valtolina & van Haasteren 2025, "VvH25"), with the
+Gaussian-mixture and normalizing-flow generalizations, built on the standard discovery
+likelihoods.
 
-Two steps:
+The analysis has two steps.
 
-1. Per pulsar, fix the red-noise spectrum at a reference eta0 and summarize what the
-   data say about the red-noise Fourier coefficients a, with every other noise
-   process (timing model, ECORR, white noise, ...) marginalized:
+**Step 1, per pulsar.** Fix the pulsar's red-noise spectrum at a reference
+:math:`\boldsymbol\eta_0` and summarize what its data say about the red-noise Fourier
+coefficients :math:`\mathbf a`, with every other noise process (timing model, white
+noise, ECORR, DM and other chromatic GPs, ...) marginalized:
 
-       p(a | dt, eta0) ~= N(a | ahat0, Sigma0)                       (VvH25 Eq. 12, 14)
+.. math::
 
-   `summarize_pulsar` computes (ahat0, Sigma0) from a `PulsarLikelihood`, either at
-   fixed noise parameters or averaged over samples of them (law of total expectation
-   and covariance).
+    p(\mathbf a \mid \delta t, \boldsymbol\eta_0) \approx
+    \mathcal N(\mathbf a \mid \hat{\mathbf a}_0, \boldsymbol\Sigma_0)
+    \qquad \text{(VvH25 Eq. 12, 14)}.
 
-2. Over the array, swap the reference prior N(a | 0, phi0) for the model prior
-   p(a | eta). Dividing out the reference prior leaves, as a function of a,
+:func:`summarize_pulsar` computes this from a ``PulsarLikelihood`` and returns a
+:class:`FourierSummary`.
 
-       log N(a | ahat0, Sigma0) - log N(a | 0, phi0)
-           = -1/2 a^T (Sigma0^-1 - phi0^-1) a + a^T Sigma0^-1 ahat0 + const,
+**Step 2, over the array.** Replace the reference prior
+:math:`\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)` by the model prior
+:math:`p(\mathbf a\mid\boldsymbol\eta)` (intrinsic red noise, CURN, HD, ...) and infer
+:math:`\boldsymbol\eta`. A :class:`FourierSummary` doubles as a *stand-in pulsar* whose
+ordinary pulsar likelihood is exactly the step-2 likelihood, so step 2 uses the
+standard ``makecommongp_fourier`` / ``makeglobalgp_fourier`` / ``ArrayLikelihood``
+machinery unchanged. See :class:`FourierSummary` for how, and why it works.
 
-   which has exactly the form of an ordinary pulsar likelihood log p(dt | a),
-   -1/2 a^T (F^T N^-1 F) a + a^T (F^T N^-1 dt) + const, with
-
-       F^T N^-1 F  <->  TtNT = Sigma0^-1 - phi0^-1,
-       F^T N^-1 dt <->  b0   = Sigma0^-1 ahat0.
-
-   A `FourierSummary` is a stand-in pulsar carrying data (residuals, a basis, unit
-   white noise) chosen to reproduce those two arrays, so step 2 is just a standard
-   `ArrayLikelihood` over summaries: CURN/IRN through `commongp`, HD and
-   anisotropic ORFs through `globalgp`, the marginalized `logL` (VvH25 Eq. 18) or the
-   sampled-coefficient `clogL` with `decenter=True` (Eq. 16, CURN decentering).
-
-The stand-in data are built from the eigendecomposition TtNT = U diag(lam) U^T,
-keeping the r eigenvalues lam > 0:
-
-    F_eff = diag(sqrt(lam)) U^T     (r x n),     N_eff = I_r,
-    y_eff = diag(1/sqrt(lam)) U^T b0             (r,),
-
-so that F_eff^T F_eff = TtNT and F_eff^T y_eff = b0 (b0 must lie in the range of
-TtNT, which it does whenever TtNT is positive semi-definite and comes from data).
-The likelihood differs from VvH25 Eq. 18 only by an eta-independent constant.
+Non-Gaussian summaries (paper Sec. 2.3-2.5) enter as a per-pulsar correction term,
+:func:`makecorrection`, on the sampled coefficients; for priors that do not couple
+pulsars, the Gaussian-mixture version can also be marginalized analytically,
+:func:`mixture_logL`.
 """
 
 import dataclasses
@@ -58,13 +48,162 @@ from . import utils
 
 @dataclasses.dataclass
 class FourierSummary:
-    """Step-1 summary of one pulsar: the Gaussian N(a | ahat0, Sigma0) on its
-    red-noise Fourier coefficients a at the reference spectrum phi0 = phi(eta0).
+    r"""Step-1 summary of one pulsar, which doubles as a stand-in pulsar for step 2.
 
-    Doubles as a stand-in pulsar for step 2 (`name`, `pos`, `residuals`, and the
-    basis served by `summarybasis`), so it can be passed straight to
-    `makecommongp_fourier(..., fourierbasis=summarybasis)` and
-    `makeglobalgp_fourier(..., fourierbasis=summarybasis)`.
+    **What it holds.** The Gaussian summary of the pulsar's red-noise Fourier
+    coefficients :math:`\mathbf a` (length :math:`n = 2N_f`) at the reference spectrum
+    :math:`\boldsymbol\varphi_0 = \boldsymbol\varphi(\boldsymbol\eta_0)`,
+
+    .. math::
+
+        p(\mathbf a \mid \delta t, \boldsymbol\eta_0) \approx
+        \mathcal N(\mathbf a \mid \hat{\mathbf a}_0, \boldsymbol\Sigma_0),
+
+    stored as ``ahat0`` and the precision ``Sigma0_inv``; the reference prior variances
+    ``phi0``; optionally the per-sample conditionals that make up the Gaussian-mixture
+    generalization (``ahat_samples``, ``Sigma_samples``) and a non-Gaussian ``density``;
+    and the step-1 log-evidence ``logL0``. Build one with :func:`summarize_pulsar`.
+
+    **The stand-in pulsar.** Step 2 swaps the reference prior for the model prior. As a
+    function of :math:`\mathbf a`, the summary with the reference prior divided out is a
+    quadratic,
+
+    .. math::
+
+        \log\mathcal N(\mathbf a\mid\hat{\mathbf a}_0,\boldsymbol\Sigma_0)
+        - \log\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)
+        = -\tfrac12\,\mathbf a^\top \mathbf M\,\mathbf a + \mathbf a^\top \mathbf b_0 + \text{const},
+        \qquad
+        \mathbf M = \boldsymbol\Sigma_0^{-1} - \boldsymbol\varphi_0^{-1},\quad
+        \mathbf b_0 = \boldsymbol\Sigma_0^{-1}\hat{\mathbf a}_0
+
+    (``TtNT`` and ``b0``). An ordinary pulsar with residuals :math:`\mathbf y`, design
+    matrix :math:`\mathbf F` and white noise :math:`\mathbf N` has exactly the same form,
+
+    .. math::
+
+        \log p(\mathbf y\mid\mathbf a)
+        = -\tfrac12(\mathbf y-\mathbf F\mathbf a)^\top\mathbf N^{-1}(\mathbf y-\mathbf F\mathbf a) + \text{const}
+        = -\tfrac12\,\mathbf a^\top(\mathbf F^\top\mathbf N^{-1}\mathbf F)\,\mathbf a
+          + \mathbf a^\top(\mathbf F^\top\mathbf N^{-1}\mathbf y) + \text{const},
+
+    and the step-2 likelihood only ever sees the data through
+    :math:`\mathbf F^\top\mathbf N^{-1}\mathbf F` and :math:`\mathbf F^\top\mathbf N^{-1}\mathbf y`
+    (plus constants). So it is enough to find stand-in data with
+
+    .. math::
+
+        \mathbf F^\top\mathbf N^{-1}\mathbf F = \mathbf M, \qquad
+        \mathbf F^\top\mathbf N^{-1}\mathbf y = \mathbf b_0 .
+
+    With unit noise this asks for a "square root" of :math:`\mathbf M`. Diagonalize
+    :math:`\mathbf M = \mathbf U\boldsymbol\Lambda\mathbf U^\top` and take
+
+    .. math::
+
+        \mathbf F = \boldsymbol\Lambda^{1/2}\mathbf U^\top
+        \;\Rightarrow\; \mathbf F^\top\mathbf F = \mathbf U\boldsymbol\Lambda\mathbf U^\top = \mathbf M,
+        \qquad
+        \mathbf y = \boldsymbol\Lambda^{-1/2}\mathbf U^\top\mathbf b_0
+        \;\Rightarrow\; \mathbf F^\top\mathbf y
+        = \mathbf U\boldsymbol\Lambda^{1/2}\boldsymbol\Lambda^{-1/2}\mathbf U^\top\mathbf b_0 = \mathbf b_0 .
+
+    In pulsar terms, each stand-in "TOA" :math:`y_i` is one eigen-combination
+    :math:`\mathbf u_i^\top\mathbf a` of Fourier coefficients, measured with precision
+    :math:`\lambda_i`. Everything after that is ordinary discovery: the stand-in gets the
+    same red-noise / common / HD GPs as a real pulsar (their bases served by
+    :func:`summarybasis`), and ``logL`` marginalizes the coefficients (VvH25 Eq. 18) while
+    ``clogL`` samples them (Eq. 16), with decentering, anisotropic ORFs, mixed arrays of
+    summaries and time-domain pulsars, etc. all working as usual. A Cholesky factor of
+    :math:`\mathbf M` would do as well; the eigendecomposition is used because it handles
+    the two awkward cases cleanly:
+
+    - :math:`\lambda_i \approx 0`: a combination of coefficients the data do not constrain
+      at all -- for instance the lowest frequencies of a pulsar shorter than the array
+      span, which the timing model absorbs. Its row of :math:`\mathbf F` would be zero
+      and :math:`y_i = 0/0`, so it is dropped (eigenvalues below ``rtol`` times the
+      largest are roundoff). :math:`\mathbf b_0` should have no component along it; a
+      warning is raised if it does by enough to matter.
+    - :math:`\lambda_i < 0`: :math:`\mathbf M` has no real square root. This happens when
+      the reference prior is *narrower* than the summary in some direction, i.e.
+      :math:`\boldsymbol\eta_0` is too quiet. The prior swap is importance sampling from
+      :math:`\boldsymbol\varphi_0` to :math:`\boldsymbol\varphi(\boldsymbol\eta)`, which
+      needs :math:`\boldsymbol\varphi_0` broader than anything step 2 explores; an error
+      is raised. A louder :math:`\boldsymbol\eta_0` is always valid (just less efficient).
+
+    **Normalization.** The stand-in's white noise is :math:`\mathbf N = s\,\mathbf I` (with
+    :math:`\mathbf F` and :math:`\mathbf y` scaled by :math:`\sqrt s`), which leaves the two
+    arrays above unchanged but adds :math:`-\tfrac r2\log s` to the log-likelihood
+    (:math:`r` = number of kept eigenvalues). The scale :math:`s` (``noise``) is chosen so
+    that the stand-in's likelihoods are *exactly*, not just up to a constant,
+
+    .. math::
+
+        \texttt{logL}(\boldsymbol\eta)
+        = \log p(\delta t\mid\boldsymbol\eta) - \log p(\delta t\mid\boldsymbol\eta_0)
+        = \log\!\int\! d\mathbf a\;
+          \mathcal N(\mathbf a\mid\hat{\mathbf a}_0,\boldsymbol\Sigma_0)\,
+          \frac{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi(\boldsymbol\eta))}
+               {\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)},
+
+    and correspondingly for ``clogL`` -- in discovery's convention, which omits factors
+    of :math:`2\pi`, the same as for real pulsars. The step-1 log-evidence
+    :math:`\log p(\delta t\mid\boldsymbol\eta_0)` is ``logL0``: known exactly at fixed
+    noise (then summaries plus :math:`\sum_p` ``logL0`` reproduce the time-domain array
+    likelihood, constant included), and 0 when step 1 marginalized noise parameters by
+    sampling (step-2 numbers are then relative to :math:`\boldsymbol\eta_0`, which is
+    exact for Bayes factors between step-2 models built on the same summaries). It is
+    kept separate because it is far too large (:math:`\sim 10^5` for a real pulsar) to
+    fold into :math:`s`.
+
+    Examples
+    --------
+    Step 1 at fixed white noise, with DM marginalized as a GP with fixed
+    hyperparameters (pass arrays of samples for any parameter to marginalize over it
+    by sampling instead):
+
+    >>> import discovery as ds
+    >>> from discovery import fourierpta as fpta
+    >>> ds.config(kernels='metamath')
+    >>> T = ds.getspan(psrs)
+    >>> psl = ds.PulsarLikelihood([psr.residuals,
+    ...                            ds.makenoise_measurement(psr, psr.noisedict),
+    ...                            ds.makegp_timing(psr, svd=True),
+    ...                            ds.makegp_fourier(psr, ds.powerlaw, 30, T=T,
+    ...                                              fourierbasis=ds.dmfourierbasis, name='dm_gp'),
+    ...                            ds.makegp_fourier(psr, ds.powerlaw, 30, T=T, name='red_noise')])
+    >>> eta0 = {f'{psr.name}_red_noise_log10_A': -11.1, f'{psr.name}_red_noise_gamma': 3.0}
+    >>> summary = fpta.summarize_pulsar(psr, psl, {**psr.noisedict, **dm_params, **eta0})
+
+    The stand-in pulsar is just data:
+
+    >>> summary.residuals.shape, summary.Fmat.shape     # (r,), (r, n); r = n unless directions dropped
+    >>> np.allclose(summary.Fmat.T @ summary.Fmat / summary.noise, summary.TtNT)
+    True
+
+    Step 2, single pulsar (Gaussian summary, coefficients marginalized):
+
+    >>> rn = ds.makegp_fourier(summary, ds.powerlaw, 30, T=T, fourierbasis=fpta.summarybasis,
+    ...                        name='red_noise')
+    >>> psl2 = ds.PulsarLikelihood([summary.residuals, fpta.makenoise_summary(summary), rn])
+    >>> psl2.logL(params)          # log p(dt | eta) - log p(dt | eta0)
+
+    Step 2, array with Hellings-Downs (any mix of summaries and real pulsars):
+
+    >>> pls = [ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s)]) for s in summaries]
+    >>> irn = ds.makecommongp_fourier(summaries, ds.powerlaw, 30, T,
+    ...                               fourierbasis=fpta.summarybasis, name='red_noise')
+    >>> gw = ds.makeglobalgp_fourier(summaries, ds.powerlaw, ds.hd_orf, 14, T,
+    ...                              fourierbasis=fpta.summarybasis, name='gw')
+    >>> like = ds.ArrayLikelihood(pls, commongp=irn, globalgp=gw, decenter=True)
+    >>> like.clogL(params)         # (log-density, physical coefficients)
+
+    With a non-Gaussian summary density (here the Gaussian mixture of the step-1
+    conditionals), add the correction term to each stand-in pulsar:
+
+    >>> summary.density = summary.mixture(512)
+    >>> psl2 = ds.PulsarLikelihood([summary.residuals, fpta.makenoise_summary(summary),
+    ...                             fpta.makecorrection(summary)])
     """
 
     name: str
@@ -85,47 +224,68 @@ class FourierSummary:
     # trained flowjax flow. None keeps the Gaussian summary (VvH25).
     density: Optional[object] = None
 
+    # log p(dt | eta0), the step-1 log-evidence at the reference spectrum, in
+    # discovery's convention (PulsarLikelihood.logL); 0 if unknown. Step-2
+    # likelihoods are relative to it -- add it for absolute evidences.
+    logL0: float = 0.0
+
     # eigenvalues of TtNT below rtol * max are roundoff, treated as zero (the
     # stand-in data then have fewer than n entries)
     rtol: float = 1e-14
 
     @property
     def ncoeff(self):
+        r"""Number of Fourier coefficients :math:`n = 2N_f` (a sine and a cosine per frequency)."""
         return len(self.ahat0)
 
     @property
     def components(self):
+        r"""Number of frequencies :math:`N_f`."""
         return self.ncoeff // 2
 
     @property
     def T(self):
+        r"""Span :math:`T` of the Fourier basis (the frequencies are :math:`f_j = j/T`)."""
         return 1.0 / self.f[0]
 
     @property
     def b0(self):
-        """Sigma0^-1 ahat0, playing the role of F^T N^-1 dt."""
+        r""":math:`\mathbf b_0 = \boldsymbol\Sigma_0^{-1}\hat{\mathbf a}_0`, which plays the role of
+        :math:`\mathbf F^\top\mathbf N^{-1}\delta t` for the stand-in pulsar."""
         return self.Sigma0_inv @ self.ahat0
 
     @property
     def TtNT(self):
-        """Sigma0^-1 - phi0^-1, playing the role of F^T N^-1 F."""
+        r""":math:`\mathbf M = \boldsymbol\Sigma_0^{-1} - \boldsymbol\varphi_0^{-1}`, which plays the
+        role of :math:`\mathbf F^\top\mathbf N^{-1}\mathbf F` for the stand-in pulsar: the
+        information the data add to the reference prior."""
         return self.Sigma0_inv - np.diag(1.0 / self.phi0)
 
     @property
     def Sigma0(self):
+        r"""Summary covariance :math:`\boldsymbol\Sigma_0` (the inverse of ``Sigma0_inv``)."""
         return np.linalg.inv(self.Sigma0_inv)
 
     @property
     def L0(self):
-        """chol(Sigma0): the whitening y = L0^-1 (a - ahat0) under which the Gaussian
-        summary is N(y | 0, I), and in which the corrections q(y) are defined."""
+        r""":math:`\mathbf L_0 = \operatorname{chol}(\boldsymbol\Sigma_0)`, the whitening
+        :math:`\mathbf y = \mathbf L_0^{-1}(\mathbf a - \hat{\mathbf a}_0)` under which the Gaussian
+        summary is :math:`\mathcal N(\mathbf y\mid 0,\mathbf I)`, and in which non-Gaussian
+        densities ``density`` are defined."""
         return np.linalg.cholesky(self.Sigma0)
 
     def mixture(self, K=None):
-        """The GMM generalization of the summary (paper Eq. 19, A8): the per-sample
-        conditionals N(a | ahat(theta_k), Sigma(theta_k)), equally weighted, as a
-        `GaussianMixture` in the whitened coordinates y. With K, use K samples evenly
-        spaced through the step-1 samples."""
+        r"""The Gaussian-mixture generalization of the summary (paper Eq. 19, A8),
+
+        .. math::
+
+            q(\mathbf a) = \frac1K\sum_{k=1}^K
+            \mathcal N\big(\mathbf a\mid\hat{\mathbf a}(\boldsymbol\theta_k),\boldsymbol\Sigma(\boldsymbol\theta_k)\big),
+
+        the equally weighted per-sample conditionals from step 1, returned as a
+        :class:`GaussianMixture` in the whitened coordinates :math:`\mathbf y` (see ``L0``).
+        With ``K``, use ``K`` samples spaced evenly through the step-1 samples; the
+        non-Gaussian tails are carried by rare components, so ``K`` needs checking."""
         if self.ahat_samples is None:
             raise ValueError(f"{self.name}: no per-sample conditionals; summarize over noise samples first.")
 
@@ -164,19 +324,43 @@ class FourierSummary:
                               f"effect up to {dropped:.2e}).")
 
             lam, U, proj = lam[keep], U[:, keep], proj[keep]
-            self.__dict__['_standin_cache'] = (np.sqrt(lam)[:, None] * U.T,
-                                               proj / np.sqrt(lam))
+            F, y = np.sqrt(lam)[:, None] * U.T, proj / np.sqrt(lam)
+
+            # Normalization. With N = s I, the stand-in's clogL is
+            #   -1/2 |y - F a|^2 - r/2 log s + log N(a | 0, phi),
+            # and we want -1/2 |y - F a|^2 - r/2 log s = log N(a | ahat0, Sigma0) - log N(a | 0, phi0)
+            #   = -1/2 a^T TtNT a + a^T b0 - 1/2 ahat0^T b0 - 1/2 log|Sigma0| + 1/2 log|phi0|
+            # (the 2 pi's cancel in the ratio). Matching the a-independent parts:
+            logdet_Sigma0 = -2.0 * np.sum(np.log(np.diag(np.linalg.cholesky(self.Sigma0_inv))))
+            const = (-0.5 * self.ahat0 @ self.b0 - 0.5 * logdet_Sigma0
+                     + 0.5 * np.sum(np.log(self.phi0)) + 0.5 * y @ y)
+            # NB: discovery's likelihoods omit factors of 2 pi; if they gain them, the
+            # stand-in's -r/2 log s becomes -r/2 log(2 pi s), so subtract log(2 pi) here
+            # (test_standin_normalization and test_summaries_reproduce_time_domain_evidence
+            # will flag it).
+            log_s = -2.0 * const / len(y)
+
+            sqrt_s = np.exp(0.5 * log_s)
+            self.__dict__['_standin_cache'] = (sqrt_s * F, sqrt_s * y, np.exp(log_s))
         return self.__dict__['_standin_cache']
 
     @property
     def Fmat(self):
-        """Stand-in basis F_eff (r x n), with F_eff^T F_eff = TtNT."""
+        r"""Stand-in design matrix :math:`\mathbf F` (:math:`r\times n`), with
+        :math:`\mathbf F^\top\mathbf N^{-1}\mathbf F = \mathbf M` (``TtNT``)."""
         return self._standin[0]
 
     @property
     def residuals(self):
-        """Stand-in data y_eff (length r), with F_eff^T y_eff = b0."""
+        r"""Stand-in data :math:`\mathbf y` (length :math:`r`), with
+        :math:`\mathbf F^\top\mathbf N^{-1}\mathbf y = \mathbf b_0` (``b0``)."""
         return self._standin[1]
+
+    @property
+    def noise(self):
+        r"""Stand-in white-noise variance :math:`s` (:math:`\mathbf N = s\mathbf I`); it sets the
+        likelihood normalization without changing :math:`\mathbf M` or :math:`\mathbf b_0`."""
+        return self._standin[2]
 
 
 def summarybasis(psr, components, T=None):
@@ -200,8 +384,8 @@ def summarybasis(psr, components, T=None):
 
 
 def makenoise_summary(psr):
-    """Unit white noise for a `FourierSummary` stand-in pulsar."""
-    return kernels.NoiseMatrix1D_novar(np.ones(len(psr.residuals)))
+    """White noise for a `FourierSummary` stand-in pulsar (uniform, variance psr.noise)."""
+    return kernels.NoiseMatrix1D_novar(np.full(len(psr.residuals), psr.noise))
 
 
 def _find_gp(psl, gp):
@@ -235,11 +419,17 @@ def summarize_pulsar(psr, psl, params, gp='red_noise'):
             Sigma0 = E_k[Sigma(theta_k)] + Cov_k[ahat(theta_k)].
 
     The per-sample conditionals are kept on the summary for the GMM generalization.
+
+    At fixed noise the step-1 log-evidence log p(dt | eta0) is `psl.logL(params)`,
+    stored as `summary.logL0`. With sampled noise it is the evidence integral over
+    the noise parameters, which is not computed here: `logL0` is left at 0, and
+    step-2 likelihoods are relative to it (exact for comparing step-2 models built
+    on the same summaries); set `summary.logL0` if you have it.
     """
     sig, sl = _find_gp(psl, gp)
 
     cond = psl.conditional
-    params = {par: jnp.asarray(params[par]) for par in cond.params}
+    allparams, params = params, {par: jnp.asarray(params[par]) for par in cond.params}
 
     def mean_and_cov(p):
         mu, cf = cond(p)
@@ -258,9 +448,11 @@ def summarize_pulsar(psr, psl, params, gp='red_noise'):
 
         ahat0 = mus.mean(axis=0)
         Sigma0 = Sigmas.mean(axis=0) + np.cov(mus.T, bias=False)
+        logL0 = 0.0
     else:
         mus = Sigmas = None
         ahat0, Sigma0 = map(np.asarray, jax.jit(mean_and_cov)(params))
+        logL0 = float(psl.logL({par: allparams[par] for par in psl.logL.params}))
 
     phi0 = np.asarray(sig.Phi.getN({par: params[par] for par in sig.Phi.getN.params}))
     if phi0.ndim != 1:
@@ -273,7 +465,7 @@ def summarize_pulsar(psr, psl, params, gp='red_noise'):
 
     return FourierSummary(name=psr.name, pos=np.asarray(psr.pos), f=f, df=df,
                           ahat0=ahat0, Sigma0_inv=Sigma0_inv, phi0=phi0,
-                          ahat_samples=mus, Sigma_samples=Sigmas)
+                          ahat_samples=mus, Sigma_samples=Sigmas, logL0=logL0)
 
 
 # ---------------------------------------------------------------------------
@@ -366,18 +558,40 @@ def _diag_prior(commongp):
 
 
 def mixture_logL(summaries, commongp, K=None):
-    """Marginalized step-2 likelihood with the GMM correction, for priors that do not
-    correlate pulsars (SPNA, IRN, CURN): paper Eq. 21, which factorizes over pulsars.
+    r"""Marginalized step-2 likelihood with the Gaussian-mixture summary (paper Eq. 21),
+    for priors that do not correlate pulsars (SPNA, IRN, CURN), where it factorizes
+    over pulsars.
 
-    Per pulsar, each component k is a Gaussian summary N(a | ahat_k, Sigma_k), whose
-    evidence against the prior swap phi0 -> phi(eta) is analytic:
+    Per pulsar, each component :math:`k` is a Gaussian summary
+    :math:`\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)`, whose evidence
+    against the prior swap :math:`\boldsymbol\varphi_0\to\boldsymbol\varphi(\boldsymbol\eta)`
+    is analytic:
 
-        log Z_k = 1/2 b_k^T P_k^-1 b_k - 1/2 ahat_k^T b_k - 1/2 log|Sigma_k| - 1/2 log|P_k|
-                  - 1/2 log|phi| + 1/2 log|phi0|,
-        P_k = Sigma_k^-1 + phi^-1 - phi0^-1,    b_k = Sigma_k^-1 ahat_k,
+    .. math::
 
-    and the pulsar contributes logsumexp_k log Z_k - log K. With HD (which couples
-    pulsars) use `clogL` with `makecorrection` terms instead.
+        \log Z_k = \tfrac12\mathbf b_k^\top\mathbf P_k^{-1}\mathbf b_k
+                  - \tfrac12\hat{\mathbf a}_k^\top\mathbf b_k
+                  - \tfrac12\log|\boldsymbol\Sigma_k| - \tfrac12\log|\mathbf P_k|
+                  - \tfrac12\log|\boldsymbol\varphi| + \tfrac12\log|\boldsymbol\varphi_0|,
+        \qquad
+        \mathbf P_k = \boldsymbol\Sigma_k^{-1} + \boldsymbol\varphi^{-1} - \boldsymbol\varphi_0^{-1},\quad
+        \mathbf b_k = \boldsymbol\Sigma_k^{-1}\hat{\mathbf a}_k .
+
+    The pulsar contributes :math:`\operatorname{logsumexp}_k \log Z_k - \log K` plus its
+    step-1 log-evidence ``logL0``, normalized like the stand-in likelihoods of
+    :class:`FourierSummary`. Each call costs one Cholesky factorization per component.
+    With HD (which couples pulsars) use ``clogL`` with :func:`makecorrection` terms
+    instead.
+
+    Parameters
+    ----------
+    summaries : list of FourierSummary
+        Summaries with per-sample conditionals (``ahat_samples``, ``Sigma_samples``).
+    commongp : VariableGP or list of VariableGP
+        The step-2 prior, as common GPs (e.g. from ``makecommongp_fourier``); only their
+        prior spectra are used.
+    K : int, optional
+        Use ``K`` components spaced evenly through the samples (default: all).
     """
     phi = _diag_prior(commongp)
     n = summaries[0].ncoeff
@@ -406,7 +620,8 @@ def mixture_logL(summaries, commongp, K=None):
         logZ = (const + 0.5 * jnp.sum(b * x, axis=-1)
                 - jnp.sum(jnp.log(jnp.diagonal(cf, axis1=-2, axis2=-1)), axis=-1)
                 - 0.5 * jnp.sum(jnp.log(phis), axis=-1)[:, None])
-        return jnp.sum(jax.scipy.special.logsumexp(logZ, axis=1))
+        return jnp.sum(jax.scipy.special.logsumexp(logZ, axis=1)) + logL0
     loglike.params = phi.params
+    logL0 = sum(s.logL0 for s in summaries)
 
     return loglike

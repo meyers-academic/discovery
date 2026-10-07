@@ -19,3 +19,4 @@ Complete API documentation auto-generated from source code.
    const
    recipes
    summary
+   fourierpta

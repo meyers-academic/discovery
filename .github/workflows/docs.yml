@@ -6,6 +6,7 @@ on:
       - main
       - sphinx_docs  # Add branches you want to build docs for
       - metamatrix-meyers
+      - extended-fourier-pta
   pull_request:
     branches:
       - main

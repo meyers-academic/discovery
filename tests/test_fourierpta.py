@@ -4,7 +4,7 @@ Valtolina & van Haasteren (2025) built on the standard likelihoods.
 
 Step 1 (`summarize_pulsar`) is checked against the pulsar likelihood's own
 conditional; step 2 (`ArrayLikelihood` over `FourierSummary` stand-in pulsars) is
-checked against a direct implementation of VvH25 Eq. 18 (marginalized) and Eq. 16
+checked against a direct implementation of draft Eq. 18 (marginalized) and Eq. 16
 (sampled coefficients). Step-2 likelihoods agree up to an eta-independent constant,
 so differences between parameter points are compared.
 
@@ -90,7 +90,7 @@ def _phi_dense(summaries, orf, p):
 
 
 def _eq18(summaries, orf, p):
-    """VvH25 Eq. 18 up to a constant: 1/2 b^T Sigma b - 1/2 log|Sigma^-1| - 1/2 log|Phi|."""
+    """Draft Eq. 18 up to a constant: 1/2 b^T Sigma b - 1/2 log|Sigma^-1| - 1/2 log|Phi|."""
     b = np.concatenate([s.b0 for s in summaries])
     TtNT = jax.scipy.linalg.block_diag(*[s.TtNT for s in summaries])
     Phi = _phi_dense(summaries, orf, p)

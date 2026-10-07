@@ -13,7 +13,7 @@ noise, ECORR, DM and other chromatic GPs, ...) marginalized:
 
     p(\mathbf a \mid \delta t, \boldsymbol\eta_0) \approx
     \mathcal N(\mathbf a \mid \hat{\mathbf a}_0, \boldsymbol\Sigma_0)
-    \qquad \text{(VvH25 Eq. 12, 14)}.
+    \qquad \text{(draft Eq. 12, 14)}.
 
 :func:`summarize_pulsar` computes this from a ``PulsarLikelihood`` and returns a
 :class:`FourierSummary`.
@@ -26,10 +26,17 @@ ordinary pulsar likelihood is exactly the step-2 likelihood, so step 2 uses the
 standard ``makecommongp_fourier`` / ``makeglobalgp_fourier`` / ``ArrayLikelihood``
 machinery unchanged. See :class:`FourierSummary` for how, and why it works.
 
-Non-Gaussian summaries (paper Sec. 2.3-2.5) enter as a per-pulsar correction term,
+Non-Gaussian summaries (draft Sec. 2.3-2.5) enter as a per-pulsar correction term,
 :func:`makecorrection`, on the sampled coefficients; for priors that do not couple
 pulsars, the Gaussian-mixture version can also be marginalized analytically,
 :func:`mixture_logL`.
+
+.. note::
+
+    "VvH25" is Valtolina & van Haasteren, Phys. Rev. D 112, 043046 (2025). Equation,
+    section and appendix numbers ("draft Eq. N") refer to the draft of Tresnjic &
+    Meyers, *Capturing Non-Gaussianities in the Fourier-domain based Pulsar Timing
+    Array Likelihood* (version of 7 October 2026), and will change with it.
 """
 
 import dataclasses
@@ -112,8 +119,8 @@ class FourierSummary:
     :math:`\mathbf u_i^\top\mathbf a` of Fourier coefficients, measured with precision
     :math:`\lambda_i`. Everything after that is ordinary discovery: the stand-in gets the
     same red-noise / common / HD GPs as a real pulsar (their bases served by
-    :func:`summarybasis`), and ``logL`` marginalizes the coefficients (VvH25 Eq. 18) while
-    ``clogL`` samples them (Eq. 16), with decentering, anisotropic ORFs, mixed arrays of
+    :func:`summarybasis`), and ``logL`` marginalizes the coefficients (draft Eq. 18) while
+    ``clogL`` samples them (draft Eq. 16), with decentering, anisotropic ORFs, mixed arrays of
     summaries and time-domain pulsars, etc. all working as usual. A Cholesky factor of
     :math:`\mathbf M` would do as well; the eigendecomposition is used because it handles
     the two awkward cases cleanly:
@@ -275,7 +282,7 @@ class FourierSummary:
         return np.linalg.cholesky(self.Sigma0)
 
     def mixture(self, K=None):
-        r"""The Gaussian-mixture generalization of the summary (paper Eq. 19, A8),
+        r"""The Gaussian-mixture generalization of the summary (draft Eq. 19, A8),
 
         .. math::
 
@@ -364,12 +371,30 @@ class FourierSummary:
 
 
 def summarybasis(psr, components, T=None):
-    """`fourierbasis` replacement for `FourierSummary` stand-in pulsars.
+    r"""Fourier basis for :class:`FourierSummary` stand-in pulsars, for the
+    ``fourierbasis=`` argument of ``makegp_fourier``, ``makecommongp_fourier`` and
+    ``makeglobalgp_fourier``.
 
-    Returns the leading 2*components columns of the stand-in basis, so a GP with
-    fewer components than the summary (e.g. a GWB on the lowest frequencies) picks
-    out the matching coefficients. Any other pulsar gets the ordinary Fourier basis,
-    so summaries and time-domain pulsars can share one array likelihood.
+    For a summary, returns the frequencies and the leading :math:`2\times`
+    ``components`` columns of the stand-in design matrix :math:`\mathbf F`, so that a GP
+    with fewer components than the summary (e.g. a GWB on the lowest frequencies) acts
+    on the matching lowest-frequency coefficients. For any other pulsar, returns the
+    ordinary ``signals.fourierbasis``, so summaries and time-domain pulsars can share
+    one array likelihood.
+
+    Parameters
+    ----------
+    psr : FourierSummary or Pulsar
+    components : int
+        Number of frequencies :math:`N_f`; at most the summary's.
+    T : float, optional
+        Basis span; must match the summary's (checked).
+
+    Returns
+    -------
+    f, df, F
+        Frequencies and bin widths (one per coefficient, sine and cosine repeated) and
+        the basis, as for ``signals.fourierbasis``.
     """
     if not isinstance(psr, FourierSummary):
         return signals.fourierbasis(psr, components, T)
@@ -384,7 +409,9 @@ def summarybasis(psr, components, T=None):
 
 
 def makenoise_summary(psr):
-    """White noise for a `FourierSummary` stand-in pulsar (uniform, variance psr.noise)."""
+    r"""White-noise kernel :math:`\mathbf N = s\,\mathbf I` for a :class:`FourierSummary`
+    stand-in pulsar, with :math:`s` = ``psr.noise`` (which sets the likelihood
+    normalization; see :class:`FourierSummary`)."""
     return kernels.NoiseMatrix1D_novar(np.full(len(psr.residuals), psr.noise))
 
 
@@ -402,29 +429,59 @@ def _find_gp(psl, gp):
 
 
 def summarize_pulsar(psr, psl, params, gp='red_noise'):
-    """Step 1 of VvH25: the Gaussian summary of `psr`'s `gp` Fourier coefficients.
+    r"""Step 1: the Gaussian summary of one pulsar's Fourier coefficients for the GP
+    ``gp``, with everything else in ``psl`` marginalized.
 
-    `psl` is a `PulsarLikelihood` that includes the `gp` (e.g. `makegp_fourier(...,
-    name='red_noise')`) alongside whatever is to be marginalized (timing model,
-    measurement noise, ECORR, DM GPs, ...). `params` sets every parameter of `psl`,
-    with the `gp` spectrum at its reference value eta0:
+    For fixed parameters :math:`\boldsymbol\theta` (and the GP's spectrum at its
+    reference value :math:`\boldsymbol\eta_0`) the coefficients are exactly Gaussian,
 
-      - all scalars: the summary is the conditional at those parameters
-        (fixed white noise);
-      - some arrays of length K (the rest scalars): samples theta_k of the noise
-        parameters, combined by the law of total expectation and covariance
-        (VvH25 Eq. 14):
+    .. math::
 
-            ahat0  = E_k[ahat(theta_k)],
-            Sigma0 = E_k[Sigma(theta_k)] + Cov_k[ahat(theta_k)].
+        p(\mathbf a\mid\delta t,\boldsymbol\theta,\boldsymbol\eta_0)
+        = \mathcal N\big(\mathbf a\mid\hat{\mathbf a}(\boldsymbol\theta),\boldsymbol\Sigma(\boldsymbol\theta)\big),
 
-    The per-sample conditionals are kept on the summary for the GMM generalization.
+    the pulsar likelihood's ``conditional``, restricted to the ``gp`` block (all other
+    GP coefficients -- timing model, ECORR, DM, ... -- integrated out).
 
-    At fixed noise the step-1 log-evidence log p(dt | eta0) is `psl.logL(params)`,
-    stored as `summary.logL0`. With sampled noise it is the evidence integral over
-    the noise parameters, which is not computed here: `logL0` is left at 0, and
-    step-2 likelihoods are relative to it (exact for comparing step-2 models built
-    on the same summaries); set `summary.logL0` if you have it.
+    - If every value in ``params`` is a scalar, the summary is that conditional
+      (fixed noise).
+    - If some values are arrays of length :math:`K` (samples
+      :math:`\boldsymbol\theta_k`, typically from a step-1 sampler with the ``gp``
+      spectrum fixed at :math:`\boldsymbol\eta_0`), the conditionals are combined by
+      the law of total expectation and covariance (draft Eq. 14),
+
+      .. math::
+
+          \hat{\mathbf a}_0 = \mathbb E_k\big[\hat{\mathbf a}(\boldsymbol\theta_k)\big],
+          \qquad
+          \boldsymbol\Sigma_0 = \mathbb E_k\big[\boldsymbol\Sigma(\boldsymbol\theta_k)\big]
+          + \operatorname{Cov}_k\big[\hat{\mathbf a}(\boldsymbol\theta_k)\big],
+
+      and the per-sample pairs are kept (``ahat_samples``, ``Sigma_samples``): they are
+      the components of the Gaussian-mixture summary, :meth:`FourierSummary.mixture`.
+
+    The step-1 log-evidence :math:`\log p(\delta t\mid\boldsymbol\eta_0)` is stored as
+    ``logL0``: at fixed noise it is ``psl.logL(params)``; with sampled noise it is an
+    evidence integral over :math:`\boldsymbol\theta` that is not computed here, so
+    ``logL0`` is 0 and step-2 likelihoods are relative to it (exact for comparing
+    step-2 models built on the same summaries). Set ``summary.logL0`` if you have it.
+
+    Parameters
+    ----------
+    psr : Pulsar
+        The pulsar (for its name and sky position).
+    psl : PulsarLikelihood
+        Includes the GP ``gp`` (e.g. ``makegp_fourier(..., name='red_noise')``) and
+        whatever is to be marginalized.
+    params : dict
+        Every parameter of ``psl``, with the ``gp`` spectrum at :math:`\boldsymbol\eta_0`;
+        arrays of samples for parameters to average over.
+    gp : str
+        Name of the GP whose coefficients are summarized.
+
+    Returns
+    -------
+    FourierSummary
     """
     sig, sl = _find_gp(psl, gp)
 
@@ -469,13 +526,13 @@ def summarize_pulsar(psr, psl, params, gp='red_noise'):
 
 
 # ---------------------------------------------------------------------------
-# Non-Gaussian corrections (paper Sec. 2.3-2.5)
+# Non-Gaussian corrections (draft Sec. 2.3-2.5)
 #
 # The Gaussian summary N(a | ahat0, Sigma0) is replaced by a better density q(a)
 # per pulsar -- a Gaussian mixture or a normalizing flow -- defined in the whitened
 # coordinates y = L0^-1 (a - ahat0). Step 2 then picks up, per pulsar,
 #
-#     log w(a) = log q(y) - log N(y | 0, I)                          (Eq. 28, 34)
+#     log w(a) = log q(y) - log N(y | 0, I)                    (draft Eq. 28, 34)
 #
 # on top of the Gaussian-summary likelihood above (the Jacobians |L0| cancel). A
 # density is any object with a `log_prob(y)` method: a `GaussianMixture`, or a
@@ -485,7 +542,23 @@ def summarize_pulsar(psr, psl, params, gp='red_noise'):
 
 
 class GaussianMixture:
-    """Equally weighted Gaussian mixture (1/K) sum_k N(y | mu_k, L_k L_k^T)."""
+    r"""Equally weighted Gaussian mixture
+
+    .. math::
+
+        q(\mathbf y) = \frac1K\sum_{k=1}^K
+        \mathcal N\big(\mathbf y\mid\boldsymbol\mu_k,\mathbf L_k\mathbf L_k^\top\big),
+
+    usable as a :class:`FourierSummary` ``density`` (built by
+    :meth:`FourierSummary.mixture` in the whitened coordinates :math:`\mathbf y`).
+
+    Parameters
+    ----------
+    mu : array, shape (K, d)
+        Component means :math:`\boldsymbol\mu_k`.
+    L : array, shape (K, d, d)
+        Lower Cholesky factors :math:`\mathbf L_k` of the component covariances.
+    """
 
     def __init__(self, mu, L):
         self.mu = jnp.asarray(mu)                                       # (K, d)
@@ -498,14 +571,20 @@ class GaussianMixture:
         return self.mu.shape[0]
 
     def log_prob(self, y):
+        r""":math:`\log q(\mathbf y)`. The mixture is a sum of probabilities, so the log is a
+        log-sum-exp over the components' log-densities
+        :math:`-\tfrac12|\mathbf L_k^{-1}(\mathbf y-\boldsymbol\mu_k)|^2 - \log|\mathbf L_k|`
+        (computed stably), minus :math:`\log K` and the shared
+        :math:`\tfrac d2\log 2\pi`."""
         z = jnp.einsum('kij,kj->ki', self.Linv, y - self.mu)
         return (jax.scipy.special.logsumexp(-0.5 * jnp.sum(z**2, axis=1) - self.logdet)
                 - jnp.log(self.K) - 0.5 * y.shape[-1] * jnp.log(2 * jnp.pi))
 
 
 class SummaryCorrection(utils.CoefficientTerm):
-    """The non-Gaussian correction log w(a) of one `FourierSummary`, as a term of its
-    stand-in `PulsarLikelihood` (see `makecorrection`)."""
+    r"""The non-Gaussian correction :math:`\log w(\mathbf a)` of one :class:`FourierSummary`,
+    as a coefficient term of its stand-in ``PulsarLikelihood``. Build it with
+    :func:`makecorrection`."""
 
     def __init__(self, summary, density):
         self.n = summary.ncoeff
@@ -514,6 +593,8 @@ class SummaryCorrection(utils.CoefficientTerm):
         self.density = density
 
     def logL(self, cs):
+        r""":math:`\log w(\mathbf a)` at the pulsar's physical GP coefficients ``cs``
+        ({name: vector}), with :math:`\mathbf a = \sum_g [\mathbf c_g, 0, \ldots]`."""
         # every GP on a stand-in pulsar covers the summary's lowest frequencies, so
         # the summary coefficients are the sum of the GP blocks, a = sum_g [c_g, 0...]
         a = sum(jnp.pad(c, (0, self.n - c.shape[0])) for c in cs.values())
@@ -522,19 +603,29 @@ class SummaryCorrection(utils.CoefficientTerm):
 
 
 def makecorrection(summary, density=None):
-    """The non-Gaussian correction for a `FourierSummary` stand-in pulsar:
+    r"""The non-Gaussian correction term for a :class:`FourierSummary` stand-in pulsar,
 
-        log w(a) = log q(y) - log N(y | 0, I),    y = L0^-1 (a - ahat0)    (Eq. 28, 34)
+    .. math::
 
-    with q = `density` (default `summary.density`). Include it in the pulsar's
-    likelihood,
+        \log w(\mathbf a) = \log q(\mathbf y) - \log\mathcal N(\mathbf y\mid 0,\mathbf I),
+        \qquad \mathbf y = \mathbf L_0^{-1}(\mathbf a - \hat{\mathbf a}_0)
+        \qquad \text{(draft Eq. 28, 34)},
 
-        ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), ..., fpta.makecorrection(s)])
+    which turns the Gaussian-summary target into the one with summary density
+    :math:`q` = ``density`` (default ``summary.density``): the Gaussian
+    :math:`\mathcal N(\mathbf a\mid\hat{\mathbf a}_0,\boldsymbol\Sigma_0)` already in the
+    stand-in likelihood is divided out and :math:`q` multiplied in. The whitening
+    Jacobian :math:`|\mathbf L_0|` cancels in the ratio.
 
-    and `clogL` (of the pulsar, or of an `ArrayLikelihood` containing it, after any
-    decentering) adds it at the sampled coefficients. The marginalized `logL` does not
-    see it: a non-Gaussian correction cannot be integrated out analytically, except
-    for the GMM without inter-pulsar correlations (`mixture_logL`).
+    Include it among the stand-in pulsar's components,
+
+    >>> ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), ..., fpta.makecorrection(s)])
+
+    and ``clogL`` -- of the pulsar, or of any ``ArrayLikelihood`` containing it -- adds
+    it at the sampled *physical* coefficients (after any decentering, whose Jacobian
+    is accounted for separately). The marginalized ``logL`` does not see it: a
+    non-Gaussian correction cannot be integrated out analytically, except for the
+    Gaussian mixture without inter-pulsar correlations (:func:`mixture_logL`).
     """
     density = summary.density if density is None else density
     if density is None:
@@ -558,7 +649,7 @@ def _diag_prior(commongp):
 
 
 def mixture_logL(summaries, commongp, K=None):
-    r"""Marginalized step-2 likelihood with the Gaussian-mixture summary (paper Eq. 21),
+    r"""Marginalized step-2 likelihood with the Gaussian-mixture summary (draft Eq. 21),
     for priors that do not correlate pulsars (SPNA, IRN, CURN), where it factorizes
     over pulsars.
 

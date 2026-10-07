@@ -463,3 +463,23 @@ def test_mixed_time_domain_and_summaries(psrs, T, summaries):
     a = np.array([float(all_summ(p)) for p in ps])
     b = np.array([float(with_real(p)) for p in ps])
     assert np.allclose(a + summaries[0].logL0, b, rtol=1e-10, atol=1e-5)
+
+
+def test_mixture_logL_curn_combined(psrs, T, summaries):
+    # CURN as one common GP (make_combined_crn, as for time-domain arrays): a
+    # one-component mixture equals the Gaussian stand-in array likelihood
+    import copy
+    sums = [copy.copy(s) for s in summaries]
+    for s in sums:
+        s.ahat_samples, s.Sigma_samples = s.ahat0[None], s.Sigma0[None]
+
+    psd, common = ds.make_combined_crn(NGW, ds.powerlaw, ds.powerlaw)
+    curn = ds.makecommongp_fourier(sums, psd, NC, T, fourierbasis=fpta.summarybasis, name='red_noise', common=common)
+    pls = [ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s)]) for s in sums]
+    gaussian = jax.jit(ds.ArrayLikelihood(pls, commongp=curn).logL)
+    mixture = jax.jit(fpta.mixture_logL(sums, curn))
+
+    rng = np.random.default_rng(14)
+    for _ in range(3):
+        p = {par: rng.uniform(*((-15, -13) if 'log10_A' in par else (1, 5))) for par in gaussian.params}
+        assert np.isclose(float(mixture(p)), float(gaussian(p)) + sum(s.logL0 for s in sums), rtol=1e-10, atol=1e-6)

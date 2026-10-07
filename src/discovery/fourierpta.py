@@ -293,17 +293,22 @@ class FourierSummary:
         :class:`GaussianMixture` in the whitened coordinates :math:`\mathbf y` (see ``L0``).
         With ``K``, use ``K`` samples spaced evenly through the step-1 samples; the
         non-Gaussian tails are carried by rare components, so ``K`` needs checking."""
+        ahat, Sigma = self._components(K)
+        Linv0 = np.linalg.inv(self.L0)
+
+        mu = (ahat - self.ahat0) @ Linv0.T
+        C = Linv0 @ Sigma @ Linv0.T
+        return GaussianMixture(mu, np.linalg.cholesky(0.5 * (C + np.swapaxes(C, 1, 2))))
+
+    def _components(self, K=None):
+        """The per-sample conditionals (ahat_k, Sigma_k): all of them, or K spaced evenly
+        through the step-1 samples."""
         if self.ahat_samples is None:
             raise ValueError(f"{self.name}: no per-sample conditionals; summarize over noise samples first.")
 
         idx = np.arange(len(self.ahat_samples)) if K is None else \
               np.linspace(0, len(self.ahat_samples) - 1, K).astype(int)
-        L0 = self.L0
-        Linv0 = np.linalg.inv(L0)
-
-        mu = (self.ahat_samples[idx] - self.ahat0) @ Linv0.T
-        C = Linv0 @ self.Sigma_samples[idx] @ Linv0.T
-        return GaussianMixture(mu, np.linalg.cholesky(0.5 * (C + np.swapaxes(C, 1, 2))))
+        return self.ahat_samples[idx], self.Sigma_samples[idx]
 
     @property
     def _standin(self):
@@ -634,20 +639,6 @@ def makecorrection(summary, density=None):
     return SummaryCorrection(summary, density)
 
 
-def _diag_prior(commongp):
-    """params -> (npsr, n) prior variances on each pulsar's summary coefficients,
-    summing (lowest-frequency-aligned) commongp blocks, e.g. IRN + CRN."""
-    gps = commongp if isinstance(commongp, (list, tuple)) else [commongp]
-
-    def phi(params):
-        blocks = [jnp.asarray(gp.Phi.getN(params)) for gp in gps]
-        n = max(b.shape[1] for b in blocks)
-        return sum(jnp.pad(b, ((0, 0), (0, n - b.shape[1]))) for b in blocks)
-    phi.params = sorted(set(sum([list(gp.Phi.getN.params) for gp in gps], [])))
-
-    return phi
-
-
 def mixture_logL(summaries, commongp, K=None):
     r"""Marginalized step-2 likelihood with the Gaussian-mixture summary (draft Eq. 21),
     for priors that do not correlate pulsars (SPNA, IRN, CURN), where it factorizes
@@ -678,33 +669,31 @@ def mixture_logL(summaries, commongp, K=None):
     ----------
     summaries : list of FourierSummary
         Summaries with per-sample conditionals (``ahat_samples``, ``Sigma_samples``).
-    commongp : VariableGP or list of VariableGP
-        The step-2 prior, as common GPs (e.g. from ``makecommongp_fourier``); only their
-        prior spectra are used.
+    commongp : VariableGP
+        The step-2 prior as a single common GP over the summaries (``makecommongp_fourier``);
+        only its prior spectrum is used. For intrinsic red noise plus a common process
+        (CURN), build the spectrum with ``make_combined_crn``, as for time-domain arrays.
     K : int, optional
         Use ``K`` components spaced evenly through the samples (default: all).
     """
-    phi = _diag_prior(commongp)
-    n = summaries[0].ncoeff
+    phi = commongp.Phi.getN
 
     comps = []
     for s in summaries:
-        idx = np.arange(len(s.ahat_samples)) if K is None else \
-              np.linspace(0, len(s.ahat_samples) - 1, K).astype(int)
-        ahat, Sigma = s.ahat_samples[idx], s.Sigma_samples[idx]
+        ahat, Sigma = s._components(K)
         L = np.linalg.cholesky(Sigma)
         Linv = np.linalg.inv(L)
         Sigma_inv = np.swapaxes(Linv, 1, 2) @ Linv
         b = np.einsum('kij,kj->ki', Sigma_inv, ahat)
         logdet = 2 * np.sum(np.log(np.diagonal(L, axis1=1, axis2=2)), axis=1)
         const = (-0.5 * np.einsum('ki,ki->k', ahat, b) - 0.5 * logdet
-                 + 0.5 * np.sum(np.log(s.phi0)) - np.log(len(idx)))
+                 + 0.5 * np.sum(np.log(s.phi0)) - np.log(len(ahat)))
         comps.append((Sigma_inv - np.diag(1.0 / s.phi0), b, const))
 
     TtNT, b, const = (jnp.asarray(np.array(x)) for x in zip(*comps))    # (npsr, K, n, n), (npsr, K, n), (npsr, K)
 
     def loglike(params):
-        phis = phi(params)                                                # (npsr, n)
+        phis = jnp.asarray(phi(params))                                   # (npsr, n)
         P = TtNT + jax.vmap(jnp.diag)(1.0 / phis)[:, None, :, :]
         cf = jnp.linalg.cholesky(P)
         x = jax.scipy.linalg.cho_solve((cf, True), b[..., None])[..., 0]

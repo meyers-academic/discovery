@@ -612,8 +612,43 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="solar">
-<h1>solar<a class="headerlink" href="#solar" title="Link to this heading">#</a></h1>
+  <section id="module-discovery.solar">
+<span id="solar"></span><h1>solar<a class="headerlink" href="#module-discovery.solar" title="Link to this heading">#</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.solar.make_solardmfourierbasis">
+<span class="sig-prename descclassname"><span class="pre">discovery.solar.</span></span><span class="sig-name descname"><span class="pre">make_solardmfourierbasis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/solar.html#make_solardmfourierbasis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.solar.make_solardmfourierbasis" title="Link to this definition">#</a></dt>
+<dd><p>for a fourier basis for the solar wind gp. this assumes
+that you include a deterministic solar wind delay, which samples
+n_earth, and here these are stochastic fluctuations on top of that.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.solar.theta_impact">
+<span class="sig-prename descclassname"><span class="pre">discovery.solar.</span></span><span class="sig-name descname"><span class="pre">theta_impact</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/solar.html#theta_impact"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.solar.theta_impact" title="Link to this definition">#</a></dt>
+<dd><p>From enterprise_extensions: use the attributes of an Enterprise
+Pulsar object to calculate the solar impact angle.
+Returns solar impact angle (rad), distance to Earth (R_earth),
+impact distance (b), perpendicular distance (z_earth).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.solar.make_solardm">
+<span class="sig-prename descclassname"><span class="pre">discovery.solar.</span></span><span class="sig-name descname"><span class="pre">make_solardm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/solar.html#make_solardm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.solar.make_solardm" title="Link to this definition">#</a></dt>
+<dd><p>From enterprise_extensions: calculate DM
+due to 1/r^2 solar wind density model.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.solar.chromaticdelay">
+<span class="sig-prename descclassname"><span class="pre">discovery.solar.</span></span><span class="sig-name descname"><span class="pre">chromaticdelay</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">toas</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freqs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log10_Amp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log10_tau</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/solar.html#chromaticdelay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.solar.chromaticdelay" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.solar.make_chromaticdelay">
+<span class="sig-prename descclassname"><span class="pre">discovery.solar.</span></span><span class="sig-name descname"><span class="pre">make_chromaticdelay</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/solar.html#make_chromaticdelay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.solar.make_chromaticdelay" title="Link to this definition">#</a></dt>
+<dd><p>From enterprise_extensions: pre-calculate chromatic exponential-dip delay.</p>
+</dd></dl>
+
 </section>
 
 
@@ -654,6 +689,22 @@
                 <dialog id="pst-secondary-sidebar-modal"></dialog>
                 <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
 
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.solar.make_solardmfourierbasis"><code class="docutils literal notranslate"><span class="pre">make_solardmfourierbasis()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.solar.theta_impact"><code class="docutils literal notranslate"><span class="pre">theta_impact()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.solar.make_solardm"><code class="docutils literal notranslate"><span class="pre">make_solardm()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.solar.chromaticdelay"><code class="docutils literal notranslate"><span class="pre">chromaticdelay()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.solar.make_chromaticdelay"><code class="docutils literal notranslate"><span class="pre">make_chromaticdelay()</span></code></a></li>
+</ul>
+  </nav></div>
 
   <div class="sidebar-secondary-item">
 

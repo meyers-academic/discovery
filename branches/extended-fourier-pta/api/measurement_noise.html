@@ -612,8 +612,32 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="measurement-noise">
-<h1>measurement_noise<a class="headerlink" href="#measurement-noise" title="Link to this heading">#</a></h1>
+  <section id="module-discovery.measurement_noise">
+<span id="measurement-noise"></span><h1>measurement_noise<a class="headerlink" href="#module-discovery.measurement_noise" title="Link to this heading">#</a></h1>
+<p>Measurement (white) noise constructors — collapsed form.</p>
+<p>These are the Role-A functions from <cite>signals.py</cite>: the only ones whose return
+value <em>is</em> the per-pulsar measurement-noise kernel <code class="docutils literal notranslate"><span class="pre">N</span></code> (everything else in
+<cite>signals.py</cite> builds <code class="docutils literal notranslate"><span class="pre">N</span></code> only as a GP prior). They are reproduced here in
+<em>collapsed</em> form: instead of selecting a matrix.py variant class by name
+(<cite>NoiseMatrix1D_novar</cite> vs <cite>_var</cite>, <cite>NoiseMatrixSM_novar</cite> vs <cite>_var</cite>), they call
+the variant-agnostic factory entry points <cite>_kernels.NoiseMatrix1D</cite> /
+<cite>_kernels.NoiseMatrixSM</cite>, passing an array (fixed) or a callable (variable).
+The factory picks the concrete class.</p>
+<p>This is the strangler replacement for <cite>signals.makenoise_measurement{,_simple}</cite>.
+While both coexist, the parity suite compares them in matrix mode (collapsed vs
+original both build matrix.py classes, isolating that the collapse is faithful)
+and in metamath mode (collapsed builds metamath kernels, compared to the matrix
+oracle). Once green, <cite>signals.py</cite> is repointed here and the originals deleted.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.measurement_noise.makenoise_measurement_simple">
+<span class="sig-prename descclassname"><span class="pre">discovery.measurement_noise.</span></span><span class="sig-name descname"><span class="pre">makenoise_measurement_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisedict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/measurement_noise.html#makenoise_measurement_simple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.measurement_noise.makenoise_measurement_simple" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.measurement_noise.makenoise_measurement">
+<span class="sig-prename descclassname"><span class="pre">discovery.measurement_noise.</span></span><span class="sig-name descname"><span class="pre">makenoise_measurement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisedict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tnequad</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ecorr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">selection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vectorize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enterprise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/measurement_noise.html#makenoise_measurement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.measurement_noise.makenoise_measurement" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
 </section>
 
 
@@ -654,6 +678,19 @@
                 <dialog id="pst-secondary-sidebar-modal"></dialog>
                 <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
 
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.measurement_noise.makenoise_measurement_simple"><code class="docutils literal notranslate"><span class="pre">makenoise_measurement_simple()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.measurement_noise.makenoise_measurement"><code class="docutils literal notranslate"><span class="pre">makenoise_measurement()</span></code></a></li>
+</ul>
+  </nav></div>
 
   <div class="sidebar-secondary-item">
 

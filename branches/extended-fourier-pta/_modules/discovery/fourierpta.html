@@ -1,0 +1,1571 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>discovery.fourierpta &#8212; Discovery 0.5 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=a95f357e85573c9b56d5"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
+
+    <script src="../../_static/documentation_options.js?v=db78e746"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/discovery/fourierpta';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Discovery 0.5 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/curn_example.html">
+    How best to run a CURN model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/overview.html">
+    Overview
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/model_summary.html">
+    Inspecting a model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../installation.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../quickstart.html">
+    Quick Start
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/basic_likelihood.html">
+    Basic Likelihood
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/params_example.html">
+    Fast likelihood evaluation with Params
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/optimal_statistic.html">
+    Optimal Statistic
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/simulations.html">
+    Simulations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/cookbook_models.html">
+    Model cookbook
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/cw_extsignal_example.html">
+    Sampling a continuous-wave signal on its own Fourier basis
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/fourierpta_single_pulsar.html">
+    Fourier-domain single-pulsar analysis: marginalizing DM in step 1
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../components/noise_signals.html">
+    Noise and Signal Components
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../components/priors_spectra.html">
+    GP Priors and Spectra
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../components/delays.html">
+    Deterministic Delays
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../guide/data_model.html">
+    Data Model
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../guide/pulsar_data.html">
+    Pulsar Data
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../advanced/conditional_sampling.html">
+    Conditional Sampling of GP Coefficients
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../advanced/single_precision.html">
+    Single-precision likelihoods (and the reference–delta trick)
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../metamatrix.html">
+    Metamatrix: graph-based kernels
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../examples.html">
+    Examples
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/curn_example.html">
+    How best to run a CURN model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/overview.html">
+    Overview
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/model_summary.html">
+    Inspecting a model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../installation.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../quickstart.html">
+    Quick Start
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/basic_likelihood.html">
+    Basic Likelihood
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/params_example.html">
+    Fast likelihood evaluation with Params
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/optimal_statistic.html">
+    Optimal Statistic
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/simulations.html">
+    Simulations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/cookbook_models.html">
+    Model cookbook
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/cw_extsignal_example.html">
+    Sampling a continuous-wave signal on its own Fourier basis
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/fourierpta_single_pulsar.html">
+    Fourier-domain single-pulsar analysis: marginalizing DM in step 1
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../components/noise_signals.html">
+    Noise and Signal Components
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../components/priors_spectra.html">
+    GP Priors and Spectra
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../components/delays.html">
+    Deterministic Delays
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/data_model.html">
+    Data Model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/pulsar_data.html">
+    Pulsar Data
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../advanced/conditional_sampling.html">
+    Conditional Sampling of GP Coefficients
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../advanced/single_precision.html">
+    Single-precision likelihoods (and the reference–delta trick)
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../metamatrix.html">
+    Metamatrix: graph-based kernels
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../examples.html">
+    Examples
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">discovery.fourierpta</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for discovery.fourierpta</h1><div class="highlight"><pre>
+<span></span><span class="sa">r</span><span class="sd">"""Fourier-domain PTA likelihood (Valtolina &amp; van Haasteren 2025, "VvH25"), with the</span>
+<span class="sd">Gaussian-mixture and normalizing-flow generalizations, built on the standard discovery</span>
+<span class="sd">likelihoods.</span>
+
+<span class="sd">The analysis has two steps.</span>
+
+<span class="sd">**Step 1, per pulsar.** Fix the pulsar's red-noise spectrum at a reference</span>
+<span class="sd">:math:`\boldsymbol\eta_0` and summarize what its data say about the red-noise Fourier</span>
+<span class="sd">coefficients :math:`\mathbf a`, with every other noise process (timing model, white</span>
+<span class="sd">noise, ECORR, DM and other chromatic GPs, ...) marginalized:</span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">    p(\mathbf a \mid \delta t, \boldsymbol\eta_0) \approx</span>
+<span class="sd">    \mathcal N(\mathbf a \mid \hat{\mathbf a}_0, \boldsymbol\Sigma_0)</span>
+<span class="sd">    \qquad \text{(draft Eq. 12, 14)}.</span>
+
+<span class="sd">:func:`summarize_pulsar` computes this from a ``PulsarLikelihood`` and returns a</span>
+<span class="sd">:class:`FourierSummary`.</span>
+
+<span class="sd">**Step 2, over the array.** Replace the reference prior</span>
+<span class="sd">:math:`\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)` by the model prior</span>
+<span class="sd">:math:`p(\mathbf a\mid\boldsymbol\eta)` (intrinsic red noise, CURN, HD, ...) and infer</span>
+<span class="sd">:math:`\boldsymbol\eta`. A :class:`FourierSummary` doubles as a *stand-in pulsar* whose</span>
+<span class="sd">ordinary pulsar likelihood is exactly the step-2 likelihood, so step 2 uses the</span>
+<span class="sd">standard ``makecommongp_fourier`` / ``makeglobalgp_fourier`` / ``ArrayLikelihood``</span>
+<span class="sd">machinery unchanged. See :class:`FourierSummary` for how, and why it works.</span>
+
+<span class="sd">Non-Gaussian summaries (draft Sec. 2.3-2.5) enter as a per-pulsar correction term,</span>
+<span class="sd">:func:`makecorrection`, on the sampled coefficients; for priors that do not couple</span>
+<span class="sd">pulsars, the Gaussian-mixture version can also be marginalized analytically,</span>
+<span class="sd">:func:`mixture_logL`.</span>
+
+<span class="sd">.. note::</span>
+
+<span class="sd">    "VvH25" is Valtolina &amp; van Haasteren, Phys. Rev. D 112, 043046 (2025). Equation,</span>
+<span class="sd">    section and appendix numbers ("draft Eq. N") refer to the draft of Tresnjic &amp;</span>
+<span class="sd">    Meyers, *Capturing Non-Gaussianities in the Fourier-domain based Pulsar Timing</span>
+<span class="sd">    Array Likelihood* (version of 7 October 2026), and will change with it.</span>
+<span class="sd">"""</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">dataclasses</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">_kernels</span> <span class="k">as</span> <span class="n">kernels</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">signals</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
+
+
+<div class="viewcode-block" id="FourierSummary">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.FourierSummary">[docs]</a>
+<span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FourierSummary</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Step-1 summary of one pulsar, which doubles as a stand-in pulsar for step 2.</span>
+
+<span class="sd">    **What it holds.** The Gaussian summary of the pulsar's red-noise Fourier</span>
+<span class="sd">    coefficients :math:`\mathbf a` (length :math:`n = 2N_f`) at the reference spectrum</span>
+<span class="sd">    :math:`\boldsymbol\varphi_0 = \boldsymbol\varphi(\boldsymbol\eta_0)`,</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        p(\mathbf a \mid \delta t, \boldsymbol\eta_0) \approx</span>
+<span class="sd">        \mathcal N(\mathbf a \mid \hat{\mathbf a}_0, \boldsymbol\Sigma_0),</span>
+
+<span class="sd">    stored as ``ahat0`` and the precision ``Sigma0_inv``; the reference prior variances</span>
+<span class="sd">    ``phi0``; optionally the per-sample conditionals that make up the Gaussian-mixture</span>
+<span class="sd">    generalization (``ahat_samples``, ``Sigma_samples``) and a non-Gaussian ``density``;</span>
+<span class="sd">    and the step-1 log-evidence ``logL0``. Build one with :func:`summarize_pulsar`.</span>
+
+<span class="sd">    **The stand-in pulsar.** Step 2 swaps the reference prior for the model prior. As a</span>
+<span class="sd">    function of :math:`\mathbf a`, the summary with the reference prior divided out is a</span>
+<span class="sd">    quadratic,</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \log\mathcal N(\mathbf a\mid\hat{\mathbf a}_0,\boldsymbol\Sigma_0)</span>
+<span class="sd">        - \log\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)</span>
+<span class="sd">        = -\tfrac12\,\mathbf a^\top \mathbf M\,\mathbf a + \mathbf a^\top \mathbf b_0 + \text{const},</span>
+<span class="sd">        \qquad</span>
+<span class="sd">        \mathbf M = \boldsymbol\Sigma_0^{-1} - \boldsymbol\varphi_0^{-1},\quad</span>
+<span class="sd">        \mathbf b_0 = \boldsymbol\Sigma_0^{-1}\hat{\mathbf a}_0</span>
+
+<span class="sd">    (``TtNT`` and ``b0``). An ordinary pulsar with residuals :math:`\mathbf y`, design</span>
+<span class="sd">    matrix :math:`\mathbf F` and white noise :math:`\mathbf N` has exactly the same form,</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \log p(\mathbf y\mid\mathbf a)</span>
+<span class="sd">        = -\tfrac12(\mathbf y-\mathbf F\mathbf a)^\top\mathbf N^{-1}(\mathbf y-\mathbf F\mathbf a) + \text{const}</span>
+<span class="sd">        = -\tfrac12\,\mathbf a^\top(\mathbf F^\top\mathbf N^{-1}\mathbf F)\,\mathbf a</span>
+<span class="sd">          + \mathbf a^\top(\mathbf F^\top\mathbf N^{-1}\mathbf y) + \text{const},</span>
+
+<span class="sd">    and the step-2 likelihood only ever sees the data through</span>
+<span class="sd">    :math:`\mathbf F^\top\mathbf N^{-1}\mathbf F` and :math:`\mathbf F^\top\mathbf N^{-1}\mathbf y`</span>
+<span class="sd">    (plus constants). So it is enough to find stand-in data with</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \mathbf F^\top\mathbf N^{-1}\mathbf F = \mathbf M, \qquad</span>
+<span class="sd">        \mathbf F^\top\mathbf N^{-1}\mathbf y = \mathbf b_0 .</span>
+
+<span class="sd">    With unit noise this asks for a "square root" of :math:`\mathbf M`. Diagonalize</span>
+<span class="sd">    :math:`\mathbf M = \mathbf U\boldsymbol\Lambda\mathbf U^\top` and take</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \mathbf F = \boldsymbol\Lambda^{1/2}\mathbf U^\top</span>
+<span class="sd">        \;\Rightarrow\; \mathbf F^\top\mathbf F = \mathbf U\boldsymbol\Lambda\mathbf U^\top = \mathbf M,</span>
+<span class="sd">        \qquad</span>
+<span class="sd">        \mathbf y = \boldsymbol\Lambda^{-1/2}\mathbf U^\top\mathbf b_0</span>
+<span class="sd">        \;\Rightarrow\; \mathbf F^\top\mathbf y</span>
+<span class="sd">        = \mathbf U\boldsymbol\Lambda^{1/2}\boldsymbol\Lambda^{-1/2}\mathbf U^\top\mathbf b_0 = \mathbf b_0 .</span>
+
+<span class="sd">    In pulsar terms, each stand-in "TOA" :math:`y_i` is one eigen-combination</span>
+<span class="sd">    :math:`\mathbf u_i^\top\mathbf a` of Fourier coefficients, measured with precision</span>
+<span class="sd">    :math:`\lambda_i`. Everything after that is ordinary discovery: the stand-in gets the</span>
+<span class="sd">    same red-noise / common / HD GPs as a real pulsar (their bases served by</span>
+<span class="sd">    :func:`summarybasis`), and ``logL`` marginalizes the coefficients (draft Eq. 18) while</span>
+<span class="sd">    ``clogL`` samples them (draft Eq. 16), with decentering, anisotropic ORFs, mixed arrays of</span>
+<span class="sd">    summaries and time-domain pulsars, etc. all working as usual. A Cholesky factor of</span>
+<span class="sd">    :math:`\mathbf M` would do as well; the eigendecomposition is used because it handles</span>
+<span class="sd">    the two awkward cases cleanly:</span>
+
+<span class="sd">    - :math:`\lambda_i \approx 0`: a combination of coefficients the data do not constrain</span>
+<span class="sd">      at all -- for instance the lowest frequencies of a pulsar shorter than the array</span>
+<span class="sd">      span, which the timing model absorbs. Its row of :math:`\mathbf F` would be zero</span>
+<span class="sd">      and :math:`y_i = 0/0`, so it is dropped (eigenvalues below ``rtol`` times the</span>
+<span class="sd">      largest are roundoff). :math:`\mathbf b_0` should have no component along it; a</span>
+<span class="sd">      warning is raised if it does by enough to matter.</span>
+<span class="sd">    - :math:`\lambda_i &lt; 0`: :math:`\mathbf M` has no real square root. This happens when</span>
+<span class="sd">      the reference prior is *narrower* than the summary in some direction, i.e.</span>
+<span class="sd">      :math:`\boldsymbol\eta_0` is too quiet. The prior swap is importance sampling from</span>
+<span class="sd">      :math:`\boldsymbol\varphi_0` to :math:`\boldsymbol\varphi(\boldsymbol\eta)`, which</span>
+<span class="sd">      needs :math:`\boldsymbol\varphi_0` broader than anything step 2 explores; an error</span>
+<span class="sd">      is raised. A louder :math:`\boldsymbol\eta_0` is always valid (just less efficient).</span>
+
+<span class="sd">    **Normalization.** The stand-in's white noise is :math:`\mathbf N = s\,\mathbf I` (with</span>
+<span class="sd">    :math:`\mathbf F` and :math:`\mathbf y` scaled by :math:`\sqrt s`), which leaves the two</span>
+<span class="sd">    arrays above unchanged but adds :math:`-\tfrac r2\log s` to the log-likelihood</span>
+<span class="sd">    (:math:`r` = number of kept eigenvalues). The scale :math:`s` (``noise``) is chosen so</span>
+<span class="sd">    that the stand-in's likelihoods are *exactly*, not just up to a constant,</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \texttt{logL}(\boldsymbol\eta)</span>
+<span class="sd">        = \log p(\delta t\mid\boldsymbol\eta) - \log p(\delta t\mid\boldsymbol\eta_0)</span>
+<span class="sd">        = \log\!\int\! d\mathbf a\;</span>
+<span class="sd">          \mathcal N(\mathbf a\mid\hat{\mathbf a}_0,\boldsymbol\Sigma_0)\,</span>
+<span class="sd">          \frac{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi(\boldsymbol\eta))}</span>
+<span class="sd">               {\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)},</span>
+
+<span class="sd">    and correspondingly for ``clogL`` -- in discovery's convention, which omits factors</span>
+<span class="sd">    of :math:`2\pi`, the same as for real pulsars. The step-1 log-evidence</span>
+<span class="sd">    :math:`\log p(\delta t\mid\boldsymbol\eta_0)` is ``logL0``: known exactly at fixed</span>
+<span class="sd">    noise (then summaries plus :math:`\sum_p` ``logL0`` reproduce the time-domain array</span>
+<span class="sd">    likelihood, constant included), and 0 when step 1 marginalized noise parameters by</span>
+<span class="sd">    sampling (step-2 numbers are then relative to :math:`\boldsymbol\eta_0`, which is</span>
+<span class="sd">    exact for Bayes factors between step-2 models built on the same summaries). It is</span>
+<span class="sd">    kept separate because it is far too large (:math:`\sim 10^5` for a real pulsar) to</span>
+<span class="sd">    fold into :math:`s`.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Step 1 at fixed white noise, with DM marginalized as a GP with fixed</span>
+<span class="sd">    hyperparameters (pass arrays of samples for any parameter to marginalize over it</span>
+<span class="sd">    by sampling instead):</span>
+
+<span class="sd">    &gt;&gt;&gt; import discovery as ds</span>
+<span class="sd">    &gt;&gt;&gt; from discovery import fourierpta as fpta</span>
+<span class="sd">    &gt;&gt;&gt; ds.config(kernels='metamath')</span>
+<span class="sd">    &gt;&gt;&gt; T = ds.getspan(psrs)</span>
+<span class="sd">    &gt;&gt;&gt; psl = ds.PulsarLikelihood([psr.residuals,</span>
+<span class="sd">    ...                            ds.makenoise_measurement(psr, psr.noisedict),</span>
+<span class="sd">    ...                            ds.makegp_timing(psr, svd=True),</span>
+<span class="sd">    ...                            ds.makegp_fourier(psr, ds.powerlaw, 30, T=T,</span>
+<span class="sd">    ...                                              fourierbasis=ds.dmfourierbasis, name='dm_gp'),</span>
+<span class="sd">    ...                            ds.makegp_fourier(psr, ds.powerlaw, 30, T=T, name='red_noise')])</span>
+<span class="sd">    &gt;&gt;&gt; eta0 = {f'{psr.name}_red_noise_log10_A': -11.1, f'{psr.name}_red_noise_gamma': 3.0}</span>
+<span class="sd">    &gt;&gt;&gt; summary = fpta.summarize_pulsar(psr, psl, {**psr.noisedict, **dm_params, **eta0})</span>
+
+<span class="sd">    The stand-in pulsar is just data:</span>
+
+<span class="sd">    &gt;&gt;&gt; summary.residuals.shape, summary.Fmat.shape     # (r,), (r, n); r = n unless directions dropped</span>
+<span class="sd">    &gt;&gt;&gt; np.allclose(summary.Fmat.T @ summary.Fmat / summary.noise, summary.TtNT)</span>
+<span class="sd">    True</span>
+
+<span class="sd">    Step 2, single pulsar (Gaussian summary, coefficients marginalized):</span>
+
+<span class="sd">    &gt;&gt;&gt; rn = ds.makegp_fourier(summary, ds.powerlaw, 30, T=T, fourierbasis=fpta.summarybasis,</span>
+<span class="sd">    ...                        name='red_noise')</span>
+<span class="sd">    &gt;&gt;&gt; psl2 = ds.PulsarLikelihood([summary.residuals, fpta.makenoise_summary(summary), rn])</span>
+<span class="sd">    &gt;&gt;&gt; psl2.logL(params)          # log p(dt | eta) - log p(dt | eta0)</span>
+
+<span class="sd">    Step 2, array with Hellings-Downs (any mix of summaries and real pulsars):</span>
+
+<span class="sd">    &gt;&gt;&gt; pls = [ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s)]) for s in summaries]</span>
+<span class="sd">    &gt;&gt;&gt; irn = ds.makecommongp_fourier(summaries, ds.powerlaw, 30, T,</span>
+<span class="sd">    ...                               fourierbasis=fpta.summarybasis, name='red_noise')</span>
+<span class="sd">    &gt;&gt;&gt; gw = ds.makeglobalgp_fourier(summaries, ds.powerlaw, ds.hd_orf, 14, T,</span>
+<span class="sd">    ...                              fourierbasis=fpta.summarybasis, name='gw')</span>
+<span class="sd">    &gt;&gt;&gt; like = ds.ArrayLikelihood(pls, commongp=irn, globalgp=gw, decenter=True)</span>
+<span class="sd">    &gt;&gt;&gt; like.clogL(params)         # (log-density, physical coefficients)</span>
+
+<span class="sd">    With a non-Gaussian summary density (here the Gaussian mixture of the step-1</span>
+<span class="sd">    conditionals), add the correction term to each stand-in pulsar:</span>
+
+<span class="sd">    &gt;&gt;&gt; summary.density = summary.mixture(512)</span>
+<span class="sd">    &gt;&gt;&gt; psl2 = ds.PulsarLikelihood([summary.residuals, fpta.makenoise_summary(summary),</span>
+<span class="sd">    ...                             fpta.makecorrection(summary)])</span>
+<span class="sd">    """</span>
+
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">f</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>            <span class="c1"># frequency of each coefficient (sin/cos repeated), length n</span>
+    <span class="n">df</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>           <span class="c1"># frequency bin width of each coefficient, length n</span>
+    <span class="n">ahat0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>        <span class="c1"># mean of a, length n</span>
+    <span class="n">Sigma0_inv</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>   <span class="c1"># precision of a, (n, n)</span>
+    <span class="n">phi0</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>         <span class="c1"># reference prior variance of a, length n (diagonal)</span>
+
+    <span class="c1"># per-sample conditionals (ahat(theta_k), Sigma(theta_k)) when step 1 averaged</span>
+    <span class="c1"># over noise samples; these are the components of the GMM generalization</span>
+    <span class="n">ahat_samples</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>    <span class="c1"># (K, n)</span>
+    <span class="n">Sigma_samples</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># (K, n, n)</span>
+
+    <span class="c1"># non-Gaussian replacement q(y) for N(y | 0, I) in the whitened coordinates</span>
+    <span class="c1"># y = L0^-1 (a - ahat0): anything with `log_prob(y)`, e.g. `self.mixture(K)` or a</span>
+    <span class="c1"># trained flowjax flow. None keeps the Gaussian summary (VvH25).</span>
+    <span class="n">density</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># log p(dt | eta0), the step-1 log-evidence at the reference spectrum, in</span>
+    <span class="c1"># discovery's convention (PulsarLikelihood.logL); 0 if unknown. Step-2</span>
+    <span class="c1"># likelihoods are relative to it -- add it for absolute evidences.</span>
+    <span class="n">logL0</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="c1"># eigenvalues of TtNT below rtol * max are roundoff, treated as zero (the</span>
+    <span class="c1"># stand-in data then have fewer than n entries)</span>
+    <span class="n">rtol</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-14</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ncoeff</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Number of Fourier coefficients :math:`n = 2N_f` (a sine and a cosine per frequency)."""</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ahat0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Number of frequencies :math:`N_f`."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ncoeff</span> <span class="o">//</span> <span class="mi">2</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">T</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Span :math:`T` of the Fourier basis (the frequencies are :math:`f_j = j/T`)."""</span>
+        <span class="k">return</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">b0</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">""":math:`\mathbf b_0 = \boldsymbol\Sigma_0^{-1}\hat{\mathbf a}_0`, which plays the role of</span>
+<span class="sd">        :math:`\mathbf F^\top\mathbf N^{-1}\delta t` for the stand-in pulsar."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Sigma0_inv</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">ahat0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">TtNT</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">""":math:`\mathbf M = \boldsymbol\Sigma_0^{-1} - \boldsymbol\varphi_0^{-1}`, which plays the</span>
+<span class="sd">        role of :math:`\mathbf F^\top\mathbf N^{-1}\mathbf F` for the stand-in pulsar: the</span>
+<span class="sd">        information the data add to the reference prior."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">Sigma0_inv</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">Sigma0</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Summary covariance :math:`\boldsymbol\Sigma_0` (the inverse of ``Sigma0_inv``)."""</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Sigma0_inv</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">L0</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">""":math:`\mathbf L_0 = \operatorname{chol}(\boldsymbol\Sigma_0)`, the whitening</span>
+<span class="sd">        :math:`\mathbf y = \mathbf L_0^{-1}(\mathbf a - \hat{\mathbf a}_0)` under which the Gaussian</span>
+<span class="sd">        summary is :math:`\mathcal N(\mathbf y\mid 0,\mathbf I)`, and in which non-Gaussian</span>
+<span class="sd">        densities ``density`` are defined."""</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Sigma0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FourierSummary.mixture">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.FourierSummary.mixture">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mixture</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""The Gaussian-mixture generalization of the summary (draft Eq. 19, A8),</span>
+
+<span class="sd">        .. math::</span>
+
+<span class="sd">            q(\mathbf a) = \frac1K\sum_{k=1}^K</span>
+<span class="sd">            \mathcal N\big(\mathbf a\mid\hat{\mathbf a}(\boldsymbol\theta_k),\boldsymbol\Sigma(\boldsymbol\theta_k)\big),</span>
+
+<span class="sd">        the equally weighted per-sample conditionals from step 1, returned as a</span>
+<span class="sd">        :class:`GaussianMixture` in the whitened coordinates :math:`\mathbf y` (see ``L0``).</span>
+<span class="sd">        With ``K``, use ``K`` samples spaced evenly through the step-1 samples; the</span>
+<span class="sd">        non-Gaussian tails are carried by rare components, so ``K`` needs checking."""</span>
+        <span class="n">ahat</span><span class="p">,</span> <span class="n">Sigma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_components</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>
+        <span class="n">Linv0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">L0</span><span class="p">)</span>
+
+        <span class="n">mu</span> <span class="o">=</span> <span class="p">(</span><span class="n">ahat</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">ahat0</span><span class="p">)</span> <span class="o">@</span> <span class="n">Linv0</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="n">Linv0</span> <span class="o">@</span> <span class="n">Sigma</span> <span class="o">@</span> <span class="n">Linv0</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">return</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">C</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">C</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))))</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""The per-sample conditionals (ahat_k, Sigma_k): all of them, or K spaced evenly</span>
+<span class="sd">        through the step-1 samples."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ahat_samples</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: no per-sample conditionals; summarize over noise samples first."</span><span class="p">)</span>
+
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ahat_samples</span><span class="p">))</span> <span class="k">if</span> <span class="n">K</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> \
+              <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ahat_samples</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">K</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ahat_samples</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">Sigma_samples</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_standin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s1">'_standin_cache'</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+            <span class="n">lam</span><span class="p">,</span> <span class="n">U</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">TtNT</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">lam</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">rtol</span> <span class="o">*</span> <span class="n">lam</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: Sigma0^-1 - phi0^-1 has a negative eigenvalue "</span>
+                    <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">lam</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.3e</span><span class="si">}</span><span class="s2">, largest </span><span class="si">{</span><span class="n">lam</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.3e</span><span class="si">}</span><span class="s2">). The data constrain some "</span>
+                    <span class="s2">"combination of coefficients less than the reference prior phi0 does; "</span>
+                    <span class="s2">"choose a reference spectrum eta0 with more power."</span><span class="p">)</span>
+
+            <span class="c1"># Directions with lam ~ 0 are combinations of coefficients the data do not</span>
+            <span class="c1"># constrain at all (e.g. low frequencies degenerate with the timing model in</span>
+            <span class="c1"># a pulsar shorter than T). They are dropped; b0 should have no component</span>
+            <span class="c1"># along them, and what component it has could shift the likelihood by up</span>
+            <span class="c1"># to ~ (b0 . u)^2 / (2 lam_cut).</span>
+            <span class="n">cut</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rtol</span> <span class="o">*</span> <span class="n">lam</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">keep</span> <span class="o">=</span> <span class="n">lam</span> <span class="o">&gt;</span> <span class="n">cut</span>
+            <span class="n">proj</span> <span class="o">=</span> <span class="n">U</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">b0</span>
+            <span class="n">dropped</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">proj</span><span class="p">[</span><span class="o">~</span><span class="n">keep</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">cut</span>
+            <span class="k">if</span> <span class="n">dropped</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: dropping </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">~</span><span class="n">keep</span><span class="p">)</span><span class="si">}</span><span class="s2"> unconstrained directions of "</span>
+                              <span class="sa">f</span><span class="s2">"Sigma0^-1 - phi0^-1 along which b0 is not ~0 (log-likelihood "</span>
+                              <span class="sa">f</span><span class="s2">"effect up to </span><span class="si">{</span><span class="n">dropped</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2">)."</span><span class="p">)</span>
+
+            <span class="n">lam</span><span class="p">,</span> <span class="n">U</span><span class="p">,</span> <span class="n">proj</span> <span class="o">=</span> <span class="n">lam</span><span class="p">[</span><span class="n">keep</span><span class="p">],</span> <span class="n">U</span><span class="p">[:,</span> <span class="n">keep</span><span class="p">],</span> <span class="n">proj</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span>
+            <span class="n">F</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">lam</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">U</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">proj</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">lam</span><span class="p">)</span>
+
+            <span class="c1"># Normalization. With N = s I, the stand-in's clogL is</span>
+            <span class="c1">#   -1/2 |y - F a|^2 - r/2 log s + log N(a | 0, phi),</span>
+            <span class="c1"># and we want -1/2 |y - F a|^2 - r/2 log s = log N(a | ahat0, Sigma0) - log N(a | 0, phi0)</span>
+            <span class="c1">#   = -1/2 a^T TtNT a + a^T b0 - 1/2 ahat0^T b0 - 1/2 log|Sigma0| + 1/2 log|phi0|</span>
+            <span class="c1"># (the 2 pi's cancel in the ratio). Matching the a-independent parts:</span>
+            <span class="n">logdet_Sigma0</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Sigma0_inv</span><span class="p">))))</span>
+            <span class="n">const</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ahat0</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">b0</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">logdet_Sigma0</span>
+                     <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phi0</span><span class="p">))</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">y</span> <span class="o">@</span> <span class="n">y</span><span class="p">)</span>
+            <span class="c1"># NB: discovery's likelihoods omit factors of 2 pi; if they gain them, the</span>
+            <span class="c1"># stand-in's -r/2 log s becomes -r/2 log(2 pi s), so subtract log(2 pi) here</span>
+            <span class="c1"># (test_standin_normalization and test_summaries_reproduce_time_domain_evidence</span>
+            <span class="c1"># will flag it).</span>
+            <span class="n">log_s</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">const</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+            <span class="n">sqrt_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">log_s</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s1">'_standin_cache'</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">sqrt_s</span> <span class="o">*</span> <span class="n">F</span><span class="p">,</span> <span class="n">sqrt_s</span> <span class="o">*</span> <span class="n">y</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">log_s</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s1">'_standin_cache'</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">Fmat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Stand-in design matrix :math:`\mathbf F` (:math:`r\times n`), with</span>
+<span class="sd">        :math:`\mathbf F^\top\mathbf N^{-1}\mathbf F = \mathbf M` (``TtNT``)."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standin</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">residuals</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Stand-in data :math:`\mathbf y` (length :math:`r`), with</span>
+<span class="sd">        :math:`\mathbf F^\top\mathbf N^{-1}\mathbf y = \mathbf b_0` (``b0``)."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standin</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">noise</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Stand-in white-noise variance :math:`s` (:math:`\mathbf N = s\mathbf I`); it sets the</span>
+<span class="sd">        likelihood normalization without changing :math:`\mathbf M` or :math:`\mathbf b_0`."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_standin</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="summarybasis">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.summarybasis">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">summarybasis</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Fourier basis for :class:`FourierSummary` stand-in pulsars, for the</span>
+<span class="sd">    ``fourierbasis=`` argument of ``makegp_fourier``, ``makecommongp_fourier`` and</span>
+<span class="sd">    ``makeglobalgp_fourier``.</span>
+
+<span class="sd">    For a summary, returns the frequencies and the leading :math:`2\times`</span>
+<span class="sd">    ``components`` columns of the stand-in design matrix :math:`\mathbf F`, so that a GP</span>
+<span class="sd">    with fewer components than the summary (e.g. a GWB on the lowest frequencies) acts</span>
+<span class="sd">    on the matching lowest-frequency coefficients. For any other pulsar, returns the</span>
+<span class="sd">    ordinary ``signals.fourierbasis``, so summaries and time-domain pulsars can share</span>
+<span class="sd">    one array likelihood.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    psr : FourierSummary or Pulsar</span>
+<span class="sd">    components : int</span>
+<span class="sd">        Number of frequencies :math:`N_f`; at most the summary's.</span>
+<span class="sd">    T : float, optional</span>
+<span class="sd">        Basis span; must match the summary's (checked).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    f, df, F</span>
+<span class="sd">        Frequencies and bin widths (one per coefficient, sine and cosine repeated) and</span>
+<span class="sd">        the basis, as for ``signals.fourierbasis``.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">FourierSummary</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">signals</span><span class="o">.</span><span class="n">fourierbasis</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span>
+
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">components</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="n">psr</span><span class="o">.</span><span class="n">ncoeff</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">psr</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: requested </span><span class="si">{</span><span class="n">components</span><span class="si">}</span><span class="s2"> components, summary has </span><span class="si">{</span><span class="n">psr</span><span class="o">.</span><span class="n">components</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">T</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">psr</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">psr</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: T = </span><span class="si">{</span><span class="n">T</span><span class="si">}</span><span class="s2"> does not match the summary's T = </span><span class="si">{</span><span class="n">psr</span><span class="o">.</span><span class="n">T</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">psr</span><span class="o">.</span><span class="n">f</span><span class="p">[:</span><span class="n">n</span><span class="p">],</span> <span class="n">psr</span><span class="o">.</span><span class="n">df</span><span class="p">[:</span><span class="n">n</span><span class="p">],</span> <span class="n">psr</span><span class="o">.</span><span class="n">Fmat</span><span class="p">[:,</span> <span class="p">:</span><span class="n">n</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="makenoise_summary">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.makenoise_summary">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">makenoise_summary</span><span class="p">(</span><span class="n">psr</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""White-noise kernel :math:`\mathbf N = s\,\mathbf I` for a :class:`FourierSummary`</span>
+<span class="sd">    stand-in pulsar, with :math:`s` = ``psr.noise`` (which sets the likelihood</span>
+<span class="sd">    normalization; see :class:`FourierSummary`)."""</span>
+    <span class="k">return</span> <span class="n">kernels</span><span class="o">.</span><span class="n">NoiseMatrix1D_novar</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">psr</span><span class="o">.</span><span class="n">residuals</span><span class="p">),</span> <span class="n">psr</span><span class="o">.</span><span class="n">noise</span><span class="p">))</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_find_gp</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="n">gp</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The variable GP in `psl` whose coefficient name contains `gp`, and its slice</span>
+<span class="sd">    of the conditional mean."""</span>
+    <span class="n">found</span> <span class="o">=</span> <span class="p">[(</span><span class="n">sig</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span> <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="n">psl</span><span class="o">.</span><span class="n">signals</span>
+             <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">sig</span><span class="p">,</span> <span class="s1">'index'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})</span>
+             <span class="k">if</span> <span class="sa">f</span><span class="s1">'_</span><span class="si">{</span><span class="n">gp</span><span class="si">}</span><span class="s1">_coefficients'</span> <span class="ow">in</span> <span class="n">key</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">found</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Expected exactly one GP named '</span><span class="si">{</span><span class="n">gp</span><span class="si">}</span><span class="s2">' in the likelihood, found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">found</span><span class="p">)</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+    <span class="n">sig</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="n">found</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">sig</span><span class="p">,</span> <span class="n">psl</span><span class="o">.</span><span class="n">N</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="summarize_pulsar">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.summarize_pulsar">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">summarize_pulsar</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psl</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">gp</span><span class="o">=</span><span class="s1">'red_noise'</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Step 1: the Gaussian summary of one pulsar's Fourier coefficients for the GP</span>
+<span class="sd">    ``gp``, with everything else in ``psl`` marginalized.</span>
+
+<span class="sd">    For fixed parameters :math:`\boldsymbol\theta` (and the GP's spectrum at its</span>
+<span class="sd">    reference value :math:`\boldsymbol\eta_0`) the coefficients are exactly Gaussian,</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        p(\mathbf a\mid\delta t,\boldsymbol\theta,\boldsymbol\eta_0)</span>
+<span class="sd">        = \mathcal N\big(\mathbf a\mid\hat{\mathbf a}(\boldsymbol\theta),\boldsymbol\Sigma(\boldsymbol\theta)\big),</span>
+
+<span class="sd">    the pulsar likelihood's ``conditional``, restricted to the ``gp`` block (all other</span>
+<span class="sd">    GP coefficients -- timing model, ECORR, DM, ... -- integrated out).</span>
+
+<span class="sd">    - If every value in ``params`` is a scalar, the summary is that conditional</span>
+<span class="sd">      (fixed noise).</span>
+<span class="sd">    - If some values are arrays of length :math:`K` (samples</span>
+<span class="sd">      :math:`\boldsymbol\theta_k`, typically from a step-1 sampler with the ``gp``</span>
+<span class="sd">      spectrum fixed at :math:`\boldsymbol\eta_0`), the conditionals are combined by</span>
+<span class="sd">      the law of total expectation and covariance (draft Eq. 14),</span>
+
+<span class="sd">      .. math::</span>
+
+<span class="sd">          \hat{\mathbf a}_0 = \mathbb E_k\big[\hat{\mathbf a}(\boldsymbol\theta_k)\big],</span>
+<span class="sd">          \qquad</span>
+<span class="sd">          \boldsymbol\Sigma_0 = \mathbb E_k\big[\boldsymbol\Sigma(\boldsymbol\theta_k)\big]</span>
+<span class="sd">          + \operatorname{Cov}_k\big[\hat{\mathbf a}(\boldsymbol\theta_k)\big],</span>
+
+<span class="sd">      and the per-sample pairs are kept (``ahat_samples``, ``Sigma_samples``): they are</span>
+<span class="sd">      the components of the Gaussian-mixture summary, :meth:`FourierSummary.mixture`.</span>
+
+<span class="sd">    The step-1 log-evidence :math:`\log p(\delta t\mid\boldsymbol\eta_0)` is stored as</span>
+<span class="sd">    ``logL0``: at fixed noise it is ``psl.logL(params)``; with sampled noise it is an</span>
+<span class="sd">    evidence integral over :math:`\boldsymbol\theta` that is not computed here, so</span>
+<span class="sd">    ``logL0`` is 0 and step-2 likelihoods are relative to it (exact for comparing</span>
+<span class="sd">    step-2 models built on the same summaries). Set ``summary.logL0`` if you have it.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    psr : Pulsar</span>
+<span class="sd">        The pulsar (for its name and sky position).</span>
+<span class="sd">    psl : PulsarLikelihood</span>
+<span class="sd">        Includes the GP ``gp`` (e.g. ``makegp_fourier(..., name='red_noise')``) and</span>
+<span class="sd">        whatever is to be marginalized.</span>
+<span class="sd">    params : dict</span>
+<span class="sd">        Every parameter of ``psl``, with the ``gp`` spectrum at :math:`\boldsymbol\eta_0`;</span>
+<span class="sd">        arrays of samples for parameters to average over.</span>
+<span class="sd">    gp : str</span>
+<span class="sd">        Name of the GP whose coefficients are summarized.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    FourierSummary</span>
+<span class="sd">    """</span>
+    <span class="n">sig</span><span class="p">,</span> <span class="n">sl</span> <span class="o">=</span> <span class="n">_find_gp</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="n">gp</span><span class="p">)</span>
+
+    <span class="n">cond</span> <span class="o">=</span> <span class="n">psl</span><span class="o">.</span><span class="n">conditional</span>
+    <span class="n">allparams</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">params</span><span class="p">,</span> <span class="p">{</span><span class="n">par</span><span class="p">:</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="n">par</span><span class="p">])</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">cond</span><span class="o">.</span><span class="n">params</span><span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">mean_and_cov</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+        <span class="n">mu</span><span class="p">,</span> <span class="n">cf</span> <span class="o">=</span> <span class="n">cond</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">cf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">cf</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">else</span> <span class="n">cf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">Sigma</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cho_solve</span><span class="p">((</span><span class="n">L</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="n">mu</span><span class="p">[</span><span class="n">sl</span><span class="p">],</span> <span class="n">Sigma</span><span class="p">[</span><span class="n">sl</span><span class="p">,</span> <span class="n">sl</span><span class="p">]</span>
+
+    <span class="n">sampled</span> <span class="o">=</span> <span class="p">[</span><span class="n">par</span> <span class="k">for</span> <span class="n">par</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">val</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">sampled</span><span class="p">:</span>
+        <span class="n">nsamples</span> <span class="o">=</span> <span class="p">{</span><span class="n">params</span><span class="p">[</span><span class="n">par</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">sampled</span><span class="p">}</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">nsamples</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Sampled parameters have different lengths: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">nsamples</span><span class="p">)</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
+        <span class="n">axes</span> <span class="o">=</span> <span class="p">{</span><span class="n">par</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span> <span class="k">if</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">sampled</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">params</span><span class="p">}</span>
+        <span class="n">mus</span><span class="p">,</span> <span class="n">Sigmas</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">mean_and_cov</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="n">axes</span><span class="p">,)))(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">mus</span><span class="p">,</span> <span class="n">Sigmas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">mus</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Sigmas</span><span class="p">)</span>
+
+        <span class="n">ahat0</span> <span class="o">=</span> <span class="n">mus</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">Sigma0</span> <span class="o">=</span> <span class="n">Sigmas</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">cov</span><span class="p">(</span><span class="n">mus</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">logL0</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mus</span> <span class="o">=</span> <span class="n">Sigmas</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">ahat0</span><span class="p">,</span> <span class="n">Sigma0</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">,</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">mean_and_cov</span><span class="p">)(</span><span class="n">params</span><span class="p">))</span>
+        <span class="n">logL0</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">psl</span><span class="o">.</span><span class="n">logL</span><span class="p">({</span><span class="n">par</span><span class="p">:</span> <span class="n">allparams</span><span class="p">[</span><span class="n">par</span><span class="p">]</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">psl</span><span class="o">.</span><span class="n">logL</span><span class="o">.</span><span class="n">params</span><span class="p">}))</span>
+
+    <span class="n">phi0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">Phi</span><span class="o">.</span><span class="n">getN</span><span class="p">({</span><span class="n">par</span><span class="p">:</span> <span class="n">params</span><span class="p">[</span><span class="n">par</span><span class="p">]</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">Phi</span><span class="o">.</span><span class="n">getN</span><span class="o">.</span><span class="n">params</span><span class="p">}))</span>
+    <span class="k">if</span> <span class="n">phi0</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">"Only diagonal reference priors phi0 are supported."</span><span class="p">)</span>
+
+    <span class="n">f</span><span class="p">,</span> <span class="n">df</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">f</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sig</span><span class="o">.</span><span class="n">df</span><span class="p">)</span>
+
+    <span class="n">Sigma0_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">Sigma0</span><span class="p">)</span>
+    <span class="n">Sigma0_inv</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">Sigma0_inv</span> <span class="o">+</span> <span class="n">Sigma0_inv</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">FourierSummary</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">psr</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">pos</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">psr</span><span class="o">.</span><span class="n">pos</span><span class="p">),</span> <span class="n">f</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span>
+                          <span class="n">ahat0</span><span class="o">=</span><span class="n">ahat0</span><span class="p">,</span> <span class="n">Sigma0_inv</span><span class="o">=</span><span class="n">Sigma0_inv</span><span class="p">,</span> <span class="n">phi0</span><span class="o">=</span><span class="n">phi0</span><span class="p">,</span>
+                          <span class="n">ahat_samples</span><span class="o">=</span><span class="n">mus</span><span class="p">,</span> <span class="n">Sigma_samples</span><span class="o">=</span><span class="n">Sigmas</span><span class="p">,</span> <span class="n">logL0</span><span class="o">=</span><span class="n">logL0</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Non-Gaussian corrections (draft Sec. 2.3-2.5)</span>
+<span class="c1">#</span>
+<span class="c1"># The Gaussian summary N(a | ahat0, Sigma0) is replaced by a better density q(a)</span>
+<span class="c1"># per pulsar -- a Gaussian mixture or a normalizing flow -- defined in the whitened</span>
+<span class="c1"># coordinates y = L0^-1 (a - ahat0). Step 2 then picks up, per pulsar,</span>
+<span class="c1">#</span>
+<span class="c1">#     log w(a) = log q(y) - log N(y | 0, I)                    (draft Eq. 28, 34)</span>
+<span class="c1">#</span>
+<span class="c1"># on top of the Gaussian-summary likelihood above (the Jacobians |L0| cancel). A</span>
+<span class="c1"># density is any object with a `log_prob(y)` method: a `GaussianMixture`, or a</span>
+<span class="c1"># trained flowjax distribution; `makecorrection` turns it into a term of the</span>
+<span class="c1"># summary's PulsarLikelihood.</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="GaussianMixture">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.GaussianMixture">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GaussianMixture</span><span class="p">:</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Gaussian mixture</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        q(\mathbf y) = \sum_{k=1}^K w_k\,</span>
+<span class="sd">        \mathcal N\big(\mathbf y\mid\boldsymbol\mu_k,\mathbf L_k\mathbf L_k^\top\big),</span>
+<span class="sd">        \qquad \sum_k w_k = 1,</span>
+
+<span class="sd">    usable as a :class:`FourierSummary` ``density``. :meth:`FourierSummary.mixture` builds</span>
+<span class="sd">    the equally weighted mixture of the step-1 conditionals in the whitened coordinates</span>
+<span class="sd">    :math:`\mathbf y`; :func:`reduce_mixture` merges it into fewer, unequally weighted</span>
+<span class="sd">    components.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mu : array, shape (K, d)</span>
+<span class="sd">        Component means :math:`\boldsymbol\mu_k`.</span>
+<span class="sd">    L : array, shape (K, d, d)</span>
+<span class="sd">        Lower Cholesky factors :math:`\mathbf L_k` of the component covariances.</span>
+<span class="sd">    weights : array, shape (K,), optional</span>
+<span class="sd">        Component weights :math:`w_k` (normalized here); equal if omitted.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">L</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mu</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">mu</span><span class="p">)</span>                                       <span class="c1"># (K, d)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">L</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>                                         <span class="c1"># (K, d, d) lower</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Linv</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">L</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logdet</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">diagonal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">L</span><span class="p">,</span> <span class="n">axis1</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">axis2</span><span class="o">=</span><span class="mi">2</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>   <span class="c1"># log |L_k|</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">1.0</span><span class="p">)</span> <span class="k">if</span> <span class="n">weights</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logw</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">w</span> <span class="o">/</span> <span class="n">w</span><span class="o">.</span><span class="n">sum</span><span class="p">()))</span>                   <span class="c1"># log w_k</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">K</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Number of components."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">weights</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Component weights :math:`w_k`."""</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logw</span><span class="p">)</span>
+
+<div class="viewcode-block" id="GaussianMixture.log_prob">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.GaussianMixture.log_prob">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_prob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">""":math:`\log q(\mathbf y)`. The mixture is a sum of probabilities, so the log is a</span>
+<span class="sd">        log-sum-exp over the components' weighted log-densities</span>
+<span class="sd">        :math:`\log w_k - \tfrac12|\mathbf L_k^{-1}(\mathbf y-\boldsymbol\mu_k)|^2 - \log|\mathbf L_k|`</span>
+<span class="sd">        (computed stably), minus the shared :math:`\tfrac d2\log 2\pi`."""</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'kij,kj-&gt;ki'</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">Linv</span><span class="p">,</span> <span class="n">y</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logw</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">z</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">logdet</span><span class="p">)</span>
+                <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="GaussianMixture.sample">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.GaussianMixture.sample">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""``n`` draws from the mixture: a component by weight, then a Gaussian draw from it."""</span>
+        <span class="n">kc</span><span class="p">,</span> <span class="n">kz</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">categorical</span><span class="p">(</span><span class="n">kc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">logw</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">n</span><span class="p">,))</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">kz</span><span class="p">,</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mu</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+</span> <span class="n">jnp</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'nij,nj-&gt;ni'</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">L</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">z</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_merge_cost</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">logdetC</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Runnalls' upper bound on the KL cost of merging component i with each of idx:</span>
+<span class="sd">    B = 1/2 [(w_i + w_j) log|C_ij| - w_i log|C_i| - w_j log|C_j|], with C_ij the</span>
+<span class="sd">    moment-preserving merge."""</span>
+    <span class="n">wi</span><span class="p">,</span> <span class="n">wj</span> <span class="o">=</span> <span class="n">w</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">w</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+    <span class="n">wij</span> <span class="o">=</span> <span class="n">wi</span> <span class="o">+</span> <span class="n">wj</span>
+    <span class="n">dmu</span> <span class="o">=</span> <span class="n">mu</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">-</span> <span class="n">mu</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">Cij</span> <span class="o">=</span> <span class="p">((</span><span class="n">wi</span> <span class="o">*</span> <span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">])[</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">wj</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">C</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span> <span class="o">/</span> <span class="n">wij</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> \
+          <span class="o">+</span> <span class="p">(</span><span class="n">wi</span> <span class="o">*</span> <span class="n">wj</span> <span class="o">/</span> <span class="n">wij</span><span class="o">**</span><span class="mi">2</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">dmu</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">dmu</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">logdetCij</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diagonal</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">Cij</span><span class="p">),</span> <span class="n">axis1</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">axis2</span><span class="o">=</span><span class="mi">2</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">wij</span> <span class="o">*</span> <span class="n">logdetCij</span> <span class="o">-</span> <span class="n">wi</span> <span class="o">*</span> <span class="n">logdetC</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">wj</span> <span class="o">*</span> <span class="n">logdetC</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="reduce_mixture">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.reduce_mixture">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">reduce_mixture</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'runnalls'</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Reduce a Gaussian mixture to ``K`` components (the reduction announced in</span>
+<span class="sd">    draft Sec. 2.3).</span>
+
+<span class="sd">    ``method='runnalls'`` (Runnalls 2007, IEEE Trans. Aerosp. Electron. Syst. 43, 989;</span>
+<span class="sd">    the method used by A. Tresnjic) greedily merges the pair of components with the smallest upper bound on the</span>
+<span class="sd">    Kullback-Leibler cost of merging,</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        B_{ij} = \tfrac12\big[(w_i + w_j)\log|\mathbf C_{ij}| - w_i\log|\mathbf C_i| - w_j\log|\mathbf C_j|\big],</span>
+
+<span class="sd">    replacing them by the single Gaussian with the same total weight, mean and</span>
+<span class="sd">    covariance,</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        w_{ij} = w_i + w_j,\quad</span>
+<span class="sd">        \boldsymbol\mu_{ij} = \frac{w_i\boldsymbol\mu_i + w_j\boldsymbol\mu_j}{w_{ij}},\quad</span>
+<span class="sd">        \mathbf C_{ij} = \frac{w_i\mathbf C_i + w_j\mathbf C_j}{w_{ij}}</span>
+<span class="sd">          + \frac{w_i w_j}{w_{ij}^2}(\boldsymbol\mu_i-\boldsymbol\mu_j)(\boldsymbol\mu_i-\boldsymbol\mu_j)^\top .</span>
+
+<span class="sd">    Each merge preserves the mixture's overall mean and covariance, so the reduced</span>
+<span class="sd">    mixture always has the same first two moments; what is lost is shape (tails,</span>
+<span class="sd">    skewness). The Kullback-Leibler divergence is unchanged by affine changes of</span>
+<span class="sd">    coordinates, so the reduction can be done directly in the whitened coordinates.</span>
+<span class="sd">    Check the loss with :func:`mixture_kl`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    q : GaussianMixture</span>
+<span class="sd">    K : int</span>
+<span class="sd">        Number of components to keep.</span>
+<span class="sd">    method : {'runnalls'}</span>
+<span class="sd">        Reduction method.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    GaussianMixture</span>
+<span class="sd">        With unequal weights.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">'runnalls'</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_reduce_runnalls</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">K</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unknown mixture reduction method '</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">'."</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_reduce_runnalls</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">K</span><span class="p">):</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">weights</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">mu</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">L</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">C</span> <span class="o">=</span> <span class="n">L</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">logdetC</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">logdet</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">alive</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+
+    <span class="c1"># cost[i, j] for j &gt; i, i.e. each pair once; recomputed for a merged component only</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+    <span class="n">cost</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">cost</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">=</span> <span class="n">_merge_cost</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">logdetC</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">K</span><span class="p">):</span>
+        <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">cost</span><span class="p">),</span> <span class="n">cost</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">wij</span> <span class="o">=</span> <span class="n">w</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">w</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">dmu</span> <span class="o">=</span> <span class="n">mu</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">mu</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">w</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">C</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="o">/</span> <span class="n">wij</span> <span class="o">+</span> <span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">w</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">/</span> <span class="n">wij</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">dmu</span><span class="p">,</span> <span class="n">dmu</span><span class="p">)</span>
+        <span class="n">mu</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">mu</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">w</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*</span> <span class="n">mu</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="o">/</span> <span class="n">wij</span>
+        <span class="n">w</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">wij</span>
+        <span class="n">logdetC</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">]))))</span>
+
+        <span class="n">alive</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">cost</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">cost</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="n">others</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">alive</span><span class="p">)</span>
+        <span class="n">others</span> <span class="o">=</span> <span class="n">others</span><span class="p">[</span><span class="n">others</span> <span class="o">!=</span> <span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">others</span><span class="p">):</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">_merge_cost</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span> <span class="n">C</span><span class="p">,</span> <span class="n">logdetC</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">others</span><span class="p">)</span>
+            <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span> <span class="o">=</span> <span class="n">others</span> <span class="o">&lt;</span> <span class="n">i</span><span class="p">,</span> <span class="n">others</span> <span class="o">&gt;</span> <span class="n">i</span>
+            <span class="n">cost</span><span class="p">[</span><span class="n">others</span><span class="p">[</span><span class="n">lo</span><span class="p">],</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="n">lo</span><span class="p">]</span>
+            <span class="n">cost</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">others</span><span class="p">[</span><span class="n">hi</span><span class="p">]]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="n">hi</span><span class="p">]</span>
+
+    <span class="n">keep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">alive</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">GaussianMixture</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="n">keep</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">C</span><span class="p">[</span><span class="n">keep</span><span class="p">]),</span> <span class="n">weights</span><span class="o">=</span><span class="n">w</span><span class="p">[</span><span class="n">keep</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="mixture_kl">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.mixture_kl">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mixture_kl</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">10000</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Monte Carlo estimate of the Kullback-Leibler divergence</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        D_\mathrm{KL}(p\,\|\,q) = \mathbb E_{\mathbf y\sim p}\big[\log p(\mathbf y) - \log q(\mathbf y)\big]</span>
+
+<span class="sd">    from ``n`` draws of ``p``, e.g. between a full mixture and a reduced one</span>
+<span class="sd">    (:func:`reduce_mixture`). Returns ``(estimate, standard error)``.</span>
+<span class="sd">    """</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">log_prob</span><span class="p">)(</span><span class="n">y</span><span class="p">)</span> <span class="o">-</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">log_prob</span><span class="p">)(</span><span class="n">y</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">mean</span><span class="p">()),</span> <span class="nb">float</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">n</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="SummaryCorrection">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.SummaryCorrection">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SummaryCorrection</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">CoefficientTerm</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""The non-Gaussian correction :math:`\log w(\mathbf a)` of one :class:`FourierSummary`,</span>
+<span class="sd">    as a coefficient term of its stand-in ``PulsarLikelihood``. Build it with</span>
+<span class="sd">    :func:`makecorrection`."""</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">summary</span><span class="p">,</span> <span class="n">density</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="n">summary</span><span class="o">.</span><span class="n">ncoeff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ahat0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">summary</span><span class="o">.</span><span class="n">ahat0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Linv0</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">summary</span><span class="o">.</span><span class="n">L0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">density</span> <span class="o">=</span> <span class="n">density</span>
+
+<div class="viewcode-block" id="SummaryCorrection.logL">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.SummaryCorrection.logL">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">logL</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cs</span><span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">""":math:`\log w(\mathbf a)` at the pulsar's physical GP coefficients ``cs``</span>
+<span class="sd">        ({name: vector}), with :math:`\mathbf a = \sum_g [\mathbf c_g, 0, \ldots]`."""</span>
+        <span class="c1"># every GP on a stand-in pulsar covers the summary's lowest frequencies, so</span>
+        <span class="c1"># the summary coefficients are the sum of the GP blocks, a = sum_g [c_g, 0...]</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">-</span> <span class="n">c</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cs</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Linv0</span> <span class="o">@</span> <span class="p">(</span><span class="n">a</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">ahat0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">density</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">y</span> <span class="o">@</span> <span class="n">y</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="makecorrection">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.makecorrection">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">makecorrection</span><span class="p">(</span><span class="n">summary</span><span class="p">,</span> <span class="n">density</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""The non-Gaussian correction term for a :class:`FourierSummary` stand-in pulsar,</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \log w(\mathbf a) = \log q(\mathbf y) - \log\mathcal N(\mathbf y\mid 0,\mathbf I),</span>
+<span class="sd">        \qquad \mathbf y = \mathbf L_0^{-1}(\mathbf a - \hat{\mathbf a}_0)</span>
+<span class="sd">        \qquad \text{(draft Eq. 28, 34)},</span>
+
+<span class="sd">    which turns the Gaussian-summary target into the one with summary density</span>
+<span class="sd">    :math:`q` = ``density`` (default ``summary.density``): the Gaussian</span>
+<span class="sd">    :math:`\mathcal N(\mathbf a\mid\hat{\mathbf a}_0,\boldsymbol\Sigma_0)` already in the</span>
+<span class="sd">    stand-in likelihood is divided out and :math:`q` multiplied in. The whitening</span>
+<span class="sd">    Jacobian :math:`|\mathbf L_0|` cancels in the ratio.</span>
+
+<span class="sd">    Include it among the stand-in pulsar's components,</span>
+
+<span class="sd">    &gt;&gt;&gt; ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), ..., fpta.makecorrection(s)])</span>
+
+<span class="sd">    and ``clogL`` -- of the pulsar, or of any ``ArrayLikelihood`` containing it -- adds</span>
+<span class="sd">    it at the sampled *physical* coefficients (after any decentering, whose Jacobian</span>
+<span class="sd">    is accounted for separately). The marginalized ``logL`` does not see it: a</span>
+<span class="sd">    non-Gaussian correction cannot be integrated out analytically, except for the</span>
+<span class="sd">    Gaussian mixture without inter-pulsar correlations (:func:`mixture_logL`).</span>
+<span class="sd">    """</span>
+    <span class="n">density</span> <span class="o">=</span> <span class="n">summary</span><span class="o">.</span><span class="n">density</span> <span class="k">if</span> <span class="n">density</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">density</span>
+    <span class="k">if</span> <span class="n">density</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">summary</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: no density to correct with; set summary.density or pass one."</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">SummaryCorrection</span><span class="p">(</span><span class="n">summary</span><span class="p">,</span> <span class="n">density</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="mixture_logL">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.mixture_logL">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mixture_logL</span><span class="p">(</span><span class="n">summaries</span><span class="p">,</span> <span class="n">commongp</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Marginalized step-2 likelihood with the Gaussian-mixture summary (draft Eq. 21),</span>
+<span class="sd">    for priors that do not correlate pulsars (SPNA, IRN, CURN), where it factorizes</span>
+<span class="sd">    over pulsars.</span>
+
+<span class="sd">    Per pulsar, each component :math:`k` is a Gaussian summary</span>
+<span class="sd">    :math:`\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)`, whose evidence</span>
+<span class="sd">    against the prior swap :math:`\boldsymbol\varphi_0\to\boldsymbol\varphi(\boldsymbol\eta)`</span>
+<span class="sd">    is analytic:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \log Z_k = \tfrac12\mathbf b_k^\top\mathbf P_k^{-1}\mathbf b_k</span>
+<span class="sd">                  - \tfrac12\hat{\mathbf a}_k^\top\mathbf b_k</span>
+<span class="sd">                  - \tfrac12\log|\boldsymbol\Sigma_k| - \tfrac12\log|\mathbf P_k|</span>
+<span class="sd">                  - \tfrac12\log|\boldsymbol\varphi| + \tfrac12\log|\boldsymbol\varphi_0|,</span>
+<span class="sd">        \qquad</span>
+<span class="sd">        \mathbf P_k = \boldsymbol\Sigma_k^{-1} + \boldsymbol\varphi^{-1} - \boldsymbol\varphi_0^{-1},\quad</span>
+<span class="sd">        \mathbf b_k = \boldsymbol\Sigma_k^{-1}\hat{\mathbf a}_k .</span>
+
+<span class="sd">    The pulsar contributes :math:`\operatorname{logsumexp}_k (\log w_k + \log Z_k)` plus its</span>
+<span class="sd">    step-1 log-evidence ``logL0``, normalized like the stand-in likelihoods of</span>
+<span class="sd">    :class:`FourierSummary`. Each call costs one Cholesky factorization per component.</span>
+<span class="sd">    With HD (which couples pulsars) use ``clogL`` with :func:`makecorrection` terms</span>
+<span class="sd">    instead.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    summaries : list of FourierSummary</span>
+<span class="sd">        Summaries with per-sample conditionals (``ahat_samples``, ``Sigma_samples``).</span>
+<span class="sd">    commongp : VariableGP</span>
+<span class="sd">        The step-2 prior as a single common GP over the summaries (``makecommongp_fourier``);</span>
+<span class="sd">        only its prior spectrum is used. For intrinsic red noise plus a common process</span>
+<span class="sd">        (CURN), build the spectrum with ``make_combined_crn``, as for time-domain arrays.</span>
+<span class="sd">    K : int, optional</span>
+<span class="sd">        Use ``K`` step-1 conditionals spaced evenly through the samples</span>
+<span class="sd">        (:meth:`FourierSummary.mixture`). If omitted, a summary whose ``density`` is a</span>
+<span class="sd">        :class:`GaussianMixture` (e.g. reduced with :func:`reduce_mixture`) uses that, and</span>
+<span class="sd">        otherwise all its step-1 conditionals.</span>
+<span class="sd">    """</span>
+    <span class="n">phi</span> <span class="o">=</span> <span class="n">commongp</span><span class="o">.</span><span class="n">Phi</span><span class="o">.</span><span class="n">getN</span>
+
+    <span class="n">comps</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">summaries</span><span class="p">:</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">density</span> <span class="k">if</span> <span class="p">(</span><span class="n">K</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">density</span><span class="p">,</span> <span class="n">GaussianMixture</span><span class="p">))</span> <span class="k">else</span> <span class="n">s</span><span class="o">.</span><span class="n">mixture</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>
+
+        <span class="c1"># components back in the coefficients a = ahat0 + L0 y: mean ahat0 + L0 mu_k,</span>
+        <span class="c1"># covariance with Cholesky factor L0 L_k</span>
+        <span class="n">L0</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">L0</span>
+        <span class="n">ahat</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">ahat0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">mu</span><span class="p">)</span> <span class="o">@</span> <span class="n">L0</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">L0</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">L</span><span class="p">)</span>
+        <span class="n">Linv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+        <span class="n">Sigma_inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">Linv</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">@</span> <span class="n">Linv</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'kij,kj-&gt;ki'</span><span class="p">,</span> <span class="n">Sigma_inv</span><span class="p">,</span> <span class="n">ahat</span><span class="p">)</span>
+        <span class="n">logdet</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diagonal</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">axis1</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">axis2</span><span class="o">=</span><span class="mi">2</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">const</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'ki,ki-&gt;k'</span><span class="p">,</span> <span class="n">ahat</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">logdet</span>
+                 <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">phi0</span><span class="p">))</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">logw</span><span class="p">))</span>
+        <span class="n">comps</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">Sigma_inv</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">s</span><span class="o">.</span><span class="n">phi0</span><span class="p">),</span> <span class="n">b</span><span class="p">,</span> <span class="n">const</span><span class="p">))</span>
+
+    <span class="n">TtNT</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">const</span> <span class="o">=</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">comps</span><span class="p">))</span>    <span class="c1"># (npsr, K, n, n), (npsr, K, n), (npsr, K)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">loglike</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+        <span class="n">phis</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">phi</span><span class="p">(</span><span class="n">params</span><span class="p">))</span>                                   <span class="c1"># (npsr, n)</span>
+        <span class="n">P</span> <span class="o">=</span> <span class="n">TtNT</span> <span class="o">+</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">diag</span><span class="p">)(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">phis</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+        <span class="n">cf</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cho_solve</span><span class="p">((</span><span class="n">cf</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span> <span class="n">b</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">])[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">logZ</span> <span class="o">=</span> <span class="p">(</span><span class="n">const</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span> <span class="o">*</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">diagonal</span><span class="p">(</span><span class="n">cf</span><span class="p">,</span> <span class="n">axis1</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis2</span><span class="o">=-</span><span class="mi">1</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">phis</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">logZ</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> <span class="o">+</span> <span class="n">logL0</span>
+    <span class="n">loglike</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">phi</span><span class="o">.</span><span class="n">params</span>
+    <span class="n">logL0</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">logL0</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">summaries</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">loglike</span></div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Michele Vallisneri.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.19.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

@@ -1,0 +1,1474 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>discovery.summary &#8212; Discovery 0.5 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=a95f357e85573c9b56d5"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
+
+    <script src="../../_static/documentation_options.js?v=db78e746"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/discovery/summary';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Discovery 0.5 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/curn_example.html">
+    How best to run a CURN model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/overview.html">
+    Overview
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/model_summary.html">
+    Inspecting a model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../installation.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../quickstart.html">
+    Quick Start
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/basic_likelihood.html">
+    Basic Likelihood
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/params_example.html">
+    Fast likelihood evaluation with Params
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/optimal_statistic.html">
+    Optimal Statistic
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/simulations.html">
+    Simulations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/cookbook_models.html">
+    Model cookbook
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/cw_extsignal_example.html">
+    Sampling a continuous-wave signal on its own Fourier basis
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../tutorials/fourierpta_single_pulsar.html">
+    Fourier-domain single-pulsar analysis: marginalizing DM in step 1
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../components/noise_signals.html">
+    Noise and Signal Components
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../components/priors_spectra.html">
+    GP Priors and Spectra
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../components/delays.html">
+    Deterministic Delays
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../guide/data_model.html">
+    Data Model
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../guide/pulsar_data.html">
+    Pulsar Data
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../advanced/conditional_sampling.html">
+    Conditional Sampling of GP Coefficients
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../advanced/single_precision.html">
+    Single-precision likelihoods (and the reference–delta trick)
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../metamatrix.html">
+    Metamatrix: graph-based kernels
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../../examples.html">
+    Examples
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/curn_example.html">
+    How best to run a CURN model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/overview.html">
+    Overview
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/model_summary.html">
+    Inspecting a model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../installation.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../quickstart.html">
+    Quick Start
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/basic_likelihood.html">
+    Basic Likelihood
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/params_example.html">
+    Fast likelihood evaluation with Params
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/optimal_statistic.html">
+    Optimal Statistic
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/simulations.html">
+    Simulations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/cookbook_models.html">
+    Model cookbook
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/cw_extsignal_example.html">
+    Sampling a continuous-wave signal on its own Fourier basis
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../tutorials/fourierpta_single_pulsar.html">
+    Fourier-domain single-pulsar analysis: marginalizing DM in step 1
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../components/noise_signals.html">
+    Noise and Signal Components
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../components/priors_spectra.html">
+    GP Priors and Spectra
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../components/delays.html">
+    Deterministic Delays
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/data_model.html">
+    Data Model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/pulsar_data.html">
+    Pulsar Data
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../advanced/conditional_sampling.html">
+    Conditional Sampling of GP Coefficients
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../advanced/single_precision.html">
+    Single-precision likelihoods (and the reference–delta trick)
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../metamatrix.html">
+    Metamatrix: graph-based kernels
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../examples.html">
+    Examples
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">discovery.summary</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for discovery.summary</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Human-readable snapshots of a built model.</span>
+
+<span class="sd">A discovery likelihood is assembled from a *list* of components --</span>
+<span class="sd">``psr.residuals``, a white-noise kernel, and one or more Gaussian-process</span>
+<span class="sd">signals (timing model, ECORR, red noise, a correlated GW process, ...). Once</span>
+<span class="sd">assembled those components are folded into a single Woodbury kernel, so the</span>
+<span class="sd">obvious handle, ``logL.params``, only reports the *free* parameters and hides</span>
+<span class="sd">everything that was fixed (e.g. white noise pinned from a noise dictionary) or</span>
+<span class="sd">that contributes a basis but no free parameter (the timing-model and ECORR</span>
+<span class="sd">GPs). That makes it hard to see, at a glance, what model you actually built.</span>
+
+<span class="sd">This module reconstructs that picture from the original components (which the</span>
+<span class="sd">likelihood objects now retain) and renders it three ways, mirroring</span>
+<span class="sd">enterprise's ``pta.summary()``:</span>
+
+<span class="sd">* ``model.summary()``      -&gt; a plain-text table (print it, or log it);</span>
+<span class="sd">* ``model.summary_frame()``-&gt; a pandas ``DataFrame``, one row per signal;</span>
+<span class="sd">* ``model._repr_html_()``  -&gt; a rich table when displayed in a notebook.</span>
+
+<span class="sd">Everything here is pure introspection: it reads declarative attributes the</span>
+<span class="sd">factories already set and never calls into the kernel math, so it works</span>
+<span class="sd">unchanged under either the ``matrix`` or the ``metamath`` backend.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">prior</span>
+
+
+<span class="c1"># parameter-name suffix encoding an array shape, e.g. 'rednoise_log10_rho(30)'</span>
+<span class="n">_SHAPE_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">'\(([\d,\s]+)\)$'</span><span class="p">)</span>
+<span class="c1"># coefficient-vector name set by every GP factory: '{psr}_{signal}_coefficients(N)'</span>
+<span class="n">_COEFF_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">'^(?P&lt;psr&gt;.+?)_(?P&lt;sig&gt;.+)_coefficients\((?P&lt;n&gt;\d+)\)$'</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SignalInfo">
+<a class="viewcode-back" href="../../guide/model_summary.html#discovery.summary.SignalInfo">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SignalInfo</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One row of a model summary: a single signal in one signal collection."""</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>                              <span class="c1"># signal label, e.g. 'rednoise', 'gw'</span>
+    <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span>                              <span class="c1"># human description of what it is</span>
+    <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'per-pulsar'</span>              <span class="c1"># per-pulsar | common | global | data</span>
+    <span class="n">basis_shape</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>       <span class="c1"># (Ntoa, Nbasis) design-matrix shape</span>
+    <span class="n">varying</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>   <span class="c1"># free parameter names</span>
+    <span class="n">fixed</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>      <span class="c1"># pinned parameter names</span>
+    <span class="n">handle</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>              <span class="c1"># accessor, e.g. 'signals[4]' / 'commongp'</span>
+    <span class="n">slices</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>             <span class="c1"># label -&gt; slice, for stacked bases</span></div>
+
+
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># describing individual components</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_array</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s1">'shape'</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s1">'Phi'</span><span class="p">)</span>
+                                         <span class="ow">and</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s1">'params'</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_signal_name</span><span class="p">(</span><span class="n">gp</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Best label for a GP: its ``gpname`` tag, else parsed from its index."""</span>
+    <span class="n">nm</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="s1">'gpname'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nm</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">nm</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="s1">'index'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">idx</span><span class="p">:</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">_COEFF_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">idx</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">'sig'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">gp</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_basis_shape</span><span class="p">(</span><span class="n">gp</span><span class="p">):</span>
+    <span class="n">F</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="s1">'F'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">F</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="s1">'shape'</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">Fs</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="s1">'Fs'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">Fs</span><span class="p">:</span>
+        <span class="n">F0</span> <span class="o">=</span> <span class="n">Fs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">F0</span><span class="p">,</span> <span class="s1">'shape'</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">F0</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_kernel_params</span><span class="p">(</span><span class="n">Phi</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Free parameter names of a prior kernel, across both backends: the</span>
+<span class="sd">    matrix path exposes ``Phi.params`` directly; the metamath path keeps the</span>
+<span class="sd">    parameterized callable at ``Phi.getN.params``."""</span>
+    <span class="n">pars</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">Phi</span><span class="p">,</span> <span class="s1">'params'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">pars</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">pars</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">Phi</span><span class="p">,</span> <span class="s1">'getN'</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s1">'params'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_prior_params</span><span class="p">(</span><span class="n">gp</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Free parameter names a GP contributes (prior + optional mean)."""</span>
+    <span class="n">pars</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">_kernel_params</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="s1">'Phi'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)))</span>
+    <span class="k">for</span> <span class="n">mattr</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'mean'</span><span class="p">,</span> <span class="s1">'means'</span><span class="p">):</span>
+        <span class="n">mfn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="n">mattr</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mfn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pars</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">mfn</span><span class="p">,</span> <span class="s1">'params'</span><span class="p">,</span> <span class="p">[])</span> <span class="ow">or</span> <span class="p">[])</span>
+    <span class="c1"># de-duplicate, keep order</span>
+    <span class="n">seen</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(),</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pars</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+            <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<div class="viewcode-block" id="describe_component">
+<a class="viewcode-back" href="../../api/summary.html#discovery.summary.describe_component">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">describe_component</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Map one input component to a :class:`SignalInfo` (or ``None`` to skip).</span>
+
+<span class="sd">    Recognizes: the residual vector (data), deterministic delays, the</span>
+<span class="sd">    white-noise kernel, per-pulsar GPs (timing model, ECORR, Fourier red</span>
+<span class="sd">    noise, ...). Correlated common/global GPs are handled by</span>
+<span class="sd">    :func:`describe_global` because they fan out over pulsars.</span>
+<span class="sd">    """</span>
+    <span class="c1"># residual data vector</span>
+    <span class="k">if</span> <span class="n">_is_array</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">SignalInfo</span><span class="p">(</span><span class="s1">'residuals'</span><span class="p">,</span> <span class="sa">f</span><span class="s1">'data (</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">obj</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1"> TOAs)'</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s1">'data'</span><span class="p">)</span>
+
+    <span class="c1"># white-noise kernel (tagged by makenoise_measurement*)</span>
+    <span class="n">meas</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'measurement'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">meas</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">pars</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">meas</span><span class="p">[</span><span class="s1">'params'</span><span class="p">])</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">meas</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'ecorr_params'</span><span class="p">,</span> <span class="p">[]))</span>
+        <span class="n">kind</span> <span class="o">=</span> <span class="s1">'white noise'</span> <span class="o">+</span> <span class="p">(</span><span class="s1">' + ECORR (Sherman-Morrison)'</span> <span class="k">if</span> <span class="n">meas</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'ecorr'</span><span class="p">)</span> <span class="k">else</span> <span class="s1">''</span><span class="p">)</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="n">SignalInfo</span><span class="p">(</span><span class="n">meas</span><span class="p">[</span><span class="s1">'name'</span><span class="p">],</span> <span class="n">kind</span><span class="p">,</span> <span class="n">basis_shape</span><span class="o">=</span><span class="n">meas</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'ecorr_basis_shape'</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">meas</span><span class="p">[</span><span class="s1">'fixed'</span><span class="p">]:</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">fixed</span> <span class="o">=</span> <span class="n">pars</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">varying</span> <span class="o">=</span> <span class="n">pars</span>
+        <span class="k">return</span> <span class="n">info</span>
+
+    <span class="c1"># a Gaussian-process signal: ConstantGP (fixed prior) or VariableGP</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'Phi'</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'F'</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'Fs'</span><span class="p">)):</span>
+        <span class="n">varying</span> <span class="o">=</span> <span class="n">_prior_params</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="n">constant</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'ConstantGP'</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">varying</span>
+        <span class="n">kind</span> <span class="o">=</span> <span class="s1">'GP, fixed prior'</span> <span class="k">if</span> <span class="n">constant</span> <span class="k">else</span> <span class="s1">'GP, variable prior'</span>
+        <span class="k">return</span> <span class="n">SignalInfo</span><span class="p">(</span><span class="n">_signal_name</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span> <span class="n">kind</span><span class="p">,</span> <span class="n">basis_shape</span><span class="o">=</span><span class="n">_basis_shape</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span>
+                          <span class="n">varying</span><span class="o">=</span><span class="n">varying</span><span class="p">)</span>
+
+    <span class="c1"># deterministic delay (a plain callable carrying .params)</span>
+    <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'name'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'__name__'</span><span class="p">,</span> <span class="s1">'delay'</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">SignalInfo</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s1">'deterministic delay'</span><span class="p">,</span>
+                          <span class="n">varying</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'params'</span><span class="p">,</span> <span class="p">[])</span> <span class="ow">or</span> <span class="p">[]))</span>
+
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="describe_global">
+<a class="viewcode-back" href="../../api/summary.html#discovery.summary.describe_global">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">describe_global</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s1">'global'</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Describe a correlated common/global GP (or a compound of them).</span>
+
+<span class="sd">    These fan a single process out over every pulsar, so identity is read from</span>
+<span class="sd">    the per-pulsar coefficient-index keys: one summary row per distinct signal</span>
+<span class="sd">    name found there.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">gp</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">describe_global</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">scope</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">idx</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="s1">'index'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="c1"># group index keys by signal name, count pulsars and basis width, and record</span>
+    <span class="c1"># each pulsar's slice into the stacked coefficient vector.</span>
+    <span class="n">sigs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">sli</span> <span class="ow">in</span> <span class="n">idx</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">_COEFF_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">m</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">'sig'</span><span class="p">)</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">'n'</span><span class="p">))</span>
+        <span class="n">entry</span> <span class="o">=</span> <span class="n">sigs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">sig</span><span class="p">,</span> <span class="p">{</span><span class="s1">'npsr'</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">'n'</span><span class="p">:</span> <span class="n">n</span><span class="p">,</span> <span class="s1">'slices'</span><span class="p">:</span> <span class="p">{}})</span>
+        <span class="n">entry</span><span class="p">[</span><span class="s1">'npsr'</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">entry</span><span class="p">[</span><span class="s1">'slices'</span><span class="p">][</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">'psr'</span><span class="p">)]</span> <span class="o">=</span> <span class="n">sli</span>
+
+    <span class="n">allpars</span> <span class="o">=</span> <span class="n">_prior_params</span><span class="p">(</span><span class="n">gp</span><span class="p">)</span>            <span class="c1"># prior params + any common mean params</span>
+    <span class="n">orfnames</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">gp</span><span class="p">,</span> <span class="s1">'orfnames'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">sigs</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="nb">len</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>   <span class="c1"># longest first for attribution</span>
+    <span class="n">claimed</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">sig</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">sigs</span><span class="p">[</span><span class="n">sig</span><span class="p">]</span>
+        <span class="c1"># common/global parameter names embed the signal token, either bare</span>
+        <span class="c1"># ('gw_log10_A') or pulsar-prefixed ('B1855+09_rednoise_gamma'); match</span>
+        <span class="c1"># on the token surrounded by separators. Longest signal name claims first.</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'_</span><span class="si">{</span><span class="n">sig</span><span class="si">}</span><span class="s1">_'</span>
+        <span class="n">pars</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">allpars</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">token</span> <span class="ow">in</span> <span class="sa">f</span><span class="s1">'_</span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s1">_'</span><span class="p">)</span> <span class="ow">and</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">claimed</span><span class="p">]</span>
+        <span class="n">claimed</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pars</span><span class="p">)</span>
+        <span class="n">orf</span> <span class="o">=</span> <span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">orfnames</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">orfnames</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">sigs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">kind</span> <span class="o">=</span> <span class="s1">'correlated GP'</span> <span class="k">if</span> <span class="n">scope</span> <span class="o">==</span> <span class="s1">'global'</span> <span class="k">else</span> <span class="s1">'common GP'</span>
+        <span class="k">if</span> <span class="n">orf</span><span class="p">:</span>
+            <span class="n">kind</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">' (</span><span class="si">{</span><span class="n">orf</span><span class="si">}</span><span class="s1">)'</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SignalInfo</span><span class="p">(</span>
+            <span class="n">sig</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">basis_shape</span><span class="o">=</span><span class="p">(</span><span class="n">meta</span><span class="p">[</span><span class="s1">'npsr'</span><span class="p">],</span> <span class="n">meta</span><span class="p">[</span><span class="s1">'n'</span><span class="p">]),</span>
+            <span class="n">varying</span><span class="o">=</span><span class="n">pars</span><span class="p">,</span> <span class="n">slices</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s1">'slices'</span><span class="p">]))</span>
+    <span class="c1"># restore index order (we sorted by length for attribution)</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">sigs</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+    <span class="c1"># any leftover params (e.g. a combined-CRN's gw_* terms, or non-zero-mean</span>
+    <span class="c1"># amplitudes) belong to this GP too — attach them rather than drop them.</span>
+    <span class="n">leftover</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">allpars</span> <span class="k">if</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">claimed</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">leftover</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">out</span><span class="p">:</span>
+            <span class="n">out</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">varying</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">varying</span> <span class="o">+</span> <span class="n">leftover</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SignalInfo</span><span class="p">(</span><span class="n">_signal_name</span><span class="p">(</span><span class="n">gp</span><span class="p">),</span>
+                                  <span class="s1">'correlated GP'</span> <span class="k">if</span> <span class="n">scope</span> <span class="o">==</span> <span class="s1">'global'</span> <span class="k">else</span> <span class="s1">'common GP'</span><span class="p">,</span>
+                                  <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span> <span class="n">varying</span><span class="o">=</span><span class="n">leftover</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="describe_extsignal">
+<a class="viewcode-back" href="../../api/summary.html#discovery.summary.describe_extsignal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">describe_extsignal</span><span class="p">(</span><span class="n">ext</span><span class="p">):</span>
+    <span class="c1"># an external signal carries a per-pulsar (Ntoa x n_ext) basis; the</span>
+    <span class="c1"># informative number is n_ext, the count of its own basis terms.</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">_basis_shape</span><span class="p">(</span><span class="n">ext</span><span class="p">)</span>
+    <span class="n">nbasis</span> <span class="o">=</span> <span class="p">(</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],)</span> <span class="k">if</span> <span class="n">shape</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">SignalInfo</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ext</span><span class="p">,</span> <span class="s1">'name'</span><span class="p">,</span> <span class="s1">'extsignal'</span><span class="p">),</span> <span class="s1">'deterministic signal'</span><span class="p">,</span>
+                      <span class="n">scope</span><span class="o">=</span><span class="s1">'external'</span><span class="p">,</span>
+                      <span class="n">varying</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ext</span><span class="p">,</span> <span class="s1">'params'</span><span class="p">,</span> <span class="p">[])</span> <span class="ow">or</span> <span class="p">[]),</span>
+                      <span class="n">basis_shape</span><span class="o">=</span><span class="n">nbasis</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># collecting a whole model into signal collections</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_pulsar_signals</span><span class="p">(</span><span class="n">psl</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""[SignalInfo] for one PulsarLikelihood, from its retained components.</span>
+
+<span class="sd">    Each row carries its ``signals[i]`` handle — the i is the position in the</span>
+<span class="sd">    pulsar's own ``signals`` list, so it is a live, zero-copy accessor."""</span>
+    <span class="n">sigs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="s1">'signals'</span><span class="p">,</span> <span class="p">[])):</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="n">describe_component</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">info</span><span class="o">.</span><span class="n">scope</span> <span class="o">!=</span> <span class="s1">'data'</span><span class="p">:</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'signals[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">]'</span>
+            <span class="n">sigs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sigs</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_psl_name</span><span class="p">(</span><span class="n">psl</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The pulsar's name. ``self.name`` is only set when a GP supplied it, so</span>
+<span class="sd">    fall back to the GP `.name` tags or the white-noise kernel's psrname tag —</span>
+<span class="sd">    important for white-noise-only models."""</span>
+    <span class="n">nm</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="s1">'name'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nm</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">nm</span>
+    <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="s1">'signals'</span><span class="p">,</span> <span class="p">[]):</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'name'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">n</span>
+        <span class="n">meas</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'measurement'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">meas</span> <span class="ow">and</span> <span class="n">meas</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'psrname'</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">meas</span><span class="p">[</span><span class="s1">'psrname'</span><span class="p">]</span>
+    <span class="k">return</span> <span class="s1">'pulsar'</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_collect</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Return (collections, commons) where *collections* is a list of</span>
+<span class="sd">    (label, ntoa, [SignalInfo]) per pulsar and *commons* is a list of</span>
+<span class="sd">    SignalInfo for shared/correlated/global signals."""</span>
+    <span class="n">collections</span><span class="p">,</span> <span class="n">commons</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+
+    <span class="n">psls</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'psls'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">psls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>                       <span class="c1"># single PulsarLikelihood</span>
+        <span class="n">collections</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">_psl_name</span><span class="p">(</span><span class="n">model</span><span class="p">),</span> <span class="n">_ntoa</span><span class="p">(</span><span class="n">model</span><span class="p">),</span> <span class="n">_pulsar_signals</span><span class="p">(</span><span class="n">model</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">psl</span> <span class="ow">in</span> <span class="n">psls</span><span class="p">:</span>
+            <span class="n">collections</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">_psl_name</span><span class="p">(</span><span class="n">psl</span><span class="p">),</span> <span class="n">_ntoa</span><span class="p">(</span><span class="n">psl</span><span class="p">),</span> <span class="n">_pulsar_signals</span><span class="p">(</span><span class="n">psl</span><span class="p">)))</span>
+
+    <span class="n">commongp</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'commongp'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">commongp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cg</span> <span class="o">=</span> <span class="n">commongp</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">commongp</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">commongp</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cg</span><span class="p">):</span>
+            <span class="n">handle</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'commongp[</span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s1">]'</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">commongp</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="s1">'commongp'</span>
+            <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">describe_global</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s1">'common'</span><span class="p">):</span>
+                <span class="n">info</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="n">handle</span>
+                <span class="n">commons</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+
+    <span class="n">globalgp</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'globalgp'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">globalgp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">describe_global</span><span class="p">(</span><span class="n">globalgp</span><span class="p">,</span> <span class="n">scope</span><span class="o">=</span><span class="s1">'global'</span><span class="p">):</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="s1">'globalgp'</span>
+            <span class="n">commons</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">ext</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'extsignals'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]):</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="n">describe_extsignal</span><span class="p">(</span><span class="n">ext</span><span class="p">)</span>
+        <span class="n">info</span><span class="o">.</span><span class="n">handle</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'extsignals[</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">]'</span>
+        <span class="n">commons</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">collections</span><span class="p">,</span> <span class="n">commons</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ntoa</span><span class="p">(</span><span class="n">psl</span><span class="p">):</span>
+    <span class="c1"># the residual vector is the reliable TOA count; when delays are present</span>
+    <span class="c1"># psl.y is a CompoundDelay wrapper, so fall back to the residual component.</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="s1">'y'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="s1">'shape'</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="s1">'y'</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">y</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="s1">'signals'</span><span class="p">,</span> <span class="p">[]):</span>
+        <span class="k">if</span> <span class="n">_is_array</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">obj</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_prior_range</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">prior</span><span class="o">.</span><span class="n">getprior_uniform</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">'[</span><span class="si">{</span><span class="n">a</span><span class="si">:</span><span class="s1">g</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">b</span><span class="si">:</span><span class="s1">g</span><span class="si">}</span><span class="s1">]'</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">''</span>
+
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># rendering</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_backend_label</span><span class="p">():</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">discovery</span>
+    <span class="n">kern</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">discovery</span><span class="p">,</span> <span class="s1">'_KERNELS'</span><span class="p">,</span> <span class="s1">'matrix'</span><span class="p">)</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="s1">'float64'</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">utils</span><span class="o">.</span><span class="n">jnp</span><span class="p">,</span> <span class="s1">'float64'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">else</span> <span class="s1">'float32'</span>
+    <span class="c1"># x64 flag is the reliable signal for precision</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
+        <span class="n">prec</span> <span class="o">=</span> <span class="s1">'float64'</span> <span class="k">if</span> <span class="n">jax</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">'jax_enable_x64'</span><span class="p">)</span> <span class="k">else</span> <span class="s1">'float32'</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="n">prec</span> <span class="o">=</span> <span class="n">dtype</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s1">'backend: </span><span class="si">{</span><span class="n">kern</span><span class="si">}</span><span class="s1">, </span><span class="si">{</span><span class="n">prec</span><span class="si">}</span><span class="s1">'</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_totals</span><span class="p">(</span><span class="n">collections</span><span class="p">,</span> <span class="n">commons</span><span class="p">):</span>
+    <span class="n">varying</span><span class="p">,</span> <span class="n">fixed</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(),</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">basis</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">sigs</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sigs</span><span class="p">:</span>
+            <span class="n">varying</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">)</span>
+            <span class="n">fixed</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">fixed</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">s</span><span class="o">.</span><span class="n">scope</span> <span class="o">!=</span> <span class="s1">'data'</span><span class="p">:</span>
+                <span class="n">basis</span> <span class="o">+=</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">commons</span><span class="p">:</span>
+        <span class="n">varying</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">)</span>
+        <span class="n">fixed</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">fixed</span><span class="p">)</span>
+        <span class="c1"># only marginalized GP bases count toward the GP problem size; a</span>
+        <span class="c1"># deterministic external signal's (Ntoa x n_ext) basis is not a GP.</span>
+        <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">scope</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'common'</span><span class="p">,</span> <span class="s1">'global'</span><span class="p">)</span> <span class="ow">and</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">basis</span> <span class="o">+=</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="c1"># "common" = a free parameter not prefixed by any single pulsar's name</span>
+    <span class="n">psrnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">label</span> <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">]</span>
+    <span class="n">common</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">varying</span>
+              <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">nm</span> <span class="o">+</span> <span class="s1">'_'</span><span class="p">)</span> <span class="k">for</span> <span class="n">nm</span> <span class="ow">in</span> <span class="n">psrnames</span><span class="p">)}</span>
+    <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">varying</span><span class="o">=</span><span class="n">varying</span><span class="p">,</span> <span class="n">fixed</span><span class="o">=</span><span class="n">fixed</span><span class="p">,</span> <span class="n">common</span><span class="o">=</span><span class="n">common</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="n">basis</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="summary">
+<a class="viewcode-back" href="../../guide/model_summary.html#discovery.summary.summary">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">summary</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">include_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">show_free</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_fixed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">show_access</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Build (or print) a plain-text snapshot of *model*.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    show_free, show_fixed : bool</span>
+<span class="sd">        List each signal's free / fixed parameters (with uniform prior ranges</span>
+<span class="sd">        for the free ones) beneath its row. Independent toggles.</span>
+<span class="sd">    show_access : bool</span>
+<span class="sd">        Add an ``access`` column with the live ``signals[i]`` / ``commongp`` /</span>
+<span class="sd">        ``globalgp`` handle for each signal.</span>
+<span class="sd">    include_params : bool, optional</span>
+<span class="sd">        Back-compatible alias: ``True`` -&gt; show both free and fixed, ``False``</span>
+<span class="sd">        -&gt; show neither. Overrides ``show_free`` / ``show_fixed`` when given.</span>
+<span class="sd">    to_stdout : bool</span>
+<span class="sd">        Print the summary instead of returning it.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">include_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">show_free</span> <span class="o">=</span> <span class="n">show_fixed</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">include_params</span><span class="p">)</span>
+
+    <span class="n">collections</span><span class="p">,</span> <span class="n">commons</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">tot</span> <span class="o">=</span> <span class="n">_totals</span><span class="p">(</span><span class="n">collections</span><span class="p">,</span> <span class="n">commons</span><span class="p">)</span>
+
+    <span class="n">W</span> <span class="o">=</span> <span class="mi">78</span> <span class="o">+</span> <span class="p">(</span><span class="mi">20</span> <span class="k">if</span> <span class="n">show_access</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">'discovery model summary   (</span><span class="si">{</span><span class="n">_backend_label</span><span class="p">()</span><span class="si">}</span><span class="s1">)'</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'='</span> <span class="o">*</span> <span class="n">W</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_shape</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">'-'</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">s</span><span class="o">.</span><span class="n">scope</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'global'</span><span class="p">,</span> <span class="s1">'common'</span><span class="p">):</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">psr x </span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span>
+        <span class="k">return</span> <span class="s1">' x '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_emit</span><span class="p">(</span><span class="n">sigs</span><span class="p">,</span> <span class="n">header</span><span class="p">,</span> <span class="n">handle_prefix</span><span class="o">=</span><span class="s1">''</span><span class="p">):</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'-'</span> <span class="o">*</span> <span class="n">W</span><span class="p">)</span>
+        <span class="n">head</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="s2">"signal"</span><span class="si">:</span><span class="s1">&lt;22</span><span class="si">}{</span><span class="s2">"kind"</span><span class="si">:</span><span class="s1">&lt;34</span><span class="si">}{</span><span class="s2">"basis"</span><span class="si">:</span><span class="s1">&lt;14</span><span class="si">}{</span><span class="s2">"free"</span><span class="si">:</span><span class="s1">&gt;6</span><span class="si">}</span><span class="s1">'</span>
+        <span class="k">if</span> <span class="n">show_access</span><span class="p">:</span>
+            <span class="n">head</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">'  </span><span class="si">{</span><span class="s2">"access"</span><span class="si">:</span><span class="s1">&lt;20</span><span class="si">}</span><span class="s1">'</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">head</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'-'</span> <span class="o">*</span> <span class="n">W</span><span class="p">)</span>            <span class="c1"># F1: rule under the column header</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sigs</span><span class="p">:</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="si">:</span><span class="s1">&lt;22</span><span class="si">}{</span><span class="n">s</span><span class="o">.</span><span class="n">kind</span><span class="si">:</span><span class="s1">&lt;34</span><span class="si">}{</span><span class="n">_shape</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;14</span><span class="si">}{</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">)</span><span class="si">:</span><span class="s1">&gt;6</span><span class="si">}</span><span class="s1">'</span>
+            <span class="k">if</span> <span class="n">show_access</span><span class="p">:</span>
+                <span class="n">acc</span> <span class="o">=</span> <span class="p">(</span><span class="n">handle_prefix</span> <span class="o">+</span> <span class="n">s</span><span class="o">.</span><span class="n">handle</span><span class="p">)</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">handle</span> <span class="k">else</span> <span class="s1">''</span>
+                <span class="n">row</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">'  </span><span class="si">{</span><span class="n">acc</span><span class="si">:</span><span class="s1">&lt;20</span><span class="si">}</span><span class="s1">'</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">show_free</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">:</span>
+                    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">'    + </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s1">  </span><span class="si">{</span><span class="n">_prior_range</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">show_fixed</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">fixed</span><span class="p">:</span>
+                    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">'    . </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s1">  (fixed)'</span><span class="p">)</span>
+
+    <span class="n">multi</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'psls'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">ntoa</span><span class="p">,</span> <span class="n">sigs</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">collections</span><span class="p">):</span>
+        <span class="n">toa</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">ntoa</span><span class="si">}</span><span class="s1"> TOAs'</span> <span class="k">if</span> <span class="n">ntoa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">''</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'psls[</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">].'</span> <span class="k">if</span> <span class="n">multi</span> <span class="k">else</span> <span class="s1">''</span>
+        <span class="n">_emit</span><span class="p">(</span><span class="n">sigs</span><span class="p">,</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1"> - </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">   (</span><span class="si">{</span><span class="n">toa</span><span class="si">}</span><span class="s1">)'</span><span class="p">,</span> <span class="n">handle_prefix</span><span class="o">=</span><span class="n">prefix</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">''</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">commons</span><span class="p">:</span>
+        <span class="n">_emit</span><span class="p">(</span><span class="n">commons</span><span class="p">,</span> <span class="s1">'common / correlated signals'</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">''</span><span class="p">)</span>
+
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">'='</span> <span class="o">*</span> <span class="n">W</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">'pulsars: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span><span class="si">}</span><span class="s1">   '</span>
+                 <span class="sa">f</span><span class="s1">'free params: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tot</span><span class="p">[</span><span class="s2">"varying"</span><span class="p">])</span><span class="si">}</span><span class="s1">   '</span>
+                 <span class="sa">f</span><span class="s1">'fixed: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tot</span><span class="p">[</span><span class="s2">"fixed"</span><span class="p">])</span><span class="si">}</span><span class="s1">   '</span>
+                 <span class="sa">f</span><span class="s1">'common: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tot</span><span class="p">[</span><span class="s2">"common"</span><span class="p">])</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">'total basis dimension: </span><span class="si">{</span><span class="n">tot</span><span class="p">[</span><span class="s2">"basis"</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+
+    <span class="n">text</span> <span class="o">=</span> <span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">to_stdout</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">text</span></div>
+
+
+
+<div class="viewcode-block" id="summary_frame">
+<a class="viewcode-back" href="../../guide/model_summary.html#discovery.summary.summary_frame">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">summary_frame</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""One row per signal as a pandas ``DataFrame`` for programmatic use."""</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+    <span class="n">collections</span><span class="p">,</span> <span class="n">commons</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">multi</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'psls'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">ntoa</span><span class="p">,</span> <span class="n">sigs</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">collections</span><span class="p">):</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'psls[</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">].'</span> <span class="k">if</span> <span class="n">multi</span> <span class="k">else</span> <span class="s1">''</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sigs</span><span class="p">:</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">collection</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span>
+                             <span class="n">scope</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">scope</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">,</span>
+                             <span class="n">n_free</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">),</span> <span class="n">n_fixed</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">fixed</span><span class="p">),</span>
+                             <span class="n">access</span><span class="o">=</span><span class="p">(</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">s</span><span class="o">.</span><span class="n">handle</span><span class="p">)</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">handle</span> <span class="k">else</span> <span class="s1">''</span><span class="p">,</span>
+                             <span class="n">free_params</span><span class="o">=</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">),</span>
+                             <span class="n">fixed_params</span><span class="o">=</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">fixed</span><span class="p">)))</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">commons</span><span class="p">:</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">collection</span><span class="o">=</span><span class="s1">'(shared)'</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span>
+                         <span class="n">scope</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">scope</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">,</span>
+                         <span class="n">n_free</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">),</span> <span class="n">n_fixed</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">fixed</span><span class="p">),</span>
+                         <span class="n">access</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">handle</span> <span class="ow">or</span> <span class="s1">''</span><span class="p">,</span>
+                         <span class="n">free_params</span><span class="o">=</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">),</span> <span class="n">fixed_params</span><span class="o">=</span><span class="s1">''</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">'collection'</span><span class="p">,</span> <span class="s1">'signal'</span><span class="p">,</span> <span class="s1">'kind'</span><span class="p">,</span> <span class="s1">'scope'</span><span class="p">,</span>
+                                       <span class="s1">'basis'</span><span class="p">,</span> <span class="s1">'n_free'</span><span class="p">,</span> <span class="s1">'n_fixed'</span><span class="p">,</span> <span class="s1">'access'</span><span class="p">,</span>
+                                       <span class="s1">'free_params'</span><span class="p">,</span> <span class="s1">'fixed_params'</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="summary_html">
+<a class="viewcode-back" href="../../guide/model_summary.html#discovery.summary.summary_html">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">summary_html</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A notebook-friendly HTML rendering (used by ``_repr_html_``)."""</span>
+    <span class="n">collections</span><span class="p">,</span> <span class="n">commons</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">tot</span> <span class="o">=</span> <span class="n">_totals</span><span class="p">(</span><span class="n">collections</span><span class="p">,</span> <span class="n">commons</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_shape</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">'&amp;mdash;'</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">s</span><span class="o">.</span><span class="n">scope</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'global'</span><span class="p">,</span> <span class="s1">'common'</span><span class="p">):</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1"> psr &amp;times; </span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span>
+        <span class="k">return</span> <span class="s1">' &amp;times; '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_rows</span><span class="p">(</span><span class="n">sigs</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sigs</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">'&amp;mdash;'</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">'&lt;tr&gt;&lt;td&gt;&lt;code&gt;</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">&lt;/code&gt;&lt;/td&gt;&lt;td&gt;</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">kind</span><span class="si">}</span><span class="s1">&lt;/td&gt;'</span>
+                <span class="sa">f</span><span class="s1">'&lt;td style="text-align:right"&gt;</span><span class="si">{</span><span class="n">_shape</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="si">}</span><span class="s1">&lt;/td&gt;'</span>
+                <span class="sa">f</span><span class="s1">'&lt;td style="text-align:right"&gt;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">varying</span><span class="p">)</span><span class="si">}</span><span class="s1">&lt;/td&gt;'</span>
+                <span class="sa">f</span><span class="s1">'&lt;td style="font-size:90%;color:#555"&gt;</span><span class="si">{</span><span class="n">params</span><span class="si">}</span><span class="s1">&lt;/td&gt;&lt;/tr&gt;'</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">''</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
+    <span class="n">head</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'&lt;tr style="text-align:left"&gt;&lt;th&gt;signal&lt;/th&gt;&lt;th&gt;kind&lt;/th&gt;'</span>
+            <span class="s1">'&lt;th style="text-align:right"&gt;basis&lt;/th&gt;'</span>
+            <span class="s1">'&lt;th style="text-align:right"&gt;free&lt;/th&gt;&lt;th&gt;free parameters&lt;/th&gt;&lt;/tr&gt;'</span><span class="p">)</span>
+    <span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">'&lt;b&gt;discovery </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">&lt;/b&gt; '</span>
+              <span class="sa">f</span><span class="s1">'&lt;span style="color:#777"&gt;(</span><span class="si">{</span><span class="n">_backend_label</span><span class="p">()</span><span class="si">}</span><span class="s1">)&lt;/span&gt;'</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">ntoa</span><span class="p">,</span> <span class="n">sigs</span> <span class="ow">in</span> <span class="n">collections</span><span class="p">:</span>
+        <span class="n">toa</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">ntoa</span><span class="si">}</span><span class="s1"> TOAs'</span> <span class="k">if</span> <span class="n">ntoa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">''</span>
+        <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">'&lt;div style="margin-top:6px"&gt;&lt;b&gt;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">&lt;/b&gt; '</span>
+                      <span class="sa">f</span><span class="s1">'&lt;span style="color:#777"&gt;</span><span class="si">{</span><span class="n">toa</span><span class="si">}</span><span class="s1">&lt;/span&gt;'</span>
+                      <span class="sa">f</span><span class="s1">'&lt;table&gt;</span><span class="si">{</span><span class="n">head</span><span class="si">}{</span><span class="n">_rows</span><span class="p">(</span><span class="n">sigs</span><span class="p">)</span><span class="si">}</span><span class="s1">&lt;/table&gt;&lt;/div&gt;'</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">commons</span><span class="p">:</span>
+        <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">'&lt;div style="margin-top:6px"&gt;&lt;b&gt;common / correlated&lt;/b&gt;'</span>
+                      <span class="sa">f</span><span class="s1">'&lt;table&gt;</span><span class="si">{</span><span class="n">head</span><span class="si">}{</span><span class="n">_rows</span><span class="p">(</span><span class="n">commons</span><span class="p">)</span><span class="si">}</span><span class="s1">&lt;/table&gt;&lt;/div&gt;'</span><span class="p">)</span>
+    <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s1">'&lt;div style="margin-top:6px;color:#444"&gt;pulsars: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span><span class="si">}</span><span class="s1"> &amp;nbsp; '</span>
+        <span class="sa">f</span><span class="s1">'free: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tot</span><span class="p">[</span><span class="s2">"varying"</span><span class="p">])</span><span class="si">}</span><span class="s1"> &amp;nbsp; fixed: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tot</span><span class="p">[</span><span class="s2">"fixed"</span><span class="p">])</span><span class="si">}</span><span class="s1"> &amp;nbsp; '</span>
+        <span class="sa">f</span><span class="s1">'common: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tot</span><span class="p">[</span><span class="s2">"common"</span><span class="p">])</span><span class="si">}</span><span class="s1"> &amp;nbsp; basis dim: </span><span class="si">{</span><span class="n">tot</span><span class="p">[</span><span class="s2">"basis"</span><span class="p">]</span><span class="si">}</span><span class="s1">&lt;/div&gt;'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">''</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">blocks</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># kernel tree  (model.tree())</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_render_tree</span><span class="p">(</span><span class="n">root_label</span><span class="p">,</span> <span class="n">children</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Render a nested ``(label, children)`` structure with box-drawing rules."""</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">root_label</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">rec</span><span class="p">(</span><span class="n">nodes</span><span class="p">,</span> <span class="n">prefix</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">subs</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">nodes</span><span class="p">):</span>
+            <span class="n">last</span> <span class="o">=</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prefix</span> <span class="o">+</span> <span class="p">(</span><span class="s1">'└─ '</span> <span class="k">if</span> <span class="n">last</span> <span class="k">else</span> <span class="s1">'├─ '</span><span class="p">)</span> <span class="o">+</span> <span class="n">label</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">subs</span><span class="p">:</span>
+                <span class="n">rec</span><span class="p">(</span><span class="n">subs</span><span class="p">,</span> <span class="n">prefix</span> <span class="o">+</span> <span class="p">(</span><span class="s1">'   '</span> <span class="k">if</span> <span class="n">last</span> <span class="k">else</span> <span class="s1">'│  '</span><span class="p">))</span>
+
+    <span class="n">rec</span><span class="p">(</span><span class="n">children</span><span class="p">,</span> <span class="s1">''</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">'</span><span class="se">\n</span><span class="s1">'</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_shape_str</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s1">''</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">s</span><span class="o">.</span><span class="n">scope</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">'global'</span><span class="p">,</span> <span class="s1">'common'</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">psr×</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">'</span>
+    <span class="k">return</span> <span class="s1">'×'</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_sig_label</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">handle_prefix</span><span class="o">=</span><span class="s1">''</span><span class="p">):</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="n">_shape_str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">handle</span> <span class="o">=</span> <span class="p">(</span><span class="n">handle_prefix</span> <span class="o">+</span> <span class="n">s</span><span class="o">.</span><span class="n">handle</span><span class="p">)</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">handle</span> <span class="k">else</span> <span class="s1">''</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="si">:</span><span class="s1">&lt;14</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">kind</span><span class="si">:</span><span class="s1">&lt;22</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">shape</span><span class="si">:</span><span class="s1">&lt;10</span><span class="si">}</span><span class="s1">'</span>
+    <span class="k">return</span> <span class="n">cols</span> <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s1">'  </span><span class="si">{</span><span class="n">handle</span><span class="si">}</span><span class="s1">'</span> <span class="k">if</span> <span class="n">handle</span> <span class="k">else</span> <span class="s1">''</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_slice_children</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Per-pulsar slice leaves for a stacked common/global GP."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">slices</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="k">return</span> <span class="p">[(</span><span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">psr</span><span class="si">:</span><span class="s1">&lt;14</span><span class="si">}</span><span class="s1"> → [</span><span class="si">{</span><span class="n">sl</span><span class="o">.</span><span class="n">start</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">sl</span><span class="o">.</span><span class="n">stop</span><span class="si">}</span><span class="s1">]'</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="k">for</span> <span class="n">psr</span><span class="p">,</span> <span class="n">sl</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">slices</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_composition_tree</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""One node per signal — how the signals stack into the covariance C."""</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="n">collections</span><span class="p">,</span> <span class="n">commons</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">multi</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'psls'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">multi</span><span class="p">:</span>
+        <span class="n">label</span><span class="p">,</span> <span class="n">ntoa</span><span class="p">,</span> <span class="n">sigs</span> <span class="o">=</span> <span class="n">collections</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">toa</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">ntoa</span><span class="si">}</span><span class="s1"> TOAs'</span> <span class="k">if</span> <span class="n">ntoa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">''</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1">  </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">  (</span><span class="si">{</span><span class="n">toa</span><span class="si">}</span><span class="s1">)    C = N + Σ FΦFᵀ'</span>
+        <span class="n">children</span> <span class="o">=</span> <span class="p">[(</span><span class="n">_sig_label</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">_slice_children</span><span class="p">(</span><span class="n">s</span><span class="p">))</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sigs</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">_render_tree</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">children</span><span class="p">)</span>
+
+    <span class="n">nfree</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_totals</span><span class="p">(</span><span class="n">collections</span><span class="p">,</span> <span class="n">commons</span><span class="p">)[</span><span class="s1">'varying'</span><span class="p">])</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1">  (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span><span class="si">}</span><span class="s1"> pulsars, </span><span class="si">{</span><span class="n">nfree</span><span class="si">}</span><span class="s1"> free params)'</span>
+    <span class="n">children</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">ntoa</span><span class="p">,</span> <span class="n">sigs</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">collections</span><span class="p">):</span>
+        <span class="n">toa</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">ntoa</span><span class="si">}</span><span class="s1"> TOAs'</span> <span class="k">if</span> <span class="n">ntoa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">''</span>
+        <span class="n">psr_kids</span> <span class="o">=</span> <span class="p">[(</span><span class="n">_sig_label</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="sa">f</span><span class="s1">'psls[</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">].'</span><span class="p">),</span> <span class="p">[])</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sigs</span><span class="p">]</span>
+        <span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">  (</span><span class="si">{</span><span class="n">toa</span><span class="si">}</span><span class="s1">)  [psls[</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">]]'</span><span class="p">,</span> <span class="n">psr_kids</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">commons</span><span class="p">:</span>
+        <span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">_sig_label</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">_slice_children</span><span class="p">(</span><span class="n">s</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">_render_tree</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">children</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_categorize</span><span class="p">(</span><span class="n">psl</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Split a pulsar's components into (noise kernel, constant GPs, variable</span>
+<span class="sd">    GPs) exactly as PulsarLikelihood.__init__ does."""</span>
+    <span class="n">noise</span><span class="p">,</span> <span class="n">cgps</span><span class="p">,</span> <span class="n">vgps</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="s1">'signals'</span><span class="p">,</span> <span class="p">[]):</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">'measurement'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">noise</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'ConstantGP'</span><span class="p">:</span>
+            <span class="n">cgps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'VariableGP'</span><span class="p">:</span>
+            <span class="n">vgps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">noise</span><span class="p">,</span> <span class="n">cgps</span><span class="p">,</span> <span class="n">vgps</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_layer_node</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">accessor</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A single Woodbury layer (one signal, or several fused by concat=True)."""</span>
+    <span class="n">infos</span> <span class="o">=</span> <span class="p">[</span><span class="n">describe_component</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">group</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">group</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">infos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">_shape_str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s1">'+ </span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="si">:</span><span class="s1">&lt;14</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">kind</span><span class="si">:</span><span class="s1">&lt;22</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">shape</span><span class="si">:</span><span class="s1">&lt;10</span><span class="si">}</span><span class="s1">  →  </span><span class="si">{</span><span class="n">accessor</span><span class="si">}</span><span class="s1">'</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">infos</span><span class="p">)</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'+ [</span><span class="si">{</span><span class="n">names</span><span class="si">}</span><span class="s1">] fused  →  </span><span class="si">{</span><span class="n">accessor</span><span class="si">}</span><span class="s1">.F'</span>
+    <span class="n">kids</span><span class="p">,</span> <span class="n">off</span> <span class="o">=</span> <span class="p">[],</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">infos</span><span class="p">:</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">basis_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">kids</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="si">:</span><span class="s1">&lt;14</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">accessor</span><span class="si">}</span><span class="s1">.F[:, </span><span class="si">{</span><span class="n">off</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">off</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">w</span><span class="si">}</span><span class="s1">]'</span><span class="p">,</span> <span class="p">[]))</span>
+        <span class="n">off</span> <span class="o">+=</span> <span class="n">w</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">kids</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_pulsar_literal</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">''</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Woodbury layering for one pulsar, outermost (model.N) to innermost."""</span>
+    <span class="n">noise</span><span class="p">,</span> <span class="n">cgps</span><span class="p">,</span> <span class="n">vgps</span> <span class="o">=</span> <span class="n">_categorize</span><span class="p">(</span><span class="n">psl</span><span class="p">)</span>
+    <span class="n">concat</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="s1">'concat'</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">groups</span><span class="p">(</span><span class="n">gps</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">gps</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">gps</span><span class="p">)]</span> <span class="k">if</span> <span class="n">concat</span> <span class="k">else</span> <span class="p">[[</span><span class="n">g</span><span class="p">]</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">gps</span><span class="p">]</span>
+
+    <span class="c1"># build order wraps constant GPs around the noise, then variable GPs around</span>
+    <span class="c1"># that; each chained wrap becomes the new outer layer -&gt; reverse for display</span>
+    <span class="n">layers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">groups</span><span class="p">(</span><span class="n">vgps</span><span class="p">)))</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">groups</span><span class="p">(</span><span class="n">cgps</span><span class="p">)))</span>
+
+    <span class="n">nodes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">layers</span><span class="p">):</span>
+        <span class="n">nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_layer_node</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">prefix</span> <span class="o">+</span> <span class="s1">'N'</span> <span class="o">+</span> <span class="s1">'.N'</span> <span class="o">*</span> <span class="n">p</span><span class="p">))</span>
+    <span class="n">nacc</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="s1">'N'</span> <span class="o">+</span> <span class="s1">'.N'</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">layers</span><span class="p">)</span>
+    <span class="n">ninfo</span> <span class="o">=</span> <span class="n">describe_component</span><span class="p">(</span><span class="n">noise</span><span class="p">)</span> <span class="k">if</span> <span class="n">noise</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">nodes</span><span class="o">.</span><span class="n">append</span><span class="p">(((</span><span class="n">ninfo</span><span class="o">.</span><span class="n">kind</span> <span class="k">if</span> <span class="n">ninfo</span> <span class="k">else</span> <span class="s1">'noise'</span><span class="p">)</span> <span class="o">+</span> <span class="sa">f</span><span class="s1">'  →  </span><span class="si">{</span><span class="n">nacc</span><span class="si">}</span><span class="s1">'</span><span class="p">,</span> <span class="p">[]))</span>
+    <span class="k">return</span> <span class="n">nodes</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_literal_tree</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Mirror the live nested Woodbury kernel (model.N.N…)."""</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="n">psls</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'psls'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">psls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1">  </span><span class="si">{</span><span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="s2">""</span><span class="p">)</span><span class="si">}</span><span class="s1">  (Woodbury layering, outer→inner)'</span>
+        <span class="k">return</span> <span class="n">_render_tree</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">_pulsar_literal</span><span class="p">(</span><span class="n">model</span><span class="p">))</span>
+
+    <span class="n">root</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1">  (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">psls</span><span class="p">)</span><span class="si">}</span><span class="s1"> pulsars · Woodbury layering per pulsar)'</span>
+    <span class="n">children</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">psl</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">psls</span><span class="p">):</span>
+        <span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="nb">getattr</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="s2">"psr"</span><span class="p">)</span><span class="si">}</span><span class="s1">  [psls[</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">]]'</span><span class="p">,</span>
+                         <span class="n">_pulsar_literal</span><span class="p">(</span><span class="n">psl</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="sa">f</span><span class="s1">'psls[</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">].'</span><span class="p">)))</span>
+    <span class="c1"># commongp / globalgp act at the array level, not inside any psl.N chain</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">commons</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">commons</span><span class="p">:</span>
+        <span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">_sig_label</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">_slice_children</span><span class="p">(</span><span class="n">s</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">_render_tree</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">children</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="tree">
+<a class="viewcode-back" href="../../guide/model_summary.html#discovery.summary.tree">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tree</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">literal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Visualize the model as a tree.</span>
+
+<span class="sd">    With ``literal=False`` (default) this is the *composition* tree — one node</span>
+<span class="sd">    per signal, showing how the signals stack into the covariance, with the</span>
+<span class="sd">    live ``signals[i]`` / ``commongp`` / ``globalgp`` handle on each. With</span>
+<span class="sd">    ``literal=True`` it mirrors the actual nested Woodbury kernel</span>
+<span class="sd">    (``model.N.N…``), where constant GPs fused by ``concat=True`` appear as a</span>
+<span class="sd">    single layer with their column slices.</span>
+<span class="sd">    """</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">_literal_tree</span><span class="p">(</span><span class="n">model</span><span class="p">)</span> <span class="k">if</span> <span class="n">literal</span> <span class="k">else</span> <span class="n">_composition_tree</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">to_stdout</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">text</span></div>
+
+
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># model reprs  (tree-based)</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="n">_MAX_REPR_PULSARS</span> <span class="o">=</span> <span class="mi">3</span>
+
+
+<div class="viewcode-block" id="short_repr">
+<a class="viewcode-back" href="../../api/summary.html#discovery.summary.short_repr">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">short_repr</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""One-line description of a model (used inside the tree header)."""</span>
+    <span class="n">collections</span><span class="p">,</span> <span class="n">commons</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">tot</span> <span class="o">=</span> <span class="n">_totals</span><span class="p">(</span><span class="n">collections</span><span class="p">,</span> <span class="n">commons</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'psls'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">who</span> <span class="o">=</span> <span class="n">collections</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">collections</span> <span class="k">else</span> <span class="s1">'?'</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s1">'&lt;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">who</span><span class="si">}</span><span class="s1">: '</span>
+                <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">collections</span><span class="p">)</span><span class="si">}</span><span class="s1"> signals, '</span>
+                <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tot</span><span class="p">[</span><span class="s2">"varying"</span><span class="p">])</span><span class="si">}</span><span class="s1"> free params&gt;'</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s1">'&lt;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span><span class="si">}</span><span class="s1"> pulsars, '</span>
+            <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tot</span><span class="p">[</span><span class="s2">"varying"</span><span class="p">])</span><span class="si">}</span><span class="s1"> free params, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">commons</span><span class="p">)</span><span class="si">}</span><span class="s1"> shared signals&gt;'</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="repr_tree">
+<a class="viewcode-back" href="../../api/summary.html#discovery.summary.repr_tree">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">repr_tree</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Composition tree for ``__repr__``; many-pulsar arrays are truncated so an</span>
+<span class="sd">    accidental echo in the terminal stays bounded."""</span>
+    <span class="n">psls</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">'psls'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">psls</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">psls</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">_MAX_REPR_PULSARS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_composition_tree</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+    <span class="c1"># truncate: keep the first few pulsar subtrees + the shared branches</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">model</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="n">collections</span><span class="p">,</span> <span class="n">commons</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="n">nfree</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_totals</span><span class="p">(</span><span class="n">collections</span><span class="p">,</span> <span class="n">commons</span><span class="p">)[</span><span class="s1">'varying'</span><span class="p">])</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s1">  (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span><span class="si">}</span><span class="s1"> pulsars, </span><span class="si">{</span><span class="n">nfree</span><span class="si">}</span><span class="s1"> free params)'</span>
+    <span class="n">children</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">ntoa</span><span class="p">,</span> <span class="n">sigs</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">collections</span><span class="p">[:</span><span class="n">_MAX_REPR_PULSARS</span><span class="p">]):</span>
+        <span class="n">toa</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">ntoa</span><span class="si">}</span><span class="s1"> TOAs'</span> <span class="k">if</span> <span class="n">ntoa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">''</span>
+        <span class="n">psr_kids</span> <span class="o">=</span> <span class="p">[(</span><span class="n">_sig_label</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="sa">f</span><span class="s1">'psls[</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">].'</span><span class="p">),</span> <span class="p">[])</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sigs</span><span class="p">]</span>
+        <span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s1">  (</span><span class="si">{</span><span class="n">toa</span><span class="si">}</span><span class="s1">)  [psls[</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">]]'</span><span class="p">,</span> <span class="n">psr_kids</span><span class="p">))</span>
+    <span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="sa">f</span><span class="s1">'… (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">collections</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">_MAX_REPR_PULSARS</span><span class="si">}</span><span class="s1"> more pulsars — '</span>
+                     <span class="sa">f</span><span class="s1">'model.tree() for all)'</span><span class="p">,</span> <span class="p">[]))</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">commons</span><span class="p">:</span>
+        <span class="n">children</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">_sig_label</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">_slice_children</span><span class="p">(</span><span class="n">s</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">_render_tree</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">children</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="SummaryMixin">
+<a class="viewcode-back" href="../../api/summary.html#discovery.summary.SummaryMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SummaryMixin</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Adds ``summary`` / ``summary_frame`` / ``tree`` / notebook + text reprs to</span>
+<span class="sd">    a likelihood class. The heavy lifting lives in the module-level functions so</span>
+<span class="sd">    both backend class families (matrix and metamath) can share one mixin."""</span>
+
+<div class="viewcode-block" id="SummaryMixin.summary">
+<a class="viewcode-back" href="../../api/summary.html#discovery.summary.SummaryMixin.summary">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">show_free</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">show_fixed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">show_access</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">include_params</span><span class="o">=</span><span class="n">include_params</span><span class="p">,</span> <span class="n">show_free</span><span class="o">=</span><span class="n">show_free</span><span class="p">,</span>
+                       <span class="n">show_fixed</span><span class="o">=</span><span class="n">show_fixed</span><span class="p">,</span> <span class="n">show_access</span><span class="o">=</span><span class="n">show_access</span><span class="p">,</span>
+                       <span class="n">to_stdout</span><span class="o">=</span><span class="n">to_stdout</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SummaryMixin.summary_frame">
+<a class="viewcode-back" href="../../api/summary.html#discovery.summary.SummaryMixin.summary_frame">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">summary_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">summary_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SummaryMixin.tree">
+<a class="viewcode-back" href="../../api/summary.html#discovery.summary.SummaryMixin.tree">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">literal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_stdout</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">literal</span><span class="o">=</span><span class="n">literal</span><span class="p">,</span> <span class="n">to_stdout</span><span class="o">=</span><span class="n">to_stdout</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_repr_html_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># notebook display: the composition tree in full (monospaced so the</span>
+        <span class="c1"># box-drawing aligns). The signal table stays available via</span>
+        <span class="c1"># .summary() / .summary_frame().</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">html</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s1">'&lt;pre style="line-height:1.35;font-size:90%"&gt;'</span>
+                <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">_composition_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span><span class="si">}</span><span class="s1">&lt;/pre&gt;'</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">repr_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Michele Vallisneri.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.19.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

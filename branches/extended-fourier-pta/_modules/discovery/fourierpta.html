@@ -1349,7 +1349,47 @@
 <span class="sd">        D_\mathrm{KL}(p\,\|\,q) = \mathbb E_{\mathbf y\sim p}\big[\log p(\mathbf y) - \log q(\mathbf y)\big]</span>
 
 <span class="sd">    from ``n`` draws of ``p``, e.g. between a full mixture and a reduced one</span>
-<span class="sd">    (:func:`reduce_mixture`). Returns ``(estimate, standard error)``.</span>
+<span class="sd">    (:func:`reduce_mixture`).</span>
+
+<span class="sd">    It is the average, over where ``p`` puts its probability, of how much lower the log</span>
+<span class="sd">    density is under ``q`` than under ``p``. With ``p`` the full summary density and ``q``</span>
+<span class="sd">    its replacement, the correction term (:func:`makecorrection`) changes this pulsar's</span>
+<span class="sd">    log-likelihood by exactly :math:`\log q - \log p` at each :math:`\mathbf a`, so this is</span>
+<span class="sd">    the log-likelihood lost on average at the coefficients the data favor, in nats. That is</span>
+<span class="sd">    why ``p`` comes first: it penalizes ``q`` most for missing tails that ``p`` has.</span>
+
+<span class="sd">    What to aim for:</span>
+
+<span class="sd">    - :math:`\lesssim 0.01`: negligible; the reduced mixture is as good as the full one.</span>
+<span class="sd">    - :math:`\sim 0.1`: borderline; compare posteriors, or :func:`mixture_logL` before and</span>
+<span class="sd">      after the reduction over the prior range.</span>
+<span class="sd">    - :math:`\gtrsim 1`: the reduction has lost real structure (often the tails); keep more</span>
+<span class="sd">      components.</span>
+
+<span class="sd">    It is per pulsar, and the errors add over the pulsars in an array, so the sum over</span>
+<span class="sd">    pulsars should stay small too. An estimate within a few standard errors of zero is</span>
+<span class="sd">    consistent with no loss at all. For J1738+0333 (tutorial), reducing 512 components to</span>
+<span class="sd">    16 gives a value consistent with 0.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    p : GaussianMixture</span>
+<span class="sd">        The reference density, sampled from (e.g. the full ``summary.mixture(K)``).</span>
+<span class="sd">    q : object with ``log_prob``</span>
+<span class="sd">        The approximation to it (e.g. ``reduce_mixture(p, K_reduced)``), in the same</span>
+<span class="sd">        whitened coordinates.</span>
+<span class="sd">    key : jax.random.PRNGKey</span>
+<span class="sd">        Random key for the draws.</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Number of draws (default 10000); the standard error falls as :math:`1/\sqrt n`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    estimate : float</span>
+<span class="sd">        The Monte Carlo estimate of :math:`D_\mathrm{KL}(p\,\|\,q)`, in nats (always</span>
+<span class="sd">        :math:`\ge 0` in expectation).</span>
+<span class="sd">    error : float</span>
+<span class="sd">        Its standard error.</span>
 <span class="sd">    """</span>
     <span class="n">y</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
     <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">log_prob</span><span class="p">)(</span><span class="n">y</span><span class="p">)</span> <span class="o">-</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">log_prob</span><span class="p">)(</span><span class="n">y</span><span class="p">))</span>

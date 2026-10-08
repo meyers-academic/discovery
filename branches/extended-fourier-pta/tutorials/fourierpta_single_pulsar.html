@@ -693,10 +693,12 @@ frequencies over the pulsar’s span, and white noise fixed to the EPTA noise di
 <span class="n">eta0</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">psr</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">_red_noise_log10_A'</span><span class="p">:</span> <span class="o">-</span><span class="mf">11.1</span><span class="p">,</span>      <span class="c1"># step-1 reference spectrum</span>
         <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">psr</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">_red_noise_gamma'</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">}</span>
 
+<span class="c1"># update if need chromgp, for example</span>
 <span class="n">priordict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'(.*_)?dm_gp_log10_A'</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="o">-</span><span class="mi">11</span><span class="p">],</span> <span class="s1">'(.*_)?dm_gp_gamma'</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span>
              <span class="s1">'(.*_)?red_noise_log10_A'</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="o">-</span><span class="mi">11</span><span class="p">],</span> <span class="s1">'(.*_)?red_noise_gamma'</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">7</span><span class="p">]}</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">run_nuts</span><span class="p">(</span><span class="n">logl</span><span class="p">,</span> <span class="n">num_warmup</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">num_samples</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="c1"># discovery will also make numpyro models for you if you want</span>
     <span class="n">model</span> <span class="o">=</span> <span class="n">ds_numpyro</span><span class="o">.</span><span class="n">makemodel_transformed</span><span class="p">(</span><span class="n">logl</span><span class="p">,</span> <span class="n">priordict</span><span class="o">=</span><span class="n">priordict</span><span class="p">)</span>
     <span class="n">sampler</span> <span class="o">=</span> <span class="n">ds_numpyro</span><span class="o">.</span><span class="n">makesampler_nuts</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">num_warmup</span><span class="o">=</span><span class="n">num_warmup</span><span class="p">,</span> <span class="n">num_samples</span><span class="o">=</span><span class="n">num_samples</span><span class="p">)</span>
     <span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
@@ -736,12 +738,13 @@ frequencies over the pulsar’s span, and white noise fixed to the EPTA noise di
 <h2>A. Reference: time domain<a class="headerlink" href="#a-reference-time-domain" title="Link to this heading">#</a></h2>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">chainA</span> <span class="o">=</span> <span class="n">run_nuts</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">psl</span><span class="o">.</span><span class="n">logL</span><span class="p">))</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># sample step full time domain</span>
+<span class="n">chainA</span> <span class="o">=</span> <span class="n">run_nuts</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">psl</span><span class="o">.</span><span class="n">logL</span><span class="p">))</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>32 s
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>33 s
 </pre></div>
 </div>
 </div>
@@ -754,8 +757,14 @@ frequencies over the pulsar’s span, and white noise fixed to the EPTA noise di
 Any sampler would do; this is just <code class="docutils literal notranslate"><span class="pre">logL</span></code> with two parameters fixed.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">logL_step1</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># hack it so that we fix the likelihood</span>
+<span class="c1"># so always add eta0.</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">logL_step1</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">psl</span><span class="o">.</span><span class="n">logL</span><span class="p">({</span><span class="o">**</span><span class="n">params</span><span class="p">,</span> <span class="o">**</span><span class="n">eta0</span><span class="p">})</span>
+<span class="c1"># if you have chromgp then you'll need "or chromgp in par" for example</span>
+<span class="c1"># or you can just *exclude* intrinsic red noise parameters.</span>
+<span class="c1"># the point is just that we fix red noise to the parameters</span>
+<span class="c1"># in eta0</span>
 <span class="n">logL_step1</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">[</span><span class="n">par</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">psl</span><span class="o">.</span><span class="n">logL</span><span class="o">.</span><span class="n">params</span> <span class="k">if</span> <span class="s1">'dm_gp'</span> <span class="ow">in</span> <span class="n">par</span><span class="p">]</span>
 
 <span class="n">chain1</span> <span class="o">=</span> <span class="n">run_nuts</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">logL_step1</span><span class="p">))</span>
@@ -780,6 +789,9 @@ what tells it to average; passing only scalars gives the summary at fixed noise.
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">samples</span> <span class="o">=</span> <span class="p">{</span><span class="n">par</span><span class="p">:</span> <span class="n">chain1</span><span class="p">[</span><span class="n">par</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">logL_step1</span><span class="o">.</span><span class="n">params</span><span class="p">}</span>
+
+<span class="c1"># summarize_pulsar contains all of the info we'd need to run</span>
+<span class="c1"># the Valtolina/van Haasteren method, or the new GMM method.</span>
 <span class="n">summary</span> <span class="o">=</span> <span class="n">fpta</span><span class="o">.</span><span class="n">summarize_pulsar</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">psl</span><span class="p">,</span> <span class="p">{</span><span class="o">**</span><span class="n">samples</span><span class="p">,</span> <span class="o">**</span><span class="n">eta0</span><span class="p">})</span>
 
 <span class="n">summary</span><span class="o">.</span><span class="n">ahat0</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">summary</span><span class="o">.</span><span class="n">ahat_samples</span><span class="o">.</span><span class="n">shape</span>
@@ -843,24 +855,64 @@ so a loud <span class="math notranslate nohighlight">\(\boldsymbol\eta_0\)</span
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">K</span> <span class="o">=</span> <span class="mi">512</span>
+
+
+<span class="n">K_reduced</span> <span class="o">=</span> <span class="mi">16</span>
+<span class="c1"># improved approximation to the marginal</span>
+<span class="c1"># in this case a gaussian mixture with K components</span>
+<span class="c1"># summary was made with however many samples was passed to it,</span>
+<span class="c1"># so K just needs to be less than the number of samples</span>
 <span class="n">summary</span><span class="o">.</span><span class="n">density</span> <span class="o">=</span> <span class="n">summary</span><span class="o">.</span><span class="n">mixture</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>
+
+<span class="c1"># Above is an equal weighted mixture. We can reduce the overall size of the mixture</span>
+<span class="c1"># by combining Gaussians and weighting them unequally. Mentioned in the draft, but not shown</span>
+<span class="c1"># uses: Runnalls 2007, IEEE Trans. Aerosp. Electron. Syst. 43, 989;</span>
+<span class="n">summary</span><span class="o">.</span><span class="n">density</span> <span class="o">=</span> <span class="n">fpta</span><span class="o">.</span><span class="n">reduce_mixture</span><span class="p">(</span><span class="n">summary</span><span class="o">.</span><span class="n">density</span><span class="p">,</span> <span class="n">K_reduced</span><span class="p">)</span>
 
 <span class="c1"># the step-2 red-noise prior, as a GP on the stand-in pulsar</span>
 <span class="n">irn</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makecommongp_fourier</span><span class="p">([</span><span class="n">summary</span><span class="p">],</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">NRN</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">fourierbasis</span><span class="o">=</span><span class="n">fpta</span><span class="o">.</span><span class="n">summarybasis</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'red_noise'</span><span class="p">)</span>
 
+<span class="c1"># note the fpta.makecorrection</span>
+<span class="c1"># this now creates that correction term q / N where q is calculated from the `summary.density`</span>
+<span class="c1"># (mixture here)</span>
 <span class="n">pslC</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">PulsarLikelihood</span><span class="p">([</span><span class="n">summary</span><span class="o">.</span><span class="n">residuals</span><span class="p">,</span> <span class="n">fpta</span><span class="o">.</span><span class="n">makenoise_summary</span><span class="p">(</span><span class="n">summary</span><span class="p">),</span> <span class="n">fpta</span><span class="o">.</span><span class="n">makecorrection</span><span class="p">(</span><span class="n">summary</span><span class="p">)])</span>
 <span class="n">likeC</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">ArrayLikelihood</span><span class="p">([</span><span class="n">pslC</span><span class="p">],</span> <span class="n">commongp</span><span class="o">=</span><span class="n">irn</span><span class="p">,</span> <span class="n">decenter</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="n">clogL</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">likeC</span><span class="o">.</span><span class="n">clogL</span><span class="p">)</span>
 <span class="n">cname</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">psr</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">_red_noise_coefficients(</span><span class="si">{</span><span class="mi">2</span><span class="o">*</span><span class="n">NRN</span><span class="si">}</span><span class="s1">)'</span>
 <span class="n">likeC</span><span class="o">.</span><span class="n">clogL</span><span class="o">.</span><span class="n">params</span>
+
+<span class="c1"># draw some parameters to test speed</span>
+<span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">p</span> <span class="o">=</span> <span class="p">{</span><span class="n">par</span><span class="p">:</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">*</span><span class="n">ds</span><span class="o">.</span><span class="n">prior</span><span class="o">.</span><span class="n">getprior_uniform</span><span class="p">(</span><span class="n">par</span><span class="p">,</span> <span class="n">priordict</span><span class="p">))</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">rn_pars</span><span class="p">}</span>
+<span class="n">p</span><span class="p">[</span><span class="n">cname</span><span class="p">]</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">NRN</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># check that the reduced GMM representation is ok.</span>
+<span class="c1"># use ??fpta.mixture_kl to understand what's going on.</span>
+<span class="n">fpta</span><span class="o">.</span><span class="n">mixture_kl</span><span class="p">(</span><span class="n">summary</span><span class="o">.</span><span class="n">mixture</span><span class="p">(</span><span class="n">K</span><span class="p">),</span> <span class="n">summary</span><span class="o">.</span><span class="n">density</span><span class="p">,</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">key</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>['J1738+0333_red_noise_coefficients(60)',
- 'J1738+0333_red_noise_gamma',
- 'J1738+0333_red_noise_log10_A']
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>(-3.7674812048940966e-06, 0.00013427650273716785)
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%%time</span>it
+<span class="n">jax</span><span class="o">.</span><span class="n">block_until_ready</span><span class="p">(</span><span class="n">clogL</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>59.8 μs ± 2.13 μs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
 </pre></div>
 </div>
 </div>
@@ -873,11 +925,11 @@ coefficient prior and the Jacobian, so <span class="math notranslate nohighlight
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">modelC</span><span class="p">():</span>
     <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="n">par</span><span class="p">:</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">par</span><span class="p">,</span> <span class="n">dist</span><span class="o">.</span><span class="n">Uniform</span><span class="p">(</span><span class="o">*</span><span class="n">ds</span><span class="o">.</span><span class="n">prior</span><span class="o">.</span><span class="n">getprior_uniform</span><span class="p">(</span><span class="n">par</span><span class="p">,</span> <span class="n">priordict</span><span class="p">)))</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">rn_pars</span><span class="p">}</span>
-    <span class="n">xi</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">'xi'</span><span class="p">,</span> <span class="n">dist</span><span class="o">.</span><span class="n">Normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">([</span><span class="mi">2</span><span class="o">*</span><span class="n">NRN</span><span class="p">]))</span>
+    <span class="n">xi</span> <span class="o">=</span> <span class="n">numpyro</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="s1">'xi'</span><span class="p">,</span> <span class="n">dist</span><span class="o">.</span><span class="n">ImproperUniform</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">constraints</span><span class="o">.</span><span class="n">real</span><span class="p">,</span> <span class="p">(),</span> <span class="n">event_shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">NRN</span><span class="p">,)))</span>
 
     <span class="n">logp</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">clogL</span><span class="p">({</span><span class="o">**</span><span class="n">params</span><span class="p">,</span> <span class="n">cname</span><span class="p">:</span> <span class="n">xi</span><span class="p">})</span>
     <span class="n">numpyro</span><span class="o">.</span><span class="n">deterministic</span><span class="p">(</span><span class="s1">'a'</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="n">numpyro</span><span class="o">.</span><span class="n">factor</span><span class="p">(</span><span class="s1">'logL'</span><span class="p">,</span> <span class="n">logp</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">xi</span> <span class="o">@</span> <span class="n">xi</span><span class="p">)</span>
+    <span class="n">numpyro</span><span class="o">.</span><span class="n">factor</span><span class="p">(</span><span class="s1">'logL'</span><span class="p">,</span> <span class="n">logp</span><span class="p">)</span> <span class="c1"># undo the prior here because it is applied correctly in Discovery under the hood.</span>
 
 <span class="n">mcmc</span> <span class="o">=</span> <span class="n">infer</span><span class="o">.</span><span class="n">MCMC</span><span class="p">(</span><span class="n">infer</span><span class="o">.</span><span class="n">NUTS</span><span class="p">(</span><span class="n">modelC</span><span class="p">,</span> <span class="n">max_tree_depth</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span> <span class="n">num_warmup</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">num_samples</span><span class="o">=</span><span class="mi">4000</span><span class="p">)</span>
 <span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
@@ -888,7 +940,7 @@ coefficient prior and the Jacobian, so <span class="math notranslate nohighlight
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>189 s
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>122 s
 </pre></div>
 </div>
 </div>
@@ -918,10 +970,10 @@ coefficient prior and the Jacobian, so <span class="math notranslate nohighlight
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/8c0f46c3c2cfa22d2efae3ea31db6f1737c51ca417d4a0e7f5a832576af1f571.png" src="../_images/8c0f46c3c2cfa22d2efae3ea31db6f1737c51ca417d4a0e7f5a832576af1f571.png" />
+<img alt="../_images/0d4810c7ecb71c0cc51e78e9faf012d9b759a89179efa9cab3a4533845e2847e.png" src="../_images/0d4810c7ecb71c0cc51e78e9faf012d9b759a89179efa9cab3a4533845e2847e.png" />
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>A: time domain             log10_A -14.879 ± 2.293    gamma  2.76 ± 1.69
 B: Gaussian (VvH25)        log10_A -12.979 ± 0.246    gamma  2.07 ± 0.92
-C: GMM (K=512), sampled    log10_A -14.727 ± 2.297    gamma  2.58 ± 1.62
+C: GMM (K=512), sampled    log10_A -15.268 ± 2.399    gamma  2.78 ± 1.76
 </pre></div>
 </div>
 </div>
@@ -960,10 +1012,8 @@ GMM-summary answers to “how likely is this red-noise spectrum?”:</p>
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>log10_A =  -17.0:  Gaussian summary   120.526   GMM summary   129.456
 log10_A =  -15.0:  Gaussian summary   120.560   GMM summary   129.456
 log10_A =  -13.0:  Gaussian summary   132.286   GMM summary   131.779
-</pre></div>
-</div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>log10_A =  -12.5:  Gaussian summary   121.634   GMM summary   121.572
-6 ms per call at K = 512
+log10_A =  -12.5:  Gaussian summary   121.634   GMM summary   121.572
+13 ms per call at K = 512
 </pre></div>
 </div>
 </div>

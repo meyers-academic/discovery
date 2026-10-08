@@ -1075,7 +1075,44 @@ Check the loss with <a class="reference internal" href="#discovery.fourierpta.mi
 <div class="math notranslate nohighlight">
 \[D_\mathrm{KL}(p\,\|\,q) = \mathbb E_{\mathbf y\sim p}\big[\log p(\mathbf y) - \log q(\mathbf y)\big]\]</div>
 <p>from <code class="docutils literal notranslate"><span class="pre">n</span></code> draws of <code class="docutils literal notranslate"><span class="pre">p</span></code>, e.g. between a full mixture and a reduced one
-(<a class="reference internal" href="#discovery.fourierpta.reduce_mixture" title="discovery.fourierpta.reduce_mixture"><code class="xref py py-func docutils literal notranslate"><span class="pre">reduce_mixture()</span></code></a>). Returns <code class="docutils literal notranslate"><span class="pre">(estimate,</span> <span class="pre">standard</span> <span class="pre">error)</span></code>.</p>
+(<a class="reference internal" href="#discovery.fourierpta.reduce_mixture" title="discovery.fourierpta.reduce_mixture"><code class="xref py py-func docutils literal notranslate"><span class="pre">reduce_mixture()</span></code></a>).</p>
+<p>It is the average, over where <code class="docutils literal notranslate"><span class="pre">p</span></code> puts its probability, of how much lower the log
+density is under <code class="docutils literal notranslate"><span class="pre">q</span></code> than under <code class="docutils literal notranslate"><span class="pre">p</span></code>. With <code class="docutils literal notranslate"><span class="pre">p</span></code> the full summary density and <code class="docutils literal notranslate"><span class="pre">q</span></code>
+its replacement, the correction term (<a class="reference internal" href="#discovery.fourierpta.makecorrection" title="discovery.fourierpta.makecorrection"><code class="xref py py-func docutils literal notranslate"><span class="pre">makecorrection()</span></code></a>) changes this pulsar’s
+log-likelihood by exactly <span class="math notranslate nohighlight">\(\log q - \log p\)</span> at each <span class="math notranslate nohighlight">\(\mathbf a\)</span>, so this is
+the log-likelihood lost on average at the coefficients the data favor, in nats. That is
+why <code class="docutils literal notranslate"><span class="pre">p</span></code> comes first: it penalizes <code class="docutils literal notranslate"><span class="pre">q</span></code> most for missing tails that <code class="docutils literal notranslate"><span class="pre">p</span></code> has.</p>
+<p>What to aim for:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(\lesssim 0.01\)</span>: negligible; the reduced mixture is as good as the full one.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\sim 0.1\)</span>: borderline; compare posteriors, or <a class="reference internal" href="#discovery.fourierpta.mixture_logL" title="discovery.fourierpta.mixture_logL"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_logL()</span></code></a> before and
+after the reduction over the prior range.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\gtrsim 1\)</span>: the reduction has lost real structure (often the tails); keep more
+components.</p></li>
+</ul>
+<p>It is per pulsar, and the errors add over the pulsars in an array, so the sum over
+pulsars should stay small too. An estimate within a few standard errors of zero is
+consistent with no loss at all. For J1738+0333 (tutorial), reducing 512 components to
+16 gives a value consistent with 0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>p</strong> (<a class="reference internal" href="#discovery.fourierpta.GaussianMixture" title="discovery.fourierpta.GaussianMixture"><em>GaussianMixture</em></a>) – The reference density, sampled from (e.g. the full <code class="docutils literal notranslate"><span class="pre">summary.mixture(K)</span></code>).</p></li>
+<li><p><strong>q</strong> (object with <code class="docutils literal notranslate"><span class="pre">log_prob</span></code>) – The approximation to it (e.g. <code class="docutils literal notranslate"><span class="pre">reduce_mixture(p,</span> <span class="pre">K_reduced)</span></code>), in the same
+whitened coordinates.</p></li>
+<li><p><strong>key</strong> (<em>jax.random.PRNGKey</em>) – Random key for the draws.</p></li>
+<li><p><strong>n</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of draws (default 10000); the standard error falls as <span class="math notranslate nohighlight">\(1/\sqrt n\)</span>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>estimate</strong> (<em>float</em>) – The Monte Carlo estimate of <span class="math notranslate nohighlight">\(D_\mathrm{KL}(p\,\|\,q)\)</span>, in nats (always
+<span class="math notranslate nohighlight">\(\ge 0\)</span> in expectation).</p></li>
+<li><p><strong>error</strong> (<em>float</em>) – Its standard error.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py class">

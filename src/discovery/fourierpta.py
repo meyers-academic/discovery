@@ -759,9 +759,10 @@ def makecorrection(summary, density=None):
 
     and ``clogL`` -- of the pulsar, or of any ``ArrayLikelihood`` containing it -- adds
     it at the sampled *physical* coefficients (after any decentering, whose Jacobian
-    is accounted for separately). The marginalized ``logL`` does not see it: a
-    non-Gaussian correction cannot be integrated out analytically, except for the
-    Gaussian mixture without inter-pulsar correlations (:func:`mixture_logL`).
+    is accounted for separately). The marginalized ``logL`` (and ``conditional``) of a
+    likelihood containing it raise: a non-Gaussian correction cannot be integrated out
+    analytically, except for the Gaussian mixture without inter-pulsar correlations
+    (:func:`mixture_logL`, :func:`mixture_conditional`).
     """
     density = summary.density if density is None else density
     if density is None:

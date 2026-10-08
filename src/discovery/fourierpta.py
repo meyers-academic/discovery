@@ -710,7 +710,47 @@ def mixture_kl(p, q, key, n=10000):
         D_\mathrm{KL}(p\,\|\,q) = \mathbb E_{\mathbf y\sim p}\big[\log p(\mathbf y) - \log q(\mathbf y)\big]
 
     from ``n`` draws of ``p``, e.g. between a full mixture and a reduced one
-    (:func:`reduce_mixture`). Returns ``(estimate, standard error)``.
+    (:func:`reduce_mixture`).
+
+    It is the average, over where ``p`` puts its probability, of how much lower the log
+    density is under ``q`` than under ``p``. With ``p`` the full summary density and ``q``
+    its replacement, the correction term (:func:`makecorrection`) changes this pulsar's
+    log-likelihood by exactly :math:`\log q - \log p` at each :math:`\mathbf a`, so this is
+    the log-likelihood lost on average at the coefficients the data favor, in nats. That is
+    why ``p`` comes first: it penalizes ``q`` most for missing tails that ``p`` has.
+
+    What to aim for:
+
+    - :math:`\lesssim 0.01`: negligible; the reduced mixture is as good as the full one.
+    - :math:`\sim 0.1`: borderline; compare posteriors, or :func:`mixture_logL` before and
+      after the reduction over the prior range.
+    - :math:`\gtrsim 1`: the reduction has lost real structure (often the tails); keep more
+      components.
+
+    It is per pulsar, and the errors add over the pulsars in an array, so the sum over
+    pulsars should stay small too. An estimate within a few standard errors of zero is
+    consistent with no loss at all. For J1738+0333 (tutorial), reducing 512 components to
+    16 gives a value consistent with 0.
+
+    Parameters
+    ----------
+    p : GaussianMixture
+        The reference density, sampled from (e.g. the full ``summary.mixture(K)``).
+    q : object with ``log_prob``
+        The approximation to it (e.g. ``reduce_mixture(p, K_reduced)``), in the same
+        whitened coordinates.
+    key : jax.random.PRNGKey
+        Random key for the draws.
+    n : int, optional
+        Number of draws (default 10000); the standard error falls as :math:`1/\sqrt n`.
+
+    Returns
+    -------
+    estimate : float
+        The Monte Carlo estimate of :math:`D_\mathrm{KL}(p\,\|\,q)`, in nats (always
+        :math:`\ge 0` in expectation).
+    error : float
+        Its standard error.
     """
     y = p.sample(key, n)
     d = np.asarray(jax.vmap(p.log_prob)(y) - jax.vmap(q.log_prob)(y))

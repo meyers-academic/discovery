@@ -511,6 +511,64 @@ def _log_frequencies(psr, components, T, logmode, f_min, nlog):
     return f, np.asarray(w) ** 2   # bin widths; see linBinning
 
 def log_fourierbasis(psr, components=30, T=None, logmode=0, f_min=None, nlog=0):
+    """Fourier basis with optional log-spaced modes below the lowest linear mode.
+
+    Drop-in replacement for :func:`fourierbasis` that can place ``nlog`` of the
+    ``components`` modes on a logarithmic grid between ``f_min`` and the linear
+    grid, to resolve low-frequency power with few extra modes. The binning is
+    :func:`linBinning`.
+
+    Parameters
+    ----------
+    psr : :class:`pulsar.Pulsar`
+        Discovery Pulsar object containing TOAs.
+    components : int
+        Total number of frequency modes, log-spaced plus linear, as for
+        :func:`fourierbasis`. ``nlog`` of them are log-spaced and the remaining
+        ``components - nlog`` are linear. Must be an int.
+    T : float, optional
+        Time span in seconds that sets the linear grid spacing ``1 / T``. Defaults to
+        the span of ``psr``'s TOAs.
+    logmode : int, optional
+        Index of the lowest linear mode, which sits at ``(1 + logmode) / T``; the
+        log-spaced modes fill in below ``(logmode + 0.5) / T``. Default 0 gives the
+        standard ``k / T`` grid. Must be >= 0.
+    f_min : float, optional
+        Lowest frequency covered by the log-spaced modes, in Hz. Required if
+        ``nlog > 0``, ignored otherwise.
+    nlog : int, optional
+        Number of log-spaced modes, between 0 and ``components``. Default 0 gives a
+        purely linear basis.
+
+    Returns
+    -------
+    f : np.ndarray
+        Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and
+        cosine columns (length ``2 * components``).
+    df : np.ndarray
+        Bin widths in Hz, repeated like ``f``; see :func:`linBinning`.
+    fmat : np.ndarray
+        :math:`N_\\mathrm{TOA} \\times 2\\,\\mathrm{components}` design matrix of
+        alternating sine and cosine columns.
+
+    Raises
+    ------
+    TypeError
+        If ``components`` is not an int.
+    ValueError
+        If ``nlog`` is outside ``[0, components]``, ``logmode < 0``, or ``nlog > 0``
+        and ``f_min`` is None.
+
+    Notes
+    -----
+    This differs from enterprise_extensions, where ``components`` counts only the
+    linear modes and the ``nlog`` log-spaced modes are added on top. Here
+    ``components`` is the total, so the basis can be passed as ``fourierbasis`` to
+    the GP builders (e.g. :func:`makegp_fourier`) unchanged. To reproduce
+    enterprise_extensions' ``model_general(logfreq=True, nmodes_log=m,
+    common_components=n)``, use ``components=n + m``, ``nlog=m``, ``logmode=m``
+    and ``f_min=1 / (10 * T)``.
+    """
     f, df = _log_frequencies(psr, components, T, logmode, f_min, nlog)
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
@@ -521,6 +579,50 @@ def log_fourierbasis(psr, components=30, T=None, logmode=0, f_min=None, nlog=0):
     return np.repeat(f, 2), np.repeat(df, 2), fmat
 
 def log_fourierbasis_dm(psr, components=30, T=None, logmode=0, f_min=None, nlog=0, fref=1400):
+    """DM (radio-frequency index 2) version of :func:`log_fourierbasis`.
+
+    The columns of :func:`log_fourierbasis` are scaled by ``(fref / psr.freqs)**2``.
+
+    Parameters
+    ----------
+    psr : :class:`pulsar.Pulsar`
+        Discovery Pulsar object containing TOAs and radio frequencies.
+    components : int
+        Total number of frequency modes, log-spaced plus linear, as for
+        :func:`fourierbasis`. ``nlog`` of them are log-spaced and the remaining
+        ``components - nlog`` are linear. Must be an int.
+    T : float, optional
+        Time span in seconds that sets the linear grid spacing ``1 / T``. Defaults to
+        the span of ``psr``'s TOAs.
+    logmode : int, optional
+        Index of the lowest linear mode, which sits at ``(1 + logmode) / T``; the
+        log-spaced modes fill in below ``(logmode + 0.5) / T``. Default 0 gives the
+        standard ``k / T`` grid. Must be >= 0.
+    f_min : float, optional
+        Lowest frequency covered by the log-spaced modes, in Hz. Required if
+        ``nlog > 0``, ignored otherwise.
+    nlog : int, optional
+        Number of log-spaced modes, between 0 and ``components``. Default 0 gives a
+        purely linear basis.
+    fref : float, optional
+        Reference radio frequency in MHz. Default 1400.
+
+    Returns
+    -------
+    f : np.ndarray
+        Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and
+        cosine columns (length ``2 * components``).
+    df : np.ndarray
+        Bin widths in Hz, repeated like ``f``; see :func:`linBinning`.
+    fmat : np.ndarray
+        :math:`N_\\mathrm{TOA} \\times 2\\,\\mathrm{components}` design matrix of
+        alternating sine and cosine columns, scaled by ``(fref / psr.freqs)**2``.
+
+    Notes
+    -----
+    ``components`` is the total number of modes, unlike enterprise_extensions where
+    the log-spaced modes are added on top; see :func:`log_fourierbasis`.
+    """
     f, df = _log_frequencies(psr, components, T, logmode, f_min, nlog)
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
@@ -533,6 +635,51 @@ def log_fourierbasis_dm(psr, components=30, T=None, logmode=0, f_min=None, nlog=
     return np.repeat(f, 2), np.repeat(df, 2), fmat * Dm[:, None]
 
 def log_fourierbasis_chrom(psr, components=30, T=None, logmode=0, f_min=None, nlog=0, fref=800):
+    """Chromatic version of :func:`log_fourierbasis` with a free chromatic index.
+
+    Returns the basis as a function of the chromatic index ``alpha``, which scales
+    the columns of :func:`log_fourierbasis` by ``(fref / psr.freqs)**alpha``.
+
+    Parameters
+    ----------
+    psr : :class:`pulsar.Pulsar`
+        Discovery Pulsar object containing TOAs and radio frequencies.
+    components : int
+        Total number of frequency modes, log-spaced plus linear, as for
+        :func:`fourierbasis`. ``nlog`` of them are log-spaced and the remaining
+        ``components - nlog`` are linear. Must be an int.
+    T : float, optional
+        Time span in seconds that sets the linear grid spacing ``1 / T``. Defaults to
+        the span of ``psr``'s TOAs.
+    logmode : int, optional
+        Index of the lowest linear mode, which sits at ``(1 + logmode) / T``; the
+        log-spaced modes fill in below ``(logmode + 0.5) / T``. Default 0 gives the
+        standard ``k / T`` grid. Must be >= 0.
+    f_min : float, optional
+        Lowest frequency covered by the log-spaced modes, in Hz. Required if
+        ``nlog > 0``, ignored otherwise.
+    nlog : int, optional
+        Number of log-spaced modes, between 0 and ``components``. Default 0 gives a
+        purely linear basis.
+    fref : float, optional
+        Reference radio frequency in MHz. Default 800.
+
+    Returns
+    -------
+    f : np.ndarray
+        Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and
+        cosine columns (length ``2 * components``).
+    df : np.ndarray
+        Bin widths in Hz, repeated like ``f``; see :func:`linBinning`.
+    fmatfunc : callable
+        ``fmatfunc(alpha)`` returns the :math:`N_\\mathrm{TOA} \\times
+        2\\,\\mathrm{components}` design matrix scaled by ``(fref / psr.freqs)**alpha``.
+
+    Notes
+    -----
+    ``components`` is the total number of modes, unlike enterprise_extensions where
+    the log-spaced modes are added on top; see :func:`log_fourierbasis`.
+    """
     f, df = _log_frequencies(psr, components, T, logmode, f_min, nlog)
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)
@@ -547,6 +694,52 @@ def log_fourierbasis_chrom(psr, components=30, T=None, logmode=0, f_min=None, nl
     return np.repeat(f, 2), np.repeat(df, 2), fmatfunc
 
 def log_fourierbasis_chrom_fixed(psr, components=30, T=None, alpha=4.0, logmode=0, f_min=None, nlog=0, fref=800):
+    """Chromatic version of :func:`log_fourierbasis` with a fixed chromatic index.
+
+    The columns of :func:`log_fourierbasis` are scaled by ``(fref / psr.freqs)**alpha``.
+
+    Parameters
+    ----------
+    psr : :class:`pulsar.Pulsar`
+        Discovery Pulsar object containing TOAs and radio frequencies.
+    components : int
+        Total number of frequency modes, log-spaced plus linear, as for
+        :func:`fourierbasis`. ``nlog`` of them are log-spaced and the remaining
+        ``components - nlog`` are linear. Must be an int.
+    T : float, optional
+        Time span in seconds that sets the linear grid spacing ``1 / T``. Defaults to
+        the span of ``psr``'s TOAs.
+    alpha : float, optional
+        Chromatic index. Default 4.
+    logmode : int, optional
+        Index of the lowest linear mode, which sits at ``(1 + logmode) / T``; the
+        log-spaced modes fill in below ``(logmode + 0.5) / T``. Default 0 gives the
+        standard ``k / T`` grid. Must be >= 0.
+    f_min : float, optional
+        Lowest frequency covered by the log-spaced modes, in Hz. Required if
+        ``nlog > 0``, ignored otherwise.
+    nlog : int, optional
+        Number of log-spaced modes, between 0 and ``components``. Default 0 gives a
+        purely linear basis.
+    fref : float, optional
+        Reference radio frequency in MHz. Default 800.
+
+    Returns
+    -------
+    f : np.ndarray
+        Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and
+        cosine columns (length ``2 * components``).
+    df : np.ndarray
+        Bin widths in Hz, repeated like ``f``; see :func:`linBinning`.
+    fmat : np.ndarray
+        :math:`N_\\mathrm{TOA} \\times 2\\,\\mathrm{components}` design matrix of
+        alternating sine and cosine columns, scaled by ``(fref / psr.freqs)**alpha``.
+
+    Notes
+    -----
+    ``components`` is the total number of modes, unlike enterprise_extensions where
+    the log-spaced modes are added on top; see :func:`log_fourierbasis`.
+    """
     f, df = _log_frequencies(psr, components, T, logmode, f_min, nlog)
 
     fmat = np.zeros((psr.toas.shape[0], 2*len(f)), dtype=np.float64)

@@ -1407,9 +1407,10 @@
 
 <span class="sd">    and ``clogL`` -- of the pulsar, or of any ``ArrayLikelihood`` containing it -- adds</span>
 <span class="sd">    it at the sampled *physical* coefficients (after any decentering, whose Jacobian</span>
-<span class="sd">    is accounted for separately). The marginalized ``logL`` does not see it: a</span>
-<span class="sd">    non-Gaussian correction cannot be integrated out analytically, except for the</span>
-<span class="sd">    Gaussian mixture without inter-pulsar correlations (:func:`mixture_logL`).</span>
+<span class="sd">    is accounted for separately). The marginalized ``logL`` (and ``conditional``) of a</span>
+<span class="sd">    likelihood containing it raise: a non-Gaussian correction cannot be integrated out</span>
+<span class="sd">    analytically, except for the Gaussian mixture without inter-pulsar correlations</span>
+<span class="sd">    (:func:`mixture_logL`, :func:`mixture_conditional`).</span>
 <span class="sd">    """</span>
     <span class="n">density</span> <span class="o">=</span> <span class="n">summary</span><span class="o">.</span><span class="n">density</span> <span class="k">if</span> <span class="n">density</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">density</span>
     <span class="k">if</span> <span class="n">density</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>

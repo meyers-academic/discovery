@@ -1113,9 +1113,10 @@ Jacobian <span class="math notranslate nohighlight">\(|\mathbf L_0|\)</span> can
 </div>
 <p>and <code class="docutils literal notranslate"><span class="pre">clogL</span></code> – of the pulsar, or of any <code class="docutils literal notranslate"><span class="pre">ArrayLikelihood</span></code> containing it – adds
 it at the sampled <em>physical</em> coefficients (after any decentering, whose Jacobian
-is accounted for separately). The marginalized <code class="docutils literal notranslate"><span class="pre">logL</span></code> does not see it: a
-non-Gaussian correction cannot be integrated out analytically, except for the
-Gaussian mixture without inter-pulsar correlations (<a class="reference internal" href="#discovery.fourierpta.mixture_logL" title="discovery.fourierpta.mixture_logL"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_logL()</span></code></a>).</p>
+is accounted for separately). The marginalized <code class="docutils literal notranslate"><span class="pre">logL</span></code> (and <code class="docutils literal notranslate"><span class="pre">conditional</span></code>) of a
+likelihood containing it raise: a non-Gaussian correction cannot be integrated out
+analytically, except for the Gaussian mixture without inter-pulsar correlations
+(<a class="reference internal" href="#discovery.fourierpta.mixture_logL" title="discovery.fourierpta.mixture_logL"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_logL()</span></code></a>, <a class="reference internal" href="#discovery.fourierpta.mixture_conditional" title="discovery.fourierpta.mixture_conditional"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_conditional()</span></code></a>).</p>
 </dd></dl>
 
 <dl class="py function">

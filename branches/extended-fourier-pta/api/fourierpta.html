@@ -640,7 +640,7 @@ machinery unchanged. See <a class="reference internal" href="#discovery.fourierp
 <p>Non-Gaussian summaries (draft Sec. 2.3-2.5) enter as a per-pulsar correction term,
 <a class="reference internal" href="#discovery.fourierpta.makecorrection" title="discovery.fourierpta.makecorrection"><code class="xref py py-func docutils literal notranslate"><span class="pre">makecorrection()</span></code></a>, on the sampled coefficients; for priors that do not couple
 pulsars, the Gaussian-mixture version can also be marginalized analytically,
-<a class="reference internal" href="#discovery.fourierpta.mixture_logL" title="discovery.fourierpta.mixture_logL"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_logL()</span></code></a>.</p>
+<a class="reference internal" href="#discovery.fourierpta.mixture_logL" title="discovery.fourierpta.mixture_logL"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_logL()</span></code></a>, and its coefficient conditional drawn, <a class="reference internal" href="#discovery.fourierpta.mixture_conditional" title="discovery.fourierpta.mixture_conditional"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_conditional()</span></code></a>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>“VvH25” is Valtolina &amp; van Haasteren, Phys. Rev. D 112, 043046 (2025). Equation,
@@ -662,7 +662,7 @@ coefficients <span class="math notranslate nohighlight">\(\mathbf a\)</span> (le
 <p>stored as <code class="docutils literal notranslate"><span class="pre">ahat0</span></code> and the precision <code class="docutils literal notranslate"><span class="pre">Sigma0_inv</span></code>; the reference prior variances
 <code class="docutils literal notranslate"><span class="pre">phi0</span></code>; optionally the per-sample conditionals that make up the Gaussian-mixture
 generalization (<code class="docutils literal notranslate"><span class="pre">ahat_samples</span></code>, <code class="docutils literal notranslate"><span class="pre">Sigma_samples</span></code>) and a non-Gaussian <code class="docutils literal notranslate"><span class="pre">density</span></code>;
-and the step-1 log-evidence <code class="docutils literal notranslate"><span class="pre">logL0</span></code>. Build one with <a class="reference internal" href="#discovery.fourierpta.summarize_pulsar" title="discovery.fourierpta.summarize_pulsar"><code class="xref py py-func docutils literal notranslate"><span class="pre">summarize_pulsar()</span></code></a>.</p>
+and <code class="docutils literal notranslate"><span class="pre">logL0</span></code>, the step-1 marginalized likelihood at the reference spectrum. Build one with <a class="reference internal" href="#discovery.fourierpta.summarize_pulsar" title="discovery.fourierpta.summarize_pulsar"><code class="xref py py-func docutils literal notranslate"><span class="pre">summarize_pulsar()</span></code></a>.</p>
 <p><strong>The stand-in pulsar.</strong> Step 2 swaps the reference prior for the model prior. As a
 function of <span class="math notranslate nohighlight">\(\mathbf a\)</span>, the summary with the reference prior divided out is a
 quadratic,</p>
@@ -731,8 +731,8 @@ that the stand-in’s likelihoods are <em>exactly</em>, not just up to a constan
   \frac{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi(\boldsymbol\eta))}
        {\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)},\]</div>
 <p>and correspondingly for <code class="docutils literal notranslate"><span class="pre">clogL</span></code> – in discovery’s convention, which omits factors
-of <span class="math notranslate nohighlight">\(2\pi\)</span>, the same as for real pulsars. The step-1 log-evidence
-<span class="math notranslate nohighlight">\(\log p(\delta t\mid\boldsymbol\eta_0)\)</span> is <code class="docutils literal notranslate"><span class="pre">logL0</span></code>: known exactly at fixed
+of <span class="math notranslate nohighlight">\(2\pi\)</span>, the same as for real pulsars. The step-1 marginalized likelihood at
+the reference spectrum, <span class="math notranslate nohighlight">\(\log p(\delta t\mid\boldsymbol\eta_0)\)</span>, is <code class="docutils literal notranslate"><span class="pre">logL0</span></code>: known exactly at fixed
 noise (then summaries plus <span class="math notranslate nohighlight">\(\sum_p\)</span> <code class="docutils literal notranslate"><span class="pre">logL0</span></code> reproduce the time-domain array
 likelihood, constant included), and 0 when step 1 marginalized noise parameters by
 sampling (step-2 numbers are then relative to <span class="math notranslate nohighlight">\(\boldsymbol\eta_0\)</span>, which is
@@ -955,9 +955,10 @@ the law of total expectation and covariance (draft Eq. 14),</p>
 the components of the Gaussian-mixture summary, <a class="reference internal" href="#discovery.fourierpta.FourierSummary.mixture" title="discovery.fourierpta.FourierSummary.mixture"><code class="xref py py-meth docutils literal notranslate"><span class="pre">FourierSummary.mixture()</span></code></a>.</p>
 </li>
 </ul>
-<p>The step-1 log-evidence <span class="math notranslate nohighlight">\(\log p(\delta t\mid\boldsymbol\eta_0)\)</span> is stored as
-<code class="docutils literal notranslate"><span class="pre">logL0</span></code>: at fixed noise it is <code class="docutils literal notranslate"><span class="pre">psl.logL(params)</span></code>; with sampled noise it is an
-evidence integral over <span class="math notranslate nohighlight">\(\boldsymbol\theta\)</span> that is not computed here, so
+<p>The step-1 marginalized likelihood at the reference spectrum,
+<span class="math notranslate nohighlight">\(\log p(\delta t\mid\boldsymbol\eta_0)\)</span>, is stored as <code class="docutils literal notranslate"><span class="pre">logL0</span></code>: at fixed noise
+it is <code class="docutils literal notranslate"><span class="pre">psl.logL(params)</span></code>; with sampled noise it is also integrated over
+<span class="math notranslate nohighlight">\(\boldsymbol\theta\)</span>, which is not computed here, so
 <code class="docutils literal notranslate"><span class="pre">logL0</span></code> is 0 and step-2 likelihoods are relative to it (exact for comparing
 step-2 models built on the same summaries). Set <code class="docutils literal notranslate"><span class="pre">summary.logL0</span></code> if you have it.</p>
 <dl class="field-list simple">
@@ -1124,19 +1125,30 @@ Gaussian mixture without inter-pulsar correlations (<a class="reference internal
 for priors that do not correlate pulsars (SPNA, IRN, CURN), where it factorizes
 over pulsars.</p>
 <p>Per pulsar, each component <span class="math notranslate nohighlight">\(k\)</span> is a Gaussian summary
-<span class="math notranslate nohighlight">\(\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)\)</span>, whose evidence
-against the prior swap <span class="math notranslate nohighlight">\(\boldsymbol\varphi_0\to\boldsymbol\varphi(\boldsymbol\eta)\)</span>
-is analytic:</p>
+<span class="math notranslate nohighlight">\(\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)\)</span>. Read as a
+posterior under the reference prior, dividing out that prior leaves the likelihood,
+<span class="math notranslate nohighlight">\(p_k(\delta t\mid\mathbf a)\propto\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)
+/\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)\)</span>. Integrating it against the step-2
+prior (prior swap <span class="math notranslate nohighlight">\(\boldsymbol\varphi_0\to\boldsymbol\varphi(\boldsymbol\eta)\)</span>)
+gives the component’s marginalized likelihood at <span class="math notranslate nohighlight">\(\boldsymbol\eta\)</span>, relative
+to the reference spectrum,</p>
 <div class="math notranslate nohighlight">
-\[\log Z_k = \tfrac12\mathbf b_k^\top\mathbf P_k^{-1}\mathbf b_k
+\[\mathcal L_k(\boldsymbol\eta) = \frac{p_k(\delta t\mid\boldsymbol\eta)}{p_k(\delta t\mid\boldsymbol\eta_0)}
+= \int \mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)\,
+  \frac{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi)}{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)}\,
+  d\mathbf a ,\]</div>
+<p>which is analytic:</p>
+<div class="math notranslate nohighlight">
+\[\log\mathcal L_k = \tfrac12\mathbf b_k^\top\mathbf P_k^{-1}\mathbf b_k
           - \tfrac12\hat{\mathbf a}_k^\top\mathbf b_k
           - \tfrac12\log|\boldsymbol\Sigma_k| - \tfrac12\log|\mathbf P_k|
           - \tfrac12\log|\boldsymbol\varphi| + \tfrac12\log|\boldsymbol\varphi_0|,
 \qquad
 \mathbf P_k = \boldsymbol\Sigma_k^{-1} + \boldsymbol\varphi^{-1} - \boldsymbol\varphi_0^{-1},\quad
 \mathbf b_k = \boldsymbol\Sigma_k^{-1}\hat{\mathbf a}_k .\]</div>
-<p>The pulsar contributes <span class="math notranslate nohighlight">\(\operatorname{logsumexp}_k (\log w_k + \log Z_k)\)</span> plus its
-step-1 log-evidence <code class="docutils literal notranslate"><span class="pre">logL0</span></code>, normalized like the stand-in likelihoods of
+<p>The pulsar contributes <span class="math notranslate nohighlight">\(\operatorname{logsumexp}_k (\log w_k + \log\mathcal L_k)\)</span> (the
+mixture’s marginalized likelihood relative to the reference spectrum) plus <code class="docutils literal notranslate"><span class="pre">logL0</span></code> (the step-1
+marginalized likelihood at the reference spectrum), normalized like the stand-in likelihoods of
 <a class="reference internal" href="#discovery.fourierpta.FourierSummary" title="discovery.fourierpta.FourierSummary"><code class="xref py py-class docutils literal notranslate"><span class="pre">FourierSummary</span></code></a>. Each call costs one Cholesky factorization per component.
 With HD (which couples pulsars) use <code class="docutils literal notranslate"><span class="pre">clogL</span></code> with <a class="reference internal" href="#discovery.fourierpta.makecorrection" title="discovery.fourierpta.makecorrection"><code class="xref py py-func docutils literal notranslate"><span class="pre">makecorrection()</span></code></a> terms
 instead.</p>
@@ -1154,6 +1166,49 @@ otherwise all its step-1 conditionals.</p></li>
 </ul>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.fourierpta.mixture_conditional">
+<span class="sig-prename descclassname"><span class="pre">discovery.fourierpta.</span></span><span class="sig-name descname"><span class="pre">mixture_conditional</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">summaries</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">commongp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">K</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/fourierpta.html#mixture_conditional"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.fourierpta.mixture_conditional" title="Link to this definition">#</a></dt>
+<dd><p>Conditional distribution of the Fourier coefficients under the Gaussian-mixture
+summary, <span class="math notranslate nohighlight">\(p(\mathbf a\mid\delta t,\boldsymbol\eta)\)</span>, for the same priors as
+<a class="reference internal" href="#discovery.fourierpta.mixture_logL" title="discovery.fourierpta.mixture_logL"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_logL()</span></code></a> (no correlations between pulsars), where it factorizes over pulsars.</p>
+<p>Swapping the reference prior for the step-2 prior turns each summary component into
+a Gaussian times <span class="math notranslate nohighlight">\(\mathcal L_k(\boldsymbol\eta)\)</span>, the component’s marginalized
+likelihood relative to the reference spectrum (see <a class="reference internal" href="#discovery.fourierpta.mixture_logL" title="discovery.fourierpta.mixture_logL"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_logL()</span></code></a>),</p>
+<div class="math notranslate nohighlight">
+\[\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)\,
+\frac{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi)}{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)}
+= \mathcal L_k\,\mathcal N(\mathbf a\mid\mathbf m_k,\mathbf P_k^{-1}),
+\qquad \mathbf m_k = \mathbf P_k^{-1}\mathbf b_k ,\]</div>
+<p>so the conditional is again a mixture, with weights updated by how strongly each
+component’s marginalized likelihood favors the spectrum <span class="math notranslate nohighlight">\(\boldsymbol\eta\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[p(\mathbf a\mid\delta t,\boldsymbol\eta)
+= \sum_k \tilde w_k\,\mathcal N(\mathbf a\mid\mathbf m_k,\mathbf P_k^{-1}),
+\qquad \tilde w_k = \frac{w_k\mathcal L_k}{\sum_j w_j\mathcal L_j} .\]</div>
+<p>With one component this is the stand-in pulsar’s <code class="docutils literal notranslate"><span class="pre">PulsarLikelihood.conditional</span></code>.</p>
+<p>It is conditional on the step-2 hyperparameters <span class="math notranslate nohighlight">\(\boldsymbol\eta\)</span>; evaluate it at
+draws of <span class="math notranslate nohighlight">\(\boldsymbol\eta\)</span> from the step-2 posterior to marginalize over them.
+What step 1 integrated out (timing model, chromatic noise) or sampled (white noise
+over the per-sample conditionals) is already marginalized.</p>
+<p>Returns <code class="docutils literal notranslate"><span class="pre">cond(params)</span> <span class="pre">-&gt;</span> <span class="pre">(logw,</span> <span class="pre">m,</span> <span class="pre">cf)</span></code>, per pulsar and component: the log weights
+<span class="math notranslate nohighlight">\(\log\tilde w_k\)</span> (npsr, K), the means <span class="math notranslate nohighlight">\(\mathbf m_k\)</span> (npsr, K, n), and the
+lower Cholesky factors of the precisions <span class="math notranslate nohighlight">\(\mathbf P_k\)</span> (npsr, K, n, n).
+Arguments as in <a class="reference internal" href="#discovery.fourierpta.mixture_logL" title="discovery.fourierpta.mixture_logL"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_logL()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.fourierpta.sample_mixture_conditional">
+<span class="sig-prename descclassname"><span class="pre">discovery.fourierpta.</span></span><span class="sig-name descname"><span class="pre">sample_mixture_conditional</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">summaries</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">commongp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">K</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/fourierpta.html#sample_mixture_conditional"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.fourierpta.sample_mixture_conditional" title="Link to this definition">#</a></dt>
+<dd><p>Draws from <a class="reference internal" href="#discovery.fourierpta.mixture_conditional" title="discovery.fourierpta.mixture_conditional"><code class="xref py py-func docutils literal notranslate"><span class="pre">mixture_conditional()</span></code></a>: per pulsar, a component <span class="math notranslate nohighlight">\(k\)</span> with
+probability <span class="math notranslate nohighlight">\(\tilde w_k\)</span>, then <span class="math notranslate nohighlight">\(\mathbf a = \mathbf m_k + \mathbf L_k^{-\top}\mathbf z\)</span>
+with <span class="math notranslate nohighlight">\(\mathbf P_k = \mathbf L_k\mathbf L_k^\top\)</span> and <span class="math notranslate nohighlight">\(\mathbf z\)</span> standard normal.</p>
+<p>Returns <code class="docutils literal notranslate"><span class="pre">sample(key,</span> <span class="pre">params)</span> <span class="pre">-&gt;</span> <span class="pre">(key,</span> <span class="pre">{coefficient</span> <span class="pre">name:</span> <span class="pre">a_p})</span></code>, like
+<code class="docutils literal notranslate"><span class="pre">PulsarLikelihood.sample_conditional</span></code>; the names are the <code class="docutils literal notranslate"><span class="pre">commongp</span></code> coefficient
+names. To see a draw as a time series, multiply by the real pulsar’s Fourier basis
+on the same frequencies (the stand-in’s own <code class="docutils literal notranslate"><span class="pre">Fmat</span></code> is not a time-domain basis).</p>
 </dd></dl>
 
 </section>
@@ -1237,6 +1292,8 @@ otherwise all its step-1 conditionals.</p></li>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.fourierpta.makecorrection"><code class="docutils literal notranslate"><span class="pre">makecorrection()</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.fourierpta.mixture_logL"><code class="docutils literal notranslate"><span class="pre">mixture_logL()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.fourierpta.mixture_conditional"><code class="docutils literal notranslate"><span class="pre">mixture_conditional()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.fourierpta.sample_mixture_conditional"><code class="docutils literal notranslate"><span class="pre">sample_mixture_conditional()</span></code></a></li>
 </ul>
   </nav></div>
 

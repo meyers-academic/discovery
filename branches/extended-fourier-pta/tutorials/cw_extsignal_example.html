@@ -702,9 +702,10 @@
                                         <span class="n">components</span><span class="o">=</span><span class="n">n_gw</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'gw'</span><span class="p">),</span>
         <span class="n">decenter</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extsignals</span><span class="o">=</span><span class="p">[</span><span class="n">cw</span><span class="p">])</span>
 
-<span class="c1"># build the cached_property likelihoods now that the model is constructed</span>
+<span class="c1"># build the cached_property likelihood now that the model is constructed</span>
+<span class="c1"># (extsignals enter through the sampled GP coefficients, so only clogL includes the CW;</span>
+<span class="c1"># model.logL raises rather than silently dropping it)</span>
 <span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">clogL</span>
-<span class="n">_</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">logL</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">clogL</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> sampled parameters "</span>
     <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cw</span><span class="o">.</span><span class="n">params</span><span class="p">)</span><span class="si">}</span><span class="s2"> of them CW)"</span><span class="p">)</span>
@@ -847,7 +848,8 @@ logpr: node(n1, n3) = n1 + n3
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-<span class="n">pars</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">sample_uniform</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">logL</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+<span class="c1"># GP hyperparameters: the clogL parameters that are neither GP coefficients nor CW parameters</span>
+<span class="n">pars</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">sample_uniform</span><span class="p">([</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">clogL</span><span class="o">.</span><span class="n">params</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">')'</span><span class="p">)</span> <span class="ow">and</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cw</span><span class="o">.</span><span class="n">params</span><span class="p">])</span>
 
 <span class="c1"># decentered GP coefficients are sampled in a whitened (unit-normal) frame</span>
 <span class="k">for</span> <span class="n">psr</span> <span class="ow">in</span> <span class="n">psrs</span><span class="p">:</span>

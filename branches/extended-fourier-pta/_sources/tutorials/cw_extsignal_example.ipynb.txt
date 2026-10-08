@@ -145,9 +145,10 @@
     "                                        components=n_gw, T=T, name='gw'),\n",
     "        decenter=True, extsignals=[cw])\n",
     "\n",
-    "# build the cached_property likelihoods now that the model is constructed\n",
+    "# build the cached_property likelihood now that the model is constructed\n",
+    "# (extsignals enter through the sampled GP coefficients, so only clogL includes the CW;\n",
+    "# model.logL raises rather than silently dropping it)\n",
     "_ = model.clogL\n",
-    "_ = model.logL\n",
     "\n",
     "print(f\"{len(model.clogL.params)} sampled parameters \"\n",
     "    f\"({len(cw.params)} of them CW)\")\n"
@@ -798,7 +799,8 @@
    ],
    "source": [
     "rng = np.random.default_rng(0)\n",
-    "pars = ds.sample_uniform(model.logL.params)\n",
+    "# GP hyperparameters: the clogL parameters that are neither GP coefficients nor CW parameters\n",
+    "pars = ds.sample_uniform([p for p in model.clogL.params if not p.endswith(')') and p not in cw.params])\n",
     "\n",
     "# decentered GP coefficients are sampled in a whitened (unit-normal) frame\n",
     "for psr in psrs:\n",

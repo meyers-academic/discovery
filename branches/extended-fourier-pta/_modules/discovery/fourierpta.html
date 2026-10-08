@@ -639,7 +639,7 @@
 <span class="sd">Non-Gaussian summaries (draft Sec. 2.3-2.5) enter as a per-pulsar correction term,</span>
 <span class="sd">:func:`makecorrection`, on the sampled coefficients; for priors that do not couple</span>
 <span class="sd">pulsars, the Gaussian-mixture version can also be marginalized analytically,</span>
-<span class="sd">:func:`mixture_logL`.</span>
+<span class="sd">:func:`mixture_logL`, and its coefficient conditional drawn, :func:`mixture_conditional`.</span>
 
 <span class="sd">.. note::</span>
 
@@ -681,7 +681,7 @@
 <span class="sd">    stored as ``ahat0`` and the precision ``Sigma0_inv``; the reference prior variances</span>
 <span class="sd">    ``phi0``; optionally the per-sample conditionals that make up the Gaussian-mixture</span>
 <span class="sd">    generalization (``ahat_samples``, ``Sigma_samples``) and a non-Gaussian ``density``;</span>
-<span class="sd">    and the step-1 log-evidence ``logL0``. Build one with :func:`summarize_pulsar`.</span>
+<span class="sd">    and ``logL0``, the step-1 marginalized likelihood at the reference spectrum. Build one with :func:`summarize_pulsar`.</span>
 
 <span class="sd">    **The stand-in pulsar.** Step 2 swaps the reference prior for the model prior. As a</span>
 <span class="sd">    function of :math:`\mathbf a`, the summary with the reference prior divided out is a</span>
@@ -766,8 +766,8 @@
 <span class="sd">               {\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)},</span>
 
 <span class="sd">    and correspondingly for ``clogL`` -- in discovery's convention, which omits factors</span>
-<span class="sd">    of :math:`2\pi`, the same as for real pulsars. The step-1 log-evidence</span>
-<span class="sd">    :math:`\log p(\delta t\mid\boldsymbol\eta_0)` is ``logL0``: known exactly at fixed</span>
+<span class="sd">    of :math:`2\pi`, the same as for real pulsars. The step-1 marginalized likelihood at</span>
+<span class="sd">    the reference spectrum, :math:`\log p(\delta t\mid\boldsymbol\eta_0)`, is ``logL0``: known exactly at fixed</span>
 <span class="sd">    noise (then summaries plus :math:`\sum_p` ``logL0`` reproduce the time-domain array</span>
 <span class="sd">    likelihood, constant included), and 0 when step 1 marginalized noise parameters by</span>
 <span class="sd">    sampling (step-2 numbers are then relative to :math:`\boldsymbol\eta_0`, which is</span>
@@ -843,9 +843,9 @@
     <span class="c1"># trained flowjax flow. None keeps the Gaussian summary (VvH25).</span>
     <span class="n">density</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="c1"># log p(dt | eta0), the step-1 log-evidence at the reference spectrum, in</span>
-    <span class="c1"># discovery's convention (PulsarLikelihood.logL); 0 if unknown. Step-2</span>
-    <span class="c1"># likelihoods are relative to it -- add it for absolute evidences.</span>
+    <span class="c1"># log p(dt | eta0), the step-1 marginalized likelihood at the reference spectrum,</span>
+    <span class="c1"># in discovery's convention (PulsarLikelihood.logL); 0 if unknown. Step-2</span>
+    <span class="c1"># likelihoods are relative to it -- add it for absolute likelihoods.</span>
     <span class="n">logL0</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
 
     <span class="c1"># eigenvalues of TtNT below rtol * max are roundoff, treated as zero (the</span>
@@ -963,7 +963,7 @@
                      <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phi0</span><span class="p">))</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">y</span> <span class="o">@</span> <span class="n">y</span><span class="p">)</span>
             <span class="c1"># NB: discovery's likelihoods omit factors of 2 pi; if they gain them, the</span>
             <span class="c1"># stand-in's -r/2 log s becomes -r/2 log(2 pi s), so subtract log(2 pi) here</span>
-            <span class="c1"># (test_standin_normalization and test_summaries_reproduce_time_domain_evidence</span>
+            <span class="c1"># (test_standin_normalization and test_summaries_reproduce_time_domain_likelihood</span>
             <span class="c1"># will flag it).</span>
             <span class="n">log_s</span> <span class="o">=</span> <span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">const</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
 
@@ -1089,9 +1089,10 @@
 <span class="sd">      and the per-sample pairs are kept (``ahat_samples``, ``Sigma_samples``): they are</span>
 <span class="sd">      the components of the Gaussian-mixture summary, :meth:`FourierSummary.mixture`.</span>
 
-<span class="sd">    The step-1 log-evidence :math:`\log p(\delta t\mid\boldsymbol\eta_0)` is stored as</span>
-<span class="sd">    ``logL0``: at fixed noise it is ``psl.logL(params)``; with sampled noise it is an</span>
-<span class="sd">    evidence integral over :math:`\boldsymbol\theta` that is not computed here, so</span>
+<span class="sd">    The step-1 marginalized likelihood at the reference spectrum,</span>
+<span class="sd">    :math:`\log p(\delta t\mid\boldsymbol\eta_0)`, is stored as ``logL0``: at fixed noise</span>
+<span class="sd">    it is ``psl.logL(params)``; with sampled noise it is also integrated over</span>
+<span class="sd">    :math:`\boldsymbol\theta`, which is not computed here, so</span>
 <span class="sd">    ``logL0`` is 0 and step-2 likelihoods are relative to it (exact for comparing</span>
 <span class="sd">    step-2 models built on the same summaries). Set ``summary.logL0`` if you have it.</span>
 
@@ -1426,13 +1427,26 @@
 <span class="sd">    over pulsars.</span>
 
 <span class="sd">    Per pulsar, each component :math:`k` is a Gaussian summary</span>
-<span class="sd">    :math:`\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)`, whose evidence</span>
-<span class="sd">    against the prior swap :math:`\boldsymbol\varphi_0\to\boldsymbol\varphi(\boldsymbol\eta)`</span>
-<span class="sd">    is analytic:</span>
+<span class="sd">    :math:`\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)`. Read as a</span>
+<span class="sd">    posterior under the reference prior, dividing out that prior leaves the likelihood,</span>
+<span class="sd">    :math:`p_k(\delta t\mid\mathbf a)\propto\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)</span>
+<span class="sd">    /\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)`. Integrating it against the step-2</span>
+<span class="sd">    prior (prior swap :math:`\boldsymbol\varphi_0\to\boldsymbol\varphi(\boldsymbol\eta)`)</span>
+<span class="sd">    gives the component's marginalized likelihood at :math:`\boldsymbol\eta`, relative</span>
+<span class="sd">    to the reference spectrum,</span>
 
 <span class="sd">    .. math::</span>
 
-<span class="sd">        \log Z_k = \tfrac12\mathbf b_k^\top\mathbf P_k^{-1}\mathbf b_k</span>
+<span class="sd">        \mathcal L_k(\boldsymbol\eta) = \frac{p_k(\delta t\mid\boldsymbol\eta)}{p_k(\delta t\mid\boldsymbol\eta_0)}</span>
+<span class="sd">        = \int \mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)\,</span>
+<span class="sd">          \frac{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi)}{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)}\,</span>
+<span class="sd">          d\mathbf a ,</span>
+
+<span class="sd">    which is analytic:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \log\mathcal L_k = \tfrac12\mathbf b_k^\top\mathbf P_k^{-1}\mathbf b_k</span>
 <span class="sd">                  - \tfrac12\hat{\mathbf a}_k^\top\mathbf b_k</span>
 <span class="sd">                  - \tfrac12\log|\boldsymbol\Sigma_k| - \tfrac12\log|\mathbf P_k|</span>
 <span class="sd">                  - \tfrac12\log|\boldsymbol\varphi| + \tfrac12\log|\boldsymbol\varphi_0|,</span>
@@ -1440,8 +1454,9 @@
 <span class="sd">        \mathbf P_k = \boldsymbol\Sigma_k^{-1} + \boldsymbol\varphi^{-1} - \boldsymbol\varphi_0^{-1},\quad</span>
 <span class="sd">        \mathbf b_k = \boldsymbol\Sigma_k^{-1}\hat{\mathbf a}_k .</span>
 
-<span class="sd">    The pulsar contributes :math:`\operatorname{logsumexp}_k (\log w_k + \log Z_k)` plus its</span>
-<span class="sd">    step-1 log-evidence ``logL0``, normalized like the stand-in likelihoods of</span>
+<span class="sd">    The pulsar contributes :math:`\operatorname{logsumexp}_k (\log w_k + \log\mathcal L_k)` (the</span>
+<span class="sd">    mixture's marginalized likelihood relative to the reference spectrum) plus ``logL0`` (the step-1</span>
+<span class="sd">    marginalized likelihood at the reference spectrum), normalized like the stand-in likelihoods of</span>
 <span class="sd">    :class:`FourierSummary`. Each call costs one Cholesky factorization per component.</span>
 <span class="sd">    With HD (which couples pulsars) use ``clogL`` with :func:`makecorrection` terms</span>
 <span class="sd">    instead.</span>
@@ -1460,6 +1475,22 @@
 <span class="sd">        :class:`GaussianMixture` (e.g. reduced with :func:`reduce_mixture`) uses that, and</span>
 <span class="sd">        otherwise all its step-1 conditionals.</span>
 <span class="sd">    """</span>
+    <span class="n">terms</span> <span class="o">=</span> <span class="n">_mixture_terms</span><span class="p">(</span><span class="n">summaries</span><span class="p">,</span> <span class="n">commongp</span><span class="p">,</span> <span class="n">K</span><span class="p">)</span>
+    <span class="n">logL0</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">logL0</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">summaries</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">loglike</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+        <span class="n">logL_comp</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">terms</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">logL_comp</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> <span class="o">+</span> <span class="n">logL0</span>
+    <span class="n">loglike</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">terms</span><span class="o">.</span><span class="n">params</span>
+
+    <span class="k">return</span> <span class="n">loglike</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_mixture_terms</span><span class="p">(</span><span class="n">summaries</span><span class="p">,</span> <span class="n">commongp</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Per pulsar and component, at the step-2 spectrum: log w_k + log L_k, with L_k component k's</span>
+<span class="sd">    marginalized likelihood relative to the reference spectrum; the Cholesky factor of P_k; and P_k^-1 b_k</span>
+<span class="sd">    (see mixture_logL and mixture_conditional)."""</span>
     <span class="n">phi</span> <span class="o">=</span> <span class="n">commongp</span><span class="o">.</span><span class="n">Phi</span><span class="o">.</span><span class="n">getN</span>
 
     <span class="n">comps</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1481,19 +1512,98 @@
 
     <span class="n">TtNT</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">const</span> <span class="o">=</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">comps</span><span class="p">))</span>    <span class="c1"># (npsr, K, n, n), (npsr, K, n), (npsr, K)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">loglike</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">terms</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
         <span class="n">phis</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">phi</span><span class="p">(</span><span class="n">params</span><span class="p">))</span>                                   <span class="c1"># (npsr, n)</span>
         <span class="n">P</span> <span class="o">=</span> <span class="n">TtNT</span> <span class="o">+</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">diag</span><span class="p">)(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">phis</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
         <span class="n">cf</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
         <span class="n">x</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cho_solve</span><span class="p">((</span><span class="n">cf</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span> <span class="n">b</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">])[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
-        <span class="n">logZ</span> <span class="o">=</span> <span class="p">(</span><span class="n">const</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span> <span class="o">*</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># log w_k + log L_k: weighted per-component log-likelihoods, relative to eta0</span>
+        <span class="n">logL_comp</span> <span class="o">=</span> <span class="p">(</span><span class="n">const</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b</span> <span class="o">*</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
                 <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">diagonal</span><span class="p">(</span><span class="n">cf</span><span class="p">,</span> <span class="n">axis1</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis2</span><span class="o">=-</span><span class="mi">1</span><span class="p">)),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
                 <span class="o">-</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">phis</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">logZ</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> <span class="o">+</span> <span class="n">logL0</span>
-    <span class="n">loglike</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">phi</span><span class="o">.</span><span class="n">params</span>
-    <span class="n">logL0</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">logL0</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">summaries</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">logL_comp</span><span class="p">,</span> <span class="n">cf</span><span class="p">,</span> <span class="n">x</span>
+    <span class="n">terms</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">phi</span><span class="o">.</span><span class="n">params</span>
 
-    <span class="k">return</span> <span class="n">loglike</span></div>
+    <span class="k">return</span> <span class="n">terms</span>
+
+
+<div class="viewcode-block" id="mixture_conditional">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.mixture_conditional">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mixture_conditional</span><span class="p">(</span><span class="n">summaries</span><span class="p">,</span> <span class="n">commongp</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Conditional distribution of the Fourier coefficients under the Gaussian-mixture</span>
+<span class="sd">    summary, :math:`p(\mathbf a\mid\delta t,\boldsymbol\eta)`, for the same priors as</span>
+<span class="sd">    :func:`mixture_logL` (no correlations between pulsars), where it factorizes over pulsars.</span>
+
+<span class="sd">    Swapping the reference prior for the step-2 prior turns each summary component into</span>
+<span class="sd">    a Gaussian times :math:`\mathcal L_k(\boldsymbol\eta)`, the component's marginalized</span>
+<span class="sd">    likelihood relative to the reference spectrum (see :func:`mixture_logL`),</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)\,</span>
+<span class="sd">        \frac{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi)}{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)}</span>
+<span class="sd">        = \mathcal L_k\,\mathcal N(\mathbf a\mid\mathbf m_k,\mathbf P_k^{-1}),</span>
+<span class="sd">        \qquad \mathbf m_k = \mathbf P_k^{-1}\mathbf b_k ,</span>
+
+<span class="sd">    so the conditional is again a mixture, with weights updated by how strongly each</span>
+<span class="sd">    component's marginalized likelihood favors the spectrum :math:`\boldsymbol\eta`:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        p(\mathbf a\mid\delta t,\boldsymbol\eta)</span>
+<span class="sd">        = \sum_k \tilde w_k\,\mathcal N(\mathbf a\mid\mathbf m_k,\mathbf P_k^{-1}),</span>
+<span class="sd">        \qquad \tilde w_k = \frac{w_k\mathcal L_k}{\sum_j w_j\mathcal L_j} .</span>
+
+<span class="sd">    With one component this is the stand-in pulsar's ``PulsarLikelihood.conditional``.</span>
+
+<span class="sd">    It is conditional on the step-2 hyperparameters :math:`\boldsymbol\eta`; evaluate it at</span>
+<span class="sd">    draws of :math:`\boldsymbol\eta` from the step-2 posterior to marginalize over them.</span>
+<span class="sd">    What step 1 integrated out (timing model, chromatic noise) or sampled (white noise</span>
+<span class="sd">    over the per-sample conditionals) is already marginalized.</span>
+
+<span class="sd">    Returns ``cond(params) -&gt; (logw, m, cf)``, per pulsar and component: the log weights</span>
+<span class="sd">    :math:`\log\tilde w_k` (npsr, K), the means :math:`\mathbf m_k` (npsr, K, n), and the</span>
+<span class="sd">    lower Cholesky factors of the precisions :math:`\mathbf P_k` (npsr, K, n, n).</span>
+<span class="sd">    Arguments as in :func:`mixture_logL`.</span>
+<span class="sd">    """</span>
+    <span class="n">terms</span> <span class="o">=</span> <span class="n">_mixture_terms</span><span class="p">(</span><span class="n">summaries</span><span class="p">,</span> <span class="n">commongp</span><span class="p">,</span> <span class="n">K</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">cond</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
+        <span class="n">logL_comp</span><span class="p">,</span> <span class="n">cf</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="n">terms</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">logL_comp</span> <span class="o">-</span> <span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">logL_comp</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">m</span><span class="p">,</span> <span class="n">cf</span>
+    <span class="n">cond</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">terms</span><span class="o">.</span><span class="n">params</span>
+
+    <span class="k">return</span> <span class="n">cond</span></div>
+
+
+
+<div class="viewcode-block" id="sample_mixture_conditional">
+<a class="viewcode-back" href="../../api/fourierpta.html#discovery.fourierpta.sample_mixture_conditional">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sample_mixture_conditional</span><span class="p">(</span><span class="n">summaries</span><span class="p">,</span> <span class="n">commongp</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Draws from :func:`mixture_conditional`: per pulsar, a component :math:`k` with</span>
+<span class="sd">    probability :math:`\tilde w_k`, then :math:`\mathbf a = \mathbf m_k + \mathbf L_k^{-\top}\mathbf z`</span>
+<span class="sd">    with :math:`\mathbf P_k = \mathbf L_k\mathbf L_k^\top` and :math:`\mathbf z` standard normal.</span>
+
+<span class="sd">    Returns ``sample(key, params) -&gt; (key, {coefficient name: a_p})``, like</span>
+<span class="sd">    ``PulsarLikelihood.sample_conditional``; the names are the ``commongp`` coefficient</span>
+<span class="sd">    names. To see a draw as a time series, multiply by the real pulsar's Fourier basis</span>
+<span class="sd">    on the same frequencies (the stand-in's own ``Fmat`` is not a time-domain basis).</span>
+<span class="sd">    """</span>
+    <span class="n">cond</span> <span class="o">=</span> <span class="n">mixture_conditional</span><span class="p">(</span><span class="n">summaries</span><span class="p">,</span> <span class="n">commongp</span><span class="p">,</span> <span class="n">K</span><span class="p">)</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">commongp</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="n">logw</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">cf</span> <span class="o">=</span> <span class="n">cond</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">key</span><span class="p">,</span> <span class="n">kc</span><span class="p">,</span> <span class="n">kz</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">categorical</span><span class="p">(</span><span class="n">kc</span><span class="p">,</span> <span class="n">logw</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>                      <span class="c1"># (npsr,)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">kz</span><span class="p">,</span> <span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">m</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>               <span class="c1"># (npsr, n)</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">+</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">L</span><span class="p">,</span> <span class="n">zi</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">scipy</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve_triangular</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">zi</span><span class="p">,</span> <span class="n">lower</span><span class="o">=</span><span class="kc">False</span><span class="p">))(</span><span class="n">cf</span><span class="p">[</span><span class="n">rows</span><span class="p">,</span> <span class="n">k</span><span class="p">],</span> <span class="n">z</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">a</span><span class="p">))</span>
+    <span class="n">sample</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">cond</span><span class="o">.</span><span class="n">params</span>
+
+    <span class="k">return</span> <span class="n">sample</span></div>
 
 </pre></div>
 

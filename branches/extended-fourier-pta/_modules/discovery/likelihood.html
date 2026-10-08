@@ -620,6 +620,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">metamatrix</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">metamath</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">summary</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
 
 <span class="c1"># import jax</span>
 
@@ -1187,6 +1188,33 @@
 <div class="viewcode-block" id="ArrayLikelihood">
 <a class="viewcode-back" href="../../api/likelihood.html#discovery.likelihood.ArrayLikelihood">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">ArrayLikelihood</span><span class="p">(</span><span class="n">summary</span><span class="o">.</span><span class="n">SummaryMixin</span><span class="p">):</span>
+    <span class="c1"># Which model features each method includes in its result; a method refuses a model</span>
+    <span class="c1"># containing a feature not on its row (utils.cross_check_features). decenter and</span>
+    <span class="c1"># transform reparametrize the sampled coefficients, so they don't matter to methods</span>
+    <span class="c1"># that integrate the coefficients out (logL, cglogL) or return them in physical</span>
+    <span class="c1"># coordinates (conditional).</span>
+    <span class="n">SUPPORTED_FEATURES</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">'logL'</span><span class="p">:</span>        <span class="p">{</span><span class="s1">'decenter'</span><span class="p">,</span> <span class="s1">'transform'</span><span class="p">},</span>
+        <span class="s1">'cglogL'</span><span class="p">:</span>      <span class="p">{</span><span class="s1">'decenter'</span><span class="p">,</span> <span class="s1">'transform'</span><span class="p">},</span>
+        <span class="s1">'conditional'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'decenter'</span><span class="p">,</span> <span class="s1">'transform'</span><span class="p">},</span>
+        <span class="s1">'clogL'</span><span class="p">:</span>       <span class="p">{</span><span class="s1">'extsignals'</span><span class="p">,</span> <span class="s1">'decenter'</span><span class="p">,</span> <span class="s1">'transform'</span><span class="p">},</span>
+        <span class="s1">'clogL with commongp=None'</span><span class="p">:</span> <span class="nb">set</span><span class="p">(),</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="ArrayLikelihood.model_features">
+<a class="viewcode-back" href="../../api/likelihood.html#discovery.likelihood.ArrayLikelihood.model_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">model_features</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""The model features (see utils.FEATURE_DESCRIPTIONS) this likelihood contains."""</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extsignals</span><span class="p">:</span>
+            <span class="n">features</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">'extsignals'</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">decenter</span><span class="p">:</span>
+            <span class="n">features</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">'decenter'</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">features</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">'transform'</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">features</span></div>
+
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">psls</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">commongp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">globalgp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">decenter</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">extsignals</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">psls</span> <span class="o">=</span> <span class="n">psls</span>
@@ -1203,6 +1231,8 @@
 
     <span class="nd">@functools</span><span class="o">.</span><span class="n">cached_property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">conditional</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">cross_check_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">'conditional'</span><span class="p">)</span>
+
         <span class="c1"># eventually move to constructor</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commongp</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">globalgp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"ArrayLikelihood.conditional currently only works with commongp."</span><span class="p">)</span>
@@ -1240,6 +1270,8 @@
 
     <span class="nd">@functools</span><span class="o">.</span><span class="n">cached_property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">clogL</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">cross_check_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">'clogL'</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commongp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">'clogL with commongp=None'</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commongp</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">globalgp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">def</span><span class="w"> </span><span class="nf">loglike</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
                 <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">psl</span><span class="o">.</span><span class="n">clogL</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="k">for</span> <span class="n">psl</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">psls</span><span class="p">)</span>
@@ -1335,6 +1367,8 @@
 
     <span class="nd">@functools</span><span class="o">.</span><span class="n">cached_property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">logL</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">cross_check_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">'logL'</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commongp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">globalgp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">logls</span> <span class="o">=</span> <span class="p">[</span><span class="n">psl</span><span class="o">.</span><span class="n">logL</span> <span class="k">for</span> <span class="n">psl</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">psls</span><span class="p">]</span>
@@ -1413,6 +1447,8 @@
 <div class="viewcode-block" id="ArrayLikelihood.cglogL">
 <a class="viewcode-back" href="../../api/likelihood.html#discovery.likelihood.ArrayLikelihood.cglogL">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">cglogL</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cgmaxiter</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">make_logdet</span><span class="o">=</span><span class="s1">'CG-MDL'</span><span class="p">,</span> <span class="n">detmatvecs</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">detsamples</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">clip</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">cross_check_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">'cglogL'</span><span class="p">)</span>
+
         <span class="n">commongp</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">VectorCompoundGP</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commongp</span><span class="p">)</span>
 
         <span class="n">Ns</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ys</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[(</span><span class="n">psl</span><span class="o">.</span><span class="n">N</span><span class="p">,</span> <span class="n">psl</span><span class="o">.</span><span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">psl</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">psls</span><span class="p">])</span>

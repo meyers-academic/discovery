@@ -43,6 +43,14 @@ def _extra_allowed(model):
     return extra
 
 
+def _free_params(model):
+    """The likelihood's varied (hyper)parameters: logL.params, or the non-coefficient
+    clogL.params for models with extsignals (logL refuses them; only clogL has them)."""
+    if getattr(model, "extsignals", None):
+        return [p for p in model.clogL.params if not p.endswith(")")]
+    return model.logL.params
+
+
 def _summary_params(model):
     cols, com = S._collect(model)
     return set(S._totals(cols, com)["varying"])
@@ -57,8 +65,8 @@ def test_single_pulsar_summary(recipe, psr, backend):
     model = recipe(psr)
 
     # the reliability invariant: never hide a varied parameter
-    assert set(model.logL.params) <= _summary_params(model)
-    assert _summary_params(model) - set(model.logL.params) <= _extra_allowed(model)
+    assert set(_free_params(model)) <= _summary_params(model)
+    assert _summary_params(model) - set(_free_params(model)) <= _extra_allowed(model)
 
     text = model.summary()
     assert isinstance(text, str) and psr.name in text
@@ -87,8 +95,8 @@ def test_single_pulsar_summary(recipe, psr, backend):
 def test_multi_pulsar_summary(recipe, psrs, backend):
     model = recipe(psrs)
 
-    assert set(model.logL.params) <= _summary_params(model)
-    assert _summary_params(model) - set(model.logL.params) <= _extra_allowed(model)
+    assert set(_free_params(model)) <= _summary_params(model)
+    assert _summary_params(model) - set(_free_params(model)) <= _extra_allowed(model)
 
     text = model.summary()
     assert isinstance(text, str)

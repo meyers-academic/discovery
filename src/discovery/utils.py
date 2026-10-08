@@ -282,6 +282,41 @@ class CoefficientTerm:
         raise NotImplementedError
 
 
+# What each model feature is, for the error raised when a likelihood method would leave it out.
+FEATURE_DESCRIPTIONS = {
+    'coefficient terms': "extra log-densities on the GP coefficients a (CoefficientTerm, e.g. "
+                         "fourierpta.makecorrection). They are not Gaussian in a, so a cannot be marginalized "
+                         "analytically and p(a | y, theta) is not Gaussian; a must be sampled",
+    'extsignals': "deterministic signals on their own basis (e.g. makecw_extsignal), entering through the "
+                  "sampled GP coefficients (needs a commongp)",
+    'decenter': "decentered (whitened) sampling of the commongp/globalgp coefficients (needs a commongp)",
+    'transform': "a reparametrization of the commongp/globalgp coefficients (needs a commongp)",
+    'reference': "single-precision reference+delta evaluation around a reference point",
+}
+
+
+def cross_check_features(like, method):
+    """Raise if `like` contains a model feature that `method` would silently leave out.
+
+    `like.model_features()` is the set of features the model contains;
+    `like.SUPPORTED_FEATURES[method]` is the set `method` includes in its result.
+    A feature missing from a method's row is refused by default, so a new feature
+    is never dropped silently: supporting it in a method means adding it to that row.
+    """
+    present = like.model_features()
+    missing = present - like.SUPPORTED_FEATURES[method]
+    if not missing:
+        return
+
+    cls = type(like).__name__
+    alternatives = [m for m, supported in like.SUPPORTED_FEATURES.items() if present <= supported]
+    raise NotImplementedError(
+        f"{cls}.{method} would silently leave out part of this model:\n"
+        + ''.join(f"  - {f}: {FEATURE_DESCRIPTIONS[f]}\n" for f in sorted(missing))
+        + (f"Methods that include all of this model's features: {', '.join(alternatives)}."
+           if alternatives else f"No {cls} method includes all of this model's features."))
+
+
 class GlobalVariableGP:
     """Like VariableGP, but with per-pulsar design matrices in a list `Fs`.
     Factories returning a GlobalVariableGP should set `.index` as a dict

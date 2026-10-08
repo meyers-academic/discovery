@@ -76,6 +76,19 @@ class PulsarLikelihood(summary.SummaryMixin):
     metamath instances because `ds.config(kernels='metamath')` sets the
     `_kernels` factory mode.
     """
+    # Which model features each method includes in its result; a method refuses a model
+    # containing a feature not on its row (utils.cross_check_features).
+    SUPPORTED_FEATURES = {
+        'logL':        set(),
+        'conditional': set(),
+        'sample':      set(),
+        'clogL':       {'coefficient terms'},
+    }
+
+    def model_features(self):
+        """The model features (see utils.FEATURE_DESCRIPTIONS) this likelihood contains."""
+        return {'coefficient terms'} if self.cterms else set()
+
     def __init__(self, args, concat=True):
         # retain the original components so the model can describe itself
         # (see discovery.summary); the math path uses only y, delay, N below.
@@ -193,6 +206,8 @@ class PulsarLikelihood(summary.SummaryMixin):
 
     @functools.cached_property
     def conditional(self):
+        kh.cross_check_features(self, 'conditional')
+
         # metamath Woodbury kernels always expose `make_conditional` as a
         # graph; the matrix.py-specific fallback (make_kernelsolve_simple /
         # P_var.make_inv) lives in `likelihood.py` and is not needed here.
@@ -207,6 +222,8 @@ class PulsarLikelihood(summary.SummaryMixin):
 
     @functools.cached_property
     def clogL(self):
+        kh.cross_check_features(self, 'clogL')
+
         if hasattr(self.N, 'make_coefficientproduct'):
             loglike = ffunc(self.N.make_coefficientproduct(self.y))
         elif self.delay:
@@ -228,11 +245,14 @@ class PulsarLikelihood(summary.SummaryMixin):
 
     @functools.cached_property
     def logL(self):
+        kh.cross_check_features(self, 'logL')
         return ffunc(self.N.make_kernelproduct(self.y))
 
 
     @functools.cached_property
     def sample(self):
+        kh.cross_check_features(self, 'sample')
+
         if callable(self.y):
             noiseonly = self.N.make_sample()
             delays = self.delay
@@ -248,6 +268,19 @@ class PulsarLikelihood(summary.SummaryMixin):
 
 
 class GlobalLikelihood(summary.SummaryMixin):
+    # Which model features each method includes in its result; a method refuses a model
+    # containing a feature not on its row (utils.cross_check_features).
+    SUPPORTED_FEATURES = {
+        'logL':        set(),
+        'plogL':       set(),
+        'conditional': set(),
+        'sample':      set(),
+    }
+
+    def model_features(self):
+        """The model features (see utils.FEATURE_DESCRIPTIONS) this likelihood contains."""
+        return {'coefficient terms'} if any(getattr(psl, 'cterms', []) for psl in self.psls) else set()
+
     def __init__(self, psls, globalgp=None):
         self.psls = psls
         self.globalgp = signals.CompoundGlobalGP(globalgp) if isinstance(globalgp, list) else globalgp
@@ -266,6 +299,8 @@ class GlobalLikelihood(summary.SummaryMixin):
 
     @functools.cached_property
     def sample(self):
+        kh.cross_check_features(self, 'sample')
+
         if self.globalgp is None:
             sls = [psl.sample for psl in self.psls]
             if len(sls) == 0:
@@ -315,6 +350,8 @@ class GlobalLikelihood(summary.SummaryMixin):
 
     @functools.cached_property
     def logL(self):
+        kh.cross_check_features(self, 'logL')
+
         if self.globalgp is None:
             logls = [psl.logL for psl in self.psls]
             if len(logls) == 0:
@@ -385,6 +422,8 @@ class GlobalLikelihood(summary.SummaryMixin):
     # MPI parallel likelihood
     @functools.cached_property
     def plogL(self):
+        kh.cross_check_features(self, 'plogL')
+
         import mpi4py
         import mpi4jax
 
@@ -484,6 +523,8 @@ class GlobalLikelihood(summary.SummaryMixin):
 
     @functools.cached_property
     def conditional(self):
+        kh.cross_check_features(self, 'conditional')
+
         if self.globalgp is None:
             raise ValueError("Nothing to predict in GlobalLikelihood without a globalgp!")
         else:
@@ -551,6 +592,34 @@ class GlobalLikelihood(summary.SummaryMixin):
 
 
 class ArrayLikelihood(summary.SummaryMixin):
+    # Which model features each method includes in its result; a method refuses a model
+    # containing a feature not on its row (utils.cross_check_features). decenter and
+    # transform reparametrize the sampled coefficients, so they don't matter to methods
+    # that integrate the coefficients out (logL, cglogL) or return them in physical
+    # coordinates (conditional).
+    SUPPORTED_FEATURES = {
+        'logL':        {'decenter', 'transform', 'reference'},
+        'cglogL':      {'decenter', 'transform'},
+        'conditional': {'decenter', 'transform'},
+        'clogL':       {'coefficient terms', 'extsignals', 'decenter', 'transform'},
+        'clogL with commongp=None': {'coefficient terms'},
+    }
+
+    def model_features(self):
+        """The model features (see utils.FEATURE_DESCRIPTIONS) this likelihood contains."""
+        features = set()
+        if any(getattr(psl, 'cterms', []) for psl in self.psls):
+            features.add('coefficient terms')
+        if self.extsignals:
+            features.add('extsignals')
+        if self.decenter:
+            features.add('decenter')
+        if self.transform is not None:
+            features.add('transform')
+        if self.reference is not None:
+            features.add('reference')
+        return features
+
     def __init__(self, psls, *, commongp=None, globalgp=None, transform=None,
                  decenter=False, extsignals=None, reference=None):
         self.psls = psls
@@ -591,6 +660,8 @@ class ArrayLikelihood(summary.SummaryMixin):
 
     @functools.cached_property
     def conditional(self):
+        kh.cross_check_features(self, 'conditional')
+
         # eventually move to constructor
         if self.commongp is None or self.globalgp is not None:
             raise ValueError("ArrayLikelihood.conditional currently only works with commongp.")
@@ -628,6 +699,8 @@ class ArrayLikelihood(summary.SummaryMixin):
 
     @functools.cached_property
     def clogL(self):
+        kh.cross_check_features(self, 'clogL' if self.commongp is not None else 'clogL with commongp=None')
+
         if self.commongp is None and self.globalgp is None:
             def loglike(params):
                 return sum(psl.clogL(params) for psl in self.psls)
@@ -750,6 +823,8 @@ class ArrayLikelihood(summary.SummaryMixin):
 
     @functools.cached_property
     def logL(self):
+        kh.cross_check_features(self, 'logL')
+
         if self.commongp is None:
             if self.globalgp is None:
                 logls = [psl.logL for psl in self.psls]
@@ -837,6 +912,8 @@ class ArrayLikelihood(summary.SummaryMixin):
         return loglike
 
     def cglogL(self, cgmaxiter=100, make_logdet='CG-MDL', detmatvecs=5, detsamples=200, clip=None):
+        kh.cross_check_features(self, 'cglogL')
+
         commongp = metamath.CompoundGP(self.commongp)
 
         Ns, self.ys = zip(*[(psl.N, psl.y) for psl in self.psls])

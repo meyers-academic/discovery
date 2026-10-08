@@ -179,6 +179,61 @@ def test_clogL_new_features(psrs, build):
 
 
 # ============================================================================
+# Guards: methods other than clogL refuse extsignals rather than silently dropping
+# them, and clogL refuses options that need a commongp when there is none.
+# ============================================================================
+
+@pytest.mark.parametrize("kernels", ["matrix", "metamath"])
+def test_extsignals_only_in_clogL(psrs, kernels):
+    ds.config(kernels=kernels)
+    try:
+        model = R.extsignal_cw(psrs)
+        for method in ("logL", "conditional"):
+            with pytest.raises(NotImplementedError, match="extsignals"):
+                getattr(model, method)
+        with pytest.raises(NotImplementedError, match="extsignals"):
+            model.cglogL()
+        assert callable(model.clogL)
+    finally:
+        ds.config(kernels="matrix")
+
+
+@pytest.mark.parametrize("kernels", ["matrix", "metamath"])
+@pytest.mark.parametrize("option", ["decenter", "transform", "extsignals"])
+def test_clogL_options_need_commongp(psrs, kernels, option):
+    ds.config(kernels=kernels)
+    try:
+        T = ds.getspan(psrs)
+        value = {"decenter": True,
+                 "transform": lambda params, c: (c, 0.0),
+                 "extsignals": [ds.makecw_extsignal(psrs, components=50, T=T, name="cw")]}[option]
+        # per-pulsar GPs inside the PulsarLikelihoods, as one would for a GlobalLikelihood
+        psls = [ds.PulsarLikelihood([p.residuals, ds.makenoise_measurement(p, p.noisedict),
+                                     ds.makegp_fourier(p, ds.powerlaw, 10, T=T, name="rednoise")])
+                for p in psrs]
+        model = ds.ArrayLikelihood(psls, **{option: value})
+        with pytest.raises(NotImplementedError, match=f"- {option}: .*needs a commongp"):
+            model.clogL
+    finally:
+        ds.config(kernels="matrix")
+
+
+def test_reference_only_in_logL(psrs):
+    # the single-precision reference+delta path exists only in logL
+    ds.config(kernels="metamath")
+    try:
+        model = R.intrinsic_rn(psrs)
+        model.reference = {}
+        for method in ("clogL", "conditional"):
+            with pytest.raises(NotImplementedError, match="- reference: "):
+                getattr(model, method)
+        with pytest.raises(NotImplementedError, match="- reference: "):
+            model.cglogL()
+    finally:
+        ds.config(kernels="matrix")
+
+
+# ============================================================================
 # HD global GP: Kronecker Phi (signals.makeglobalgp_fourier) and the
 # sampled-coefficient prior (metamath.CompoundGP._build_mixed_logprior).
 #

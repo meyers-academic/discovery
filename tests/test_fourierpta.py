@@ -329,8 +329,10 @@ def test_correction_single_pulsar(psrs, T, summaries):
     a = q[f'{s.name}_red_noise_coefficients({N})']
     assert np.isclose(float(corrected.clogL(q)) - float(plain.clogL(q)), _logw(s, density, a), rtol=1e-10, atol=1e-8)
 
-    # the marginalized likelihood is untouched
-    assert float(corrected.logL(q)) == float(plain.logL(q))
+    # a is not marginalizable analytically under the term: logL and conditional refuse
+    for method in ('logL', 'conditional', 'sample_conditional', 'sample'):
+        with pytest.raises(NotImplementedError, match='coefficient terms'):
+            getattr(corrected, method)
 
 
 def test_gaussian_density_is_no_correction(psrs, T, summaries):
@@ -374,6 +376,31 @@ def test_correction_swept_up_by_array(psrs, T, summaries):
             c0 = np.concatenate([q[f'{s0}_red_noise_coefficients({N})'], q[f'{s0}_gw_coefficients({2*NGW})']])
         a0 = c0[:N] + np.concatenate([c0[N:], np.zeros(N - 2*NGW)])
         assert np.isclose(float(lc) - float(lp), _logw(summaries[0], density, a0), rtol=1e-9, atol=1e-8)
+
+
+def test_correction_guards_array(psrs, T, summaries):
+    # every likelihood method that marginalizes or conditions on a refuses coefficient
+    # terms; clogL (which samples a) still works on the same model
+    pls, irn = _stand_ins(summaries, T)
+    gw = ds.makeglobalgp_fourier(summaries, ds.powerlaw, ds.hd_orf, NGW, T, fourierbasis=fpta.summarybasis, name='gw')
+    density = _density(np.random.default_rng(12))
+    pls_c = [ds.PulsarLikelihood([summaries[0].residuals, fpta.makenoise_summary(summaries[0]),
+                                  fpta.makecorrection(summaries[0], density)])] + pls[1:]
+
+    for kwargs in ({}, dict(commongp=irn), dict(commongp=irn, globalgp=gw)):
+        like = ds.ArrayLikelihood(pls_c, **kwargs)
+        for method in ('logL', 'conditional', 'sample_conditional'):
+            with pytest.raises(NotImplementedError, match='coefficient terms'):
+                getattr(like, method)
+        with pytest.raises(NotImplementedError, match='coefficient terms'):
+            like.cglogL()
+        if kwargs:                                       # (without a GP, nothing to sample)
+            assert callable(like.clogL)
+
+    glike = ds.GlobalLikelihood(pls_c, globalgp=gw)
+    for method in ('logL', 'plogL', 'conditional', 'sample_conditional', 'sample'):
+        with pytest.raises(NotImplementedError, match='coefficient terms'):
+            getattr(glike, method)
 
 
 def _log_relative_evidence(s, phi):

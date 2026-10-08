@@ -29,7 +29,7 @@ machinery unchanged. See :class:`FourierSummary` for how, and why it works.
 Non-Gaussian summaries (draft Sec. 2.3-2.5) enter as a per-pulsar correction term,
 :func:`makecorrection`, on the sampled coefficients; for priors that do not couple
 pulsars, the Gaussian-mixture version can also be marginalized analytically,
-:func:`mixture_logL`.
+:func:`mixture_logL`, and its coefficient conditional drawn, :func:`mixture_conditional`.
 
 .. note::
 
@@ -69,7 +69,7 @@ class FourierSummary:
     stored as ``ahat0`` and the precision ``Sigma0_inv``; the reference prior variances
     ``phi0``; optionally the per-sample conditionals that make up the Gaussian-mixture
     generalization (``ahat_samples``, ``Sigma_samples``) and a non-Gaussian ``density``;
-    and the step-1 log-evidence ``logL0``. Build one with :func:`summarize_pulsar`.
+    and ``logL0``, the step-1 marginalized likelihood at the reference spectrum. Build one with :func:`summarize_pulsar`.
 
     **The stand-in pulsar.** Step 2 swaps the reference prior for the model prior. As a
     function of :math:`\mathbf a`, the summary with the reference prior divided out is a
@@ -154,8 +154,8 @@ class FourierSummary:
                {\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)},
 
     and correspondingly for ``clogL`` -- in discovery's convention, which omits factors
-    of :math:`2\pi`, the same as for real pulsars. The step-1 log-evidence
-    :math:`\log p(\delta t\mid\boldsymbol\eta_0)` is ``logL0``: known exactly at fixed
+    of :math:`2\pi`, the same as for real pulsars. The step-1 marginalized likelihood at
+    the reference spectrum, :math:`\log p(\delta t\mid\boldsymbol\eta_0)`, is ``logL0``: known exactly at fixed
     noise (then summaries plus :math:`\sum_p` ``logL0`` reproduce the time-domain array
     likelihood, constant included), and 0 when step 1 marginalized noise parameters by
     sampling (step-2 numbers are then relative to :math:`\boldsymbol\eta_0`, which is
@@ -231,9 +231,9 @@ class FourierSummary:
     # trained flowjax flow. None keeps the Gaussian summary (VvH25).
     density: Optional[object] = None
 
-    # log p(dt | eta0), the step-1 log-evidence at the reference spectrum, in
-    # discovery's convention (PulsarLikelihood.logL); 0 if unknown. Step-2
-    # likelihoods are relative to it -- add it for absolute evidences.
+    # log p(dt | eta0), the step-1 marginalized likelihood at the reference spectrum,
+    # in discovery's convention (PulsarLikelihood.logL); 0 if unknown. Step-2
+    # likelihoods are relative to it -- add it for absolute likelihoods.
     logL0: float = 0.0
 
     # eigenvalues of TtNT below rtol * max are roundoff, treated as zero (the
@@ -348,7 +348,7 @@ class FourierSummary:
                      + 0.5 * np.sum(np.log(self.phi0)) + 0.5 * y @ y)
             # NB: discovery's likelihoods omit factors of 2 pi; if they gain them, the
             # stand-in's -r/2 log s becomes -r/2 log(2 pi s), so subtract log(2 pi) here
-            # (test_standin_normalization and test_summaries_reproduce_time_domain_evidence
+            # (test_standin_normalization and test_summaries_reproduce_time_domain_likelihood
             # will flag it).
             log_s = -2.0 * const / len(y)
 
@@ -465,9 +465,10 @@ def summarize_pulsar(psr, psl, params, gp='red_noise'):
       and the per-sample pairs are kept (``ahat_samples``, ``Sigma_samples``): they are
       the components of the Gaussian-mixture summary, :meth:`FourierSummary.mixture`.
 
-    The step-1 log-evidence :math:`\log p(\delta t\mid\boldsymbol\eta_0)` is stored as
-    ``logL0``: at fixed noise it is ``psl.logL(params)``; with sampled noise it is an
-    evidence integral over :math:`\boldsymbol\theta` that is not computed here, so
+    The step-1 marginalized likelihood at the reference spectrum,
+    :math:`\log p(\delta t\mid\boldsymbol\eta_0)`, is stored as ``logL0``: at fixed noise
+    it is ``psl.logL(params)``; with sampled noise it is also integrated over
+    :math:`\boldsymbol\theta`, which is not computed here, so
     ``logL0`` is 0 and step-2 likelihoods are relative to it (exact for comparing
     step-2 models built on the same summaries). Set ``summary.logL0`` if you have it.
 
@@ -775,13 +776,26 @@ def mixture_logL(summaries, commongp, K=None):
     over pulsars.
 
     Per pulsar, each component :math:`k` is a Gaussian summary
-    :math:`\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)`, whose evidence
-    against the prior swap :math:`\boldsymbol\varphi_0\to\boldsymbol\varphi(\boldsymbol\eta)`
-    is analytic:
+    :math:`\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)`. Read as a
+    posterior under the reference prior, dividing out that prior leaves the likelihood,
+    :math:`p_k(\delta t\mid\mathbf a)\propto\mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)
+    /\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)`. Integrating it against the step-2
+    prior (prior swap :math:`\boldsymbol\varphi_0\to\boldsymbol\varphi(\boldsymbol\eta)`)
+    gives the component's marginalized likelihood at :math:`\boldsymbol\eta`, relative
+    to the reference spectrum,
 
     .. math::
 
-        \log Z_k = \tfrac12\mathbf b_k^\top\mathbf P_k^{-1}\mathbf b_k
+        \mathcal L_k(\boldsymbol\eta) = \frac{p_k(\delta t\mid\boldsymbol\eta)}{p_k(\delta t\mid\boldsymbol\eta_0)}
+        = \int \mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)\,
+          \frac{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi)}{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)}\,
+          d\mathbf a ,
+
+    which is analytic:
+
+    .. math::
+
+        \log\mathcal L_k = \tfrac12\mathbf b_k^\top\mathbf P_k^{-1}\mathbf b_k
                   - \tfrac12\hat{\mathbf a}_k^\top\mathbf b_k
                   - \tfrac12\log|\boldsymbol\Sigma_k| - \tfrac12\log|\mathbf P_k|
                   - \tfrac12\log|\boldsymbol\varphi| + \tfrac12\log|\boldsymbol\varphi_0|,
@@ -789,8 +803,9 @@ def mixture_logL(summaries, commongp, K=None):
         \mathbf P_k = \boldsymbol\Sigma_k^{-1} + \boldsymbol\varphi^{-1} - \boldsymbol\varphi_0^{-1},\quad
         \mathbf b_k = \boldsymbol\Sigma_k^{-1}\hat{\mathbf a}_k .
 
-    The pulsar contributes :math:`\operatorname{logsumexp}_k (\log w_k + \log Z_k)` plus its
-    step-1 log-evidence ``logL0``, normalized like the stand-in likelihoods of
+    The pulsar contributes :math:`\operatorname{logsumexp}_k (\log w_k + \log\mathcal L_k)` (the
+    mixture's marginalized likelihood relative to the reference spectrum) plus ``logL0`` (the step-1
+    marginalized likelihood at the reference spectrum), normalized like the stand-in likelihoods of
     :class:`FourierSummary`. Each call costs one Cholesky factorization per component.
     With HD (which couples pulsars) use ``clogL`` with :func:`makecorrection` terms
     instead.
@@ -809,6 +824,21 @@ def mixture_logL(summaries, commongp, K=None):
         :class:`GaussianMixture` (e.g. reduced with :func:`reduce_mixture`) uses that, and
         otherwise all its step-1 conditionals.
     """
+    terms = _mixture_terms(summaries, commongp, K)
+    logL0 = sum(s.logL0 for s in summaries)
+
+    def loglike(params):
+        logL_comp, _, _ = terms(params)
+        return jnp.sum(jax.scipy.special.logsumexp(logL_comp, axis=1)) + logL0
+    loglike.params = terms.params
+
+    return loglike
+
+
+def _mixture_terms(summaries, commongp, K=None):
+    """Per pulsar and component, at the step-2 spectrum: log w_k + log L_k, with L_k component k's
+    marginalized likelihood relative to the reference spectrum; the Cholesky factor of P_k; and P_k^-1 b_k
+    (see mixture_logL and mixture_conditional)."""
     phi = commongp.Phi.getN
 
     comps = []
@@ -830,16 +860,90 @@ def mixture_logL(summaries, commongp, K=None):
 
     TtNT, b, const = (jnp.asarray(np.array(x)) for x in zip(*comps))    # (npsr, K, n, n), (npsr, K, n), (npsr, K)
 
-    def loglike(params):
+    def terms(params):
         phis = jnp.asarray(phi(params))                                   # (npsr, n)
         P = TtNT + jax.vmap(jnp.diag)(1.0 / phis)[:, None, :, :]
         cf = jnp.linalg.cholesky(P)
         x = jax.scipy.linalg.cho_solve((cf, True), b[..., None])[..., 0]
-        logZ = (const + 0.5 * jnp.sum(b * x, axis=-1)
+        # log w_k + log L_k: weighted per-component log-likelihoods, relative to eta0
+        logL_comp = (const + 0.5 * jnp.sum(b * x, axis=-1)
                 - jnp.sum(jnp.log(jnp.diagonal(cf, axis1=-2, axis2=-1)), axis=-1)
                 - 0.5 * jnp.sum(jnp.log(phis), axis=-1)[:, None])
-        return jnp.sum(jax.scipy.special.logsumexp(logZ, axis=1)) + logL0
-    loglike.params = phi.params
-    logL0 = sum(s.logL0 for s in summaries)
+        return logL_comp, cf, x
+    terms.params = phi.params
 
-    return loglike
+    return terms
+
+
+def mixture_conditional(summaries, commongp, K=None):
+    r"""Conditional distribution of the Fourier coefficients under the Gaussian-mixture
+    summary, :math:`p(\mathbf a\mid\delta t,\boldsymbol\eta)`, for the same priors as
+    :func:`mixture_logL` (no correlations between pulsars), where it factorizes over pulsars.
+
+    Swapping the reference prior for the step-2 prior turns each summary component into
+    a Gaussian times :math:`\mathcal L_k(\boldsymbol\eta)`, the component's marginalized
+    likelihood relative to the reference spectrum (see :func:`mixture_logL`),
+
+    .. math::
+
+        \mathcal N(\mathbf a\mid\hat{\mathbf a}_k,\boldsymbol\Sigma_k)\,
+        \frac{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi)}{\mathcal N(\mathbf a\mid 0,\boldsymbol\varphi_0)}
+        = \mathcal L_k\,\mathcal N(\mathbf a\mid\mathbf m_k,\mathbf P_k^{-1}),
+        \qquad \mathbf m_k = \mathbf P_k^{-1}\mathbf b_k ,
+
+    so the conditional is again a mixture, with weights updated by how strongly each
+    component's marginalized likelihood favors the spectrum :math:`\boldsymbol\eta`:
+
+    .. math::
+
+        p(\mathbf a\mid\delta t,\boldsymbol\eta)
+        = \sum_k \tilde w_k\,\mathcal N(\mathbf a\mid\mathbf m_k,\mathbf P_k^{-1}),
+        \qquad \tilde w_k = \frac{w_k\mathcal L_k}{\sum_j w_j\mathcal L_j} .
+
+    With one component this is the stand-in pulsar's ``PulsarLikelihood.conditional``.
+
+    It is conditional on the step-2 hyperparameters :math:`\boldsymbol\eta`; evaluate it at
+    draws of :math:`\boldsymbol\eta` from the step-2 posterior to marginalize over them.
+    What step 1 integrated out (timing model, chromatic noise) or sampled (white noise
+    over the per-sample conditionals) is already marginalized.
+
+    Returns ``cond(params) -> (logw, m, cf)``, per pulsar and component: the log weights
+    :math:`\log\tilde w_k` (npsr, K), the means :math:`\mathbf m_k` (npsr, K, n), and the
+    lower Cholesky factors of the precisions :math:`\mathbf P_k` (npsr, K, n, n).
+    Arguments as in :func:`mixture_logL`.
+    """
+    terms = _mixture_terms(summaries, commongp, K)
+
+    def cond(params):
+        logL_comp, cf, m = terms(params)
+        return logL_comp - jax.scipy.special.logsumexp(logL_comp, axis=1, keepdims=True), m, cf
+    cond.params = terms.params
+
+    return cond
+
+
+def sample_mixture_conditional(summaries, commongp, K=None):
+    r"""Draws from :func:`mixture_conditional`: per pulsar, a component :math:`k` with
+    probability :math:`\tilde w_k`, then :math:`\mathbf a = \mathbf m_k + \mathbf L_k^{-\top}\mathbf z`
+    with :math:`\mathbf P_k = \mathbf L_k\mathbf L_k^\top` and :math:`\mathbf z` standard normal.
+
+    Returns ``sample(key, params) -> (key, {coefficient name: a_p})``, like
+    ``PulsarLikelihood.sample_conditional``; the names are the ``commongp`` coefficient
+    names. To see a draw as a time series, multiply by the real pulsar's Fourier basis
+    on the same frequencies (the stand-in's own ``Fmat`` is not a time-domain basis).
+    """
+    cond = mixture_conditional(summaries, commongp, K)
+    names = list(commongp.index)
+
+    def sample(key, params):
+        logw, m, cf = cond(params)
+        key, kc, kz = jax.random.split(key, 3)
+        k = jax.random.categorical(kc, logw, axis=1)                      # (npsr,)
+        rows = jnp.arange(m.shape[0])
+        z = jax.random.normal(kz, (m.shape[0], m.shape[2]))               # (npsr, n)
+        a = m[rows, k] + jax.vmap(
+            lambda L, zi: jax.scipy.linalg.solve_triangular(L.T, zi, lower=False))(cf[rows, k], z)
+        return key, dict(zip(names, a))
+    sample.params = cond.params
+
+    return sample

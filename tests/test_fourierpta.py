@@ -276,7 +276,7 @@ def test_mixture_density_normalized():
 
 
 def test_mixture_logL_monte_carlo():
-    # Z_k = E_{a ~ N(ahat_k, Sigma_k)} [N(a | 0, phi) / N(a | 0, phi0)], checked by sampling
+    # L_k = E_{a ~ N(ahat_k, Sigma_k)} [N(a | 0, phi) / N(a | 0, phi0)], checked by sampling
     rng = np.random.default_rng(6)
     d = 4
     f, df = np.repeat(np.arange(1, d//2 + 1) / 10.0, 2), np.full(d, 0.1)
@@ -292,11 +292,11 @@ def test_mixture_logL_monte_carlo():
     def lognorm(a, var):
         return -0.5 * np.sum(a**2 / var, axis=-1) - 0.5 * np.sum(np.log(2 * np.pi * var))
 
-    Z = []
+    L = []
     for ahat, Sigma in zip(s.ahat_samples, s.Sigma_samples):
         a = rng.multivariate_normal(ahat, Sigma, size=400000)
-        Z.append(np.mean(np.exp(lognorm(a, phi) - lognorm(a, s.phi0))))
-    assert np.isclose(float(logL(p)), np.log(np.mean(Z)), atol=5e-3)
+        L.append(np.mean(np.exp(lognorm(a, phi) - lognorm(a, s.phi0))))
+    assert np.isclose(float(logL(p)), np.log(np.mean(L)), atol=5e-3)
 
 
 def _coefficients(summaries, rng, gw=True):
@@ -403,7 +403,7 @@ def test_correction_guards_array(psrs, T, summaries):
             getattr(glike, method)
 
 
-def _log_relative_evidence(s, phi):
+def _log_likelihood_ratio(s, phi):
     """log int da N(a | ahat0, Sigma0) N(a | 0, phi) / N(a | 0, phi0), in closed form."""
     P = s.Sigma0_inv + np.diag(1 / phi - 1 / s.phi0)
     b = s.b0
@@ -421,7 +421,7 @@ def test_standin_normalization(psrs, T, summaries):
         psl = ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), rn])
         p = {f'{s.name}_red_noise_log10_A': -14.2, f'{s.name}_red_noise_gamma': 4.0}
         phi = np.asarray(rn.Phi.getN(p))
-        assert np.isclose(float(psl.logL(p)), _log_relative_evidence(s, phi), rtol=1e-10, atol=1e-6)
+        assert np.isclose(float(psl.logL(p)), _log_likelihood_ratio(s, phi), rtol=1e-10, atol=1e-6)
 
         a = s.ahat0 + s.L0 @ rng.normal(size=N)
         lognorm = lambda x, m, C: -0.5 * (x - m) @ np.linalg.solve(C, x - m) - 0.5 * np.linalg.slogdet(2 * np.pi * C)[1]
@@ -444,9 +444,9 @@ def test_mixture_logL_one_component_is_standin(psrs, T, summaries):
     assert np.isclose(float(fpta.mixture_logL([s], irn)(p)), float(psl.logL(p)) + s.logL0, rtol=1e-10, atol=1e-6)
 
 
-def test_summaries_reproduce_time_domain_evidence(psrs, T, summaries):
+def test_summaries_reproduce_time_domain_likelihood(psrs, T, summaries):
     # at fixed white noise the Gaussian summary is exact: with each pulsar's step-1
-    # log-evidence logL0 added, the step-2 HD logL over summaries equals the
+    # marginalized likelihood at the reference spectrum, logL0, added, the step-2 HD logL over summaries equals the
     # time-domain HD logL, constant included
     pls_real = [ds.PulsarLikelihood([psr.residuals, ds.makegp_timing(psr, svd=True),
                                      ds.makenoise_measurement(psr, noisedict=psr.noisedict, ecorr=True)])
@@ -470,7 +470,7 @@ def test_summaries_reproduce_time_domain_evidence(psrs, T, summaries):
 def test_mixed_time_domain_and_summaries(psrs, T, summaries):
     # at fixed white noise the Gaussian summary is exact, so replacing one summary by
     # the pulsar's full time-domain likelihood changes the step-2 logL only by that
-    # summary's step-1 log-evidence logL0
+    # summary's step-1 marginalized likelihood at the reference spectrum, logL0
     psr = psrs[0]
     real = ds.PulsarLikelihood([psr.residuals, ds.makegp_timing(psr, svd=True),
                                 ds.makenoise_measurement(psr, noisedict=psr.noisedict, ecorr=True)])
@@ -582,3 +582,81 @@ def test_mixture_logL_uses_reduced_density():
     s.density = fpta.reduce_mixture(s.mixture(), 3)
     reduced = float(fpta.mixture_logL([s], irn)(p))
     assert np.isfinite(reduced) and reduced != full
+
+
+def test_mixture_conditional_one_component_is_standin(psrs, T, summaries):
+    # one component at (ahat0, Sigma0): the stand-in pulsar's own conditional
+    import copy
+    s = copy.copy(summaries[0])
+    s.ahat_samples, s.Sigma_samples = s.ahat0[None], s.Sigma0[None]
+    rn = ds.makegp_fourier(s, ds.powerlaw, NC, T=T, fourierbasis=fpta.summarybasis, name='red_noise')
+    psl = ds.PulsarLikelihood([s.residuals, fpta.makenoise_summary(s), rn])
+    irn = ds.makecommongp_fourier([s], ds.powerlaw, NC, T, fourierbasis=fpta.summarybasis, name='red_noise')
+    p = {f'{s.name}_red_noise_log10_A': -14.2, f'{s.name}_red_noise_gamma': 4.0}
+
+    logw, m, cf = fpta.mixture_conditional([s], irn)(p)
+    mu, cf0 = psl.conditional(p)
+    P, P0 = (np.asarray(L @ L.T) for L in (cf[0, 0], cf0[0]))   # both lower Cholesky factors of the precision
+    assert np.isclose(float(logw[0, 0]), 0.0, atol=1e-12)
+    assert np.allclose(m[0, 0], mu, rtol=1e-8, atol=1e-12 * np.max(np.abs(mu)))
+    assert np.allclose(P, P0, rtol=1e-8)
+
+
+def _conditional_logpdf(logw, m, cf, a):
+    # log of sum_k w_k N(a | m_k, P_k^-1), with P_k = L_k L_k^T
+    z = np.einsum('kji,kj->ki', np.asarray(cf), np.asarray(a - m))    # L_k^T (a - m_k)
+    logdet = np.sum(np.log(np.diagonal(np.asarray(cf), axis1=1, axis2=2)), axis=1)
+    return float(jax.scipy.special.logsumexp(np.asarray(logw) - 0.5 * np.sum(z**2, axis=1) + logdet))
+
+
+def test_mixture_conditional_is_posterior():
+    # the conditional is q(a) N(a | 0, phi) / N(a | 0, phi0), normalized: their log ratio
+    # is the same at every a
+    rng = np.random.default_rng(21)
+    d = 4
+    f, df = np.repeat(np.arange(1, d//2 + 1) / 10.0, 2), np.full(d, 0.1)
+    phi = np.asarray(ds.powerlaw(f, df, -14.0, 3.0))
+    s = _fake_summary(rng, d=d, K=5, phi0=1.5 * phi)
+    irn = ds.makecommongp_fourier([s], ds.powerlaw, d // 2, s.T, fourierbasis=fpta.summarybasis, name='red_noise')
+    p = {'fake_red_noise_log10_A': -14.0, 'fake_red_noise_gamma': 3.0}
+    logw, m, cf = (x[0] for x in fpta.mixture_conditional([s], irn)(p))
+    assert np.isclose(float(jax.scipy.special.logsumexp(logw)), 0.0, atol=1e-12)
+
+    def lognorm(a, mean, cov):
+        r = a - mean
+        return -0.5 * r @ np.linalg.solve(cov, r) - 0.5 * np.linalg.slogdet(2 * np.pi * cov)[1]
+
+    def logtarget(a):
+        q = np.log(np.mean([np.exp(lognorm(a, ah, S)) for ah, S in zip(s.ahat_samples, s.Sigma_samples)]))
+        return q + lognorm(a, 0, np.diag(phi)) - lognorm(a, 0, np.diag(s.phi0))
+
+    ratios = [_conditional_logpdf(logw, m, cf, a) - logtarget(a)
+              for a in s.ahat_samples + 0.5 * rng.normal(size=(5, d)) * np.sqrt(phi)]
+    assert np.allclose(ratios, ratios[0], atol=1e-8)
+
+
+def test_sample_mixture_conditional_moments():
+    # draws reproduce the mixture's mean and covariance; names are the commongp coefficients
+    rng = np.random.default_rng(22)
+    d = 4
+    f, df = np.repeat(np.arange(1, d//2 + 1) / 10.0, 2), np.full(d, 0.1)
+    phi = np.asarray(ds.powerlaw(f, df, -14.0, 3.0))
+    sums = [_fake_summary(rng, d=d, K=4, phi0=1.5 * phi, name=nm) for nm in ('fake0', 'fake1')]
+    irn = ds.makecommongp_fourier(sums, ds.powerlaw, d // 2, sums[0].T, fourierbasis=fpta.summarybasis,
+                                  name='red_noise')
+    p = {f'{nm}_red_noise_{x}': v for nm in ('fake0', 'fake1') for x, v in (('log10_A', -14.0), ('gamma', 3.0))}
+
+    logw, m, cf = fpta.mixture_conditional(sums, irn)(p)
+    sample = jax.jit(jax.vmap(fpta.sample_mixture_conditional(sums, irn), in_axes=(0, None)))
+    _, draws = sample(jax.random.split(jax.random.PRNGKey(0), 200000), p)
+    assert list(draws) == list(irn.index)
+
+    for i, name in enumerate(irn.index):
+        w = np.exp(np.asarray(logw[i]))
+        C = np.linalg.inv(np.asarray(cf[i] @ np.swapaxes(cf[i], 1, 2)))
+        mean = w @ np.asarray(m[i])
+        cov = np.einsum('k,kij->ij', w, C + np.einsum('ki,kj->kij', m[i] - mean, m[i] - mean))
+        a = np.asarray(draws[name])
+        se = np.sqrt(np.diag(cov) / len(a))
+        assert np.all(np.abs(a.mean(0) - mean) < 5 * se)
+        assert np.allclose(np.cov(a.T), cov, rtol=0.03, atol=0.03 * np.max(np.diag(cov)))

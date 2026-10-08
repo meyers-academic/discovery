@@ -631,10 +631,10 @@
 <span class="w">    </span><span class="sd">"""Build a measurement noise matrix for a pulsar.</span>
 
 <span class="sd">    The noise variance per TOA is (tnequad=True):</span>
-<span class="sd">        efac^2 * (scale * toaerr)^2 + EQUAD^2 [+ CHROMEQUAD^2 * (fref/freq)^chrom_idx]</span>
+<span class="sd">        efac^2 * (scale * toaerr)^2 + (scale * EQUAD)^2 [+ (scale * CHROMEQUAD)^2 * (fref/freq)^chrom_idx]</span>
 
 <span class="sd">    or (tnequad=False, t2equad convention):</span>
-<span class="sd">        efac^2 * ((scale * toaerr)^2 + EQUAD^2) [+ CHROMEQUAD^2 * (fref/freq)^chrom_idx]</span>
+<span class="sd">        efac^2 * ((scale * toaerr)^2 + (scale * EQUAD)^2) [+ (scale * CHROMEQUAD)^2 * (fref/freq)^chrom_idx]</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -679,7 +679,7 @@
             <span class="n">idx</span> <span class="o">=</span> <span class="n">noisedict</span><span class="p">[</span><span class="n">chromequad_idxs</span><span class="p">[</span><span class="n">backend_idx</span><span class="p">]]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">idx</span> <span class="o">=</span> <span class="n">noisedict</span><span class="p">[</span><span class="n">chromequad_idxs</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-        <span class="n">cq2</span> <span class="o">=</span> <span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">noisedict</span><span class="p">[</span><span class="n">log10_chromequads</span><span class="p">[</span><span class="n">backend_idx</span><span class="p">]])</span>
+        <span class="n">cq2</span> <span class="o">=</span> <span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">logscale</span> <span class="o">+</span> <span class="n">noisedict</span><span class="p">[</span><span class="n">log10_chromequads</span><span class="p">[</span><span class="n">backend_idx</span><span class="p">]]))</span>
         <span class="k">return</span> <span class="n">cq2</span> <span class="o">*</span> <span class="p">(</span><span class="n">fref</span> <span class="o">/</span> <span class="n">psr</span><span class="o">.</span><span class="n">freqs</span><span class="p">)</span><span class="o">**</span><span class="n">idx</span>
 
     <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">par</span> <span class="ow">in</span> <span class="n">noisedict</span> <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">params</span><span class="p">):</span>
@@ -732,7 +732,7 @@
                             <span class="n">idxs</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">params</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span> <span class="k">for</span> <span class="n">ci</span> <span class="ow">in</span> <span class="n">chromequad_idxs</span><span class="p">])</span>
                         <span class="k">else</span><span class="p">:</span>
                             <span class="n">idxs</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">backends</span><span class="p">),</span> <span class="n">params</span><span class="p">[</span><span class="n">chromequad_idxs</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
-                        <span class="n">cq2</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">params</span><span class="p">[</span><span class="n">lc</span><span class="p">])</span> <span class="k">for</span> <span class="n">lc</span> <span class="ow">in</span> <span class="n">log10_chromequads</span><span class="p">])</span>
+                        <span class="n">cq2</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">logscale</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="n">lc</span><span class="p">]))</span> <span class="k">for</span> <span class="n">lc</span> <span class="ow">in</span> <span class="n">log10_chromequads</span><span class="p">])</span>
                         <span class="n">freq_scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">fref</span> <span class="o">/</span> <span class="n">freqs_jnp</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span><span class="o">**</span><span class="n">idxs</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
                         <span class="n">base</span> <span class="o">=</span> <span class="n">base</span> <span class="o">+</span> <span class="p">(</span><span class="n">masks_jnp</span> <span class="o">*</span> <span class="n">cq2</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> <span class="n">freq_scale</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
                     <span class="k">return</span> <span class="n">base</span>
@@ -749,7 +749,7 @@
                             <span class="n">idxs</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">params</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span> <span class="k">for</span> <span class="n">ci</span> <span class="ow">in</span> <span class="n">chromequad_idxs</span><span class="p">])</span>
                         <span class="k">else</span><span class="p">:</span>
                             <span class="n">idxs</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">backends</span><span class="p">),</span> <span class="n">params</span><span class="p">[</span><span class="n">chromequad_idxs</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
-                        <span class="n">cq2</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">params</span><span class="p">[</span><span class="n">lc</span><span class="p">])</span> <span class="k">for</span> <span class="n">lc</span> <span class="ow">in</span> <span class="n">log10_chromequads</span><span class="p">])</span>
+                        <span class="n">cq2</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">logscale</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="n">lc</span><span class="p">]))</span> <span class="k">for</span> <span class="n">lc</span> <span class="ow">in</span> <span class="n">log10_chromequads</span><span class="p">])</span>
                         <span class="n">freq_scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">fref</span> <span class="o">/</span> <span class="n">freqs_jnp</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:])</span><span class="o">**</span><span class="n">idxs</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
                         <span class="n">base</span> <span class="o">=</span> <span class="n">base</span> <span class="o">+</span> <span class="p">(</span><span class="n">masks_jnp</span> <span class="o">*</span> <span class="n">cq2</span><span class="p">[:,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span> <span class="o">*</span> <span class="n">freq_scale</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
                     <span class="k">return</span> <span class="n">base</span>
@@ -769,7 +769,7 @@
                     <span class="k">if</span> <span class="n">chromequad</span><span class="p">:</span>
                         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">lc</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">masks_list</span><span class="p">,</span> <span class="n">log10_chromequads</span><span class="p">)):</span>
                             <span class="n">ci</span> <span class="o">=</span> <span class="n">chromequad_idxs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">chromequad_idx_per_backend</span> <span class="k">else</span> <span class="n">chromequad_idxs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                            <span class="n">base</span> <span class="o">=</span> <span class="n">base</span> <span class="o">+</span> <span class="n">mask</span> <span class="o">*</span> <span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">params</span><span class="p">[</span><span class="n">lc</span><span class="p">])</span> <span class="o">*</span> <span class="p">(</span><span class="n">fref</span> <span class="o">/</span> <span class="n">freqs_jnp</span><span class="p">)</span><span class="o">**</span><span class="n">params</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span>
+                            <span class="n">base</span> <span class="o">=</span> <span class="n">base</span> <span class="o">+</span> <span class="n">mask</span> <span class="o">*</span> <span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">logscale</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="n">lc</span><span class="p">]))</span> <span class="o">*</span> <span class="p">(</span><span class="n">fref</span> <span class="o">/</span> <span class="n">freqs_jnp</span><span class="p">)</span><span class="o">**</span><span class="n">params</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span>
                     <span class="k">return</span> <span class="n">base</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">def</span><span class="w"> </span><span class="nf">getnoise</span><span class="p">(</span><span class="n">params</span><span class="p">):</span>
@@ -780,7 +780,7 @@
                     <span class="k">if</span> <span class="n">chromequad</span><span class="p">:</span>
                         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">lc</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">masks_list</span><span class="p">,</span> <span class="n">log10_chromequads</span><span class="p">)):</span>
                             <span class="n">ci</span> <span class="o">=</span> <span class="n">chromequad_idxs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">chromequad_idx_per_backend</span> <span class="k">else</span> <span class="n">chromequad_idxs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                            <span class="n">base</span> <span class="o">=</span> <span class="n">base</span> <span class="o">+</span> <span class="n">mask</span> <span class="o">*</span> <span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">params</span><span class="p">[</span><span class="n">lc</span><span class="p">])</span> <span class="o">*</span> <span class="p">(</span><span class="n">fref</span> <span class="o">/</span> <span class="n">freqs_jnp</span><span class="p">)</span><span class="o">**</span><span class="n">params</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span>
+                            <span class="n">base</span> <span class="o">=</span> <span class="n">base</span> <span class="o">+</span> <span class="n">mask</span> <span class="o">*</span> <span class="mf">10.0</span><span class="o">**</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">logscale</span> <span class="o">+</span> <span class="n">params</span><span class="p">[</span><span class="n">lc</span><span class="p">]))</span> <span class="o">*</span> <span class="p">(</span><span class="n">fref</span> <span class="o">/</span> <span class="n">freqs_jnp</span><span class="p">)</span><span class="o">**</span><span class="n">params</span><span class="p">[</span><span class="n">ci</span><span class="p">]</span>
                     <span class="k">return</span> <span class="n">base</span>
 
         <span class="n">getnoise</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">params</span>
@@ -1093,6 +1093,64 @@
 <div class="viewcode-block" id="log_fourierbasis">
 <a class="viewcode-back" href="../../api/signals.html#discovery.signals.log_fourierbasis">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_fourierbasis</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logmode</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">f_min</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nlog</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Fourier basis with optional log-spaced modes below the lowest linear mode.</span>
+
+<span class="sd">    Drop-in replacement for :func:`fourierbasis` that can place ``nlog`` of the</span>
+<span class="sd">    ``components`` modes on a logarithmic grid between ``f_min`` and the linear</span>
+<span class="sd">    grid, to resolve low-frequency power with few extra modes. The binning is</span>
+<span class="sd">    :func:`linBinning`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    psr : :class:`pulsar.Pulsar`</span>
+<span class="sd">        Discovery Pulsar object containing TOAs.</span>
+<span class="sd">    components : int</span>
+<span class="sd">        Total number of frequency modes, log-spaced plus linear, as for</span>
+<span class="sd">        :func:`fourierbasis`. ``nlog`` of them are log-spaced and the remaining</span>
+<span class="sd">        ``components - nlog`` are linear. Must be an int.</span>
+<span class="sd">    T : float, optional</span>
+<span class="sd">        Time span in seconds that sets the linear grid spacing ``1 / T``. Defaults to</span>
+<span class="sd">        the span of ``psr``'s TOAs.</span>
+<span class="sd">    logmode : int, optional</span>
+<span class="sd">        Index of the lowest linear mode, which sits at ``(1 + logmode) / T``; the</span>
+<span class="sd">        log-spaced modes fill in below ``(logmode + 0.5) / T``. Default 0 gives the</span>
+<span class="sd">        standard ``k / T`` grid. Must be &gt;= 0.</span>
+<span class="sd">    f_min : float, optional</span>
+<span class="sd">        Lowest frequency covered by the log-spaced modes, in Hz. Required if</span>
+<span class="sd">        ``nlog &gt; 0``, ignored otherwise.</span>
+<span class="sd">    nlog : int, optional</span>
+<span class="sd">        Number of log-spaced modes, between 0 and ``components``. Default 0 gives a</span>
+<span class="sd">        purely linear basis.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    f : np.ndarray</span>
+<span class="sd">        Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and</span>
+<span class="sd">        cosine columns (length ``2 * components``).</span>
+<span class="sd">    df : np.ndarray</span>
+<span class="sd">        Bin widths in Hz, repeated like ``f``; see :func:`linBinning`.</span>
+<span class="sd">    fmat : np.ndarray</span>
+<span class="sd">        :math:`N_\\mathrm{TOA} \\times 2\\,\\mathrm{components}` design matrix of</span>
+<span class="sd">        alternating sine and cosine columns.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    TypeError</span>
+<span class="sd">        If ``components`` is not an int.</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If ``nlog`` is outside ``[0, components]``, ``logmode &lt; 0``, or ``nlog &gt; 0``</span>
+<span class="sd">        and ``f_min`` is None.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    This differs from enterprise_extensions, where ``components`` counts only the</span>
+<span class="sd">    linear modes and the ``nlog`` log-spaced modes are added on top. Here</span>
+<span class="sd">    ``components`` is the total, so the basis can be passed as ``fourierbasis`` to</span>
+<span class="sd">    the GP builders (e.g. :func:`makegp_fourier`) unchanged. To reproduce</span>
+<span class="sd">    enterprise_extensions' ``model_general(logfreq=True, nmodes_log=m,</span>
+<span class="sd">    common_components=n)``, use ``components=n + m``, ``nlog=m``, ``logmode=m``</span>
+<span class="sd">    and ``f_min=1 / (10 * T)``.</span>
+<span class="sd">    """</span>
     <span class="n">f</span><span class="p">,</span> <span class="n">df</span> <span class="o">=</span> <span class="n">_log_frequencies</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">logmode</span><span class="p">,</span> <span class="n">f_min</span><span class="p">,</span> <span class="n">nlog</span><span class="p">)</span>
 
     <span class="n">fmat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">psr</span><span class="o">.</span><span class="n">toas</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">2</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
@@ -1106,6 +1164,50 @@
 <div class="viewcode-block" id="log_fourierbasis_dm">
 <a class="viewcode-back" href="../../api/signals.html#discovery.signals.log_fourierbasis_dm">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_fourierbasis_dm</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logmode</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">f_min</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nlog</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">fref</span><span class="o">=</span><span class="mi">1400</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""DM (radio-frequency index 2) version of :func:`log_fourierbasis`.</span>
+
+<span class="sd">    The columns of :func:`log_fourierbasis` are scaled by ``(fref / psr.freqs)**2``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    psr : :class:`pulsar.Pulsar`</span>
+<span class="sd">        Discovery Pulsar object containing TOAs and radio frequencies.</span>
+<span class="sd">    components : int</span>
+<span class="sd">        Total number of frequency modes, log-spaced plus linear, as for</span>
+<span class="sd">        :func:`fourierbasis`. ``nlog`` of them are log-spaced and the remaining</span>
+<span class="sd">        ``components - nlog`` are linear. Must be an int.</span>
+<span class="sd">    T : float, optional</span>
+<span class="sd">        Time span in seconds that sets the linear grid spacing ``1 / T``. Defaults to</span>
+<span class="sd">        the span of ``psr``'s TOAs.</span>
+<span class="sd">    logmode : int, optional</span>
+<span class="sd">        Index of the lowest linear mode, which sits at ``(1 + logmode) / T``; the</span>
+<span class="sd">        log-spaced modes fill in below ``(logmode + 0.5) / T``. Default 0 gives the</span>
+<span class="sd">        standard ``k / T`` grid. Must be &gt;= 0.</span>
+<span class="sd">    f_min : float, optional</span>
+<span class="sd">        Lowest frequency covered by the log-spaced modes, in Hz. Required if</span>
+<span class="sd">        ``nlog &gt; 0``, ignored otherwise.</span>
+<span class="sd">    nlog : int, optional</span>
+<span class="sd">        Number of log-spaced modes, between 0 and ``components``. Default 0 gives a</span>
+<span class="sd">        purely linear basis.</span>
+<span class="sd">    fref : float, optional</span>
+<span class="sd">        Reference radio frequency in MHz. Default 1400.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    f : np.ndarray</span>
+<span class="sd">        Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and</span>
+<span class="sd">        cosine columns (length ``2 * components``).</span>
+<span class="sd">    df : np.ndarray</span>
+<span class="sd">        Bin widths in Hz, repeated like ``f``; see :func:`linBinning`.</span>
+<span class="sd">    fmat : np.ndarray</span>
+<span class="sd">        :math:`N_\\mathrm{TOA} \\times 2\\,\\mathrm{components}` design matrix of</span>
+<span class="sd">        alternating sine and cosine columns, scaled by ``(fref / psr.freqs)**2``.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    ``components`` is the total number of modes, unlike enterprise_extensions where</span>
+<span class="sd">    the log-spaced modes are added on top; see :func:`log_fourierbasis`.</span>
+<span class="sd">    """</span>
     <span class="n">f</span><span class="p">,</span> <span class="n">df</span> <span class="o">=</span> <span class="n">_log_frequencies</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">logmode</span><span class="p">,</span> <span class="n">f_min</span><span class="p">,</span> <span class="n">nlog</span><span class="p">)</span>
 
     <span class="n">fmat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">psr</span><span class="o">.</span><span class="n">toas</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">2</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
@@ -1121,6 +1223,51 @@
 <div class="viewcode-block" id="log_fourierbasis_chrom">
 <a class="viewcode-back" href="../../api/signals.html#discovery.signals.log_fourierbasis_chrom">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_fourierbasis_chrom</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">logmode</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">f_min</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nlog</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">fref</span><span class="o">=</span><span class="mi">800</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Chromatic version of :func:`log_fourierbasis` with a free chromatic index.</span>
+
+<span class="sd">    Returns the basis as a function of the chromatic index ``alpha``, which scales</span>
+<span class="sd">    the columns of :func:`log_fourierbasis` by ``(fref / psr.freqs)**alpha``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    psr : :class:`pulsar.Pulsar`</span>
+<span class="sd">        Discovery Pulsar object containing TOAs and radio frequencies.</span>
+<span class="sd">    components : int</span>
+<span class="sd">        Total number of frequency modes, log-spaced plus linear, as for</span>
+<span class="sd">        :func:`fourierbasis`. ``nlog`` of them are log-spaced and the remaining</span>
+<span class="sd">        ``components - nlog`` are linear. Must be an int.</span>
+<span class="sd">    T : float, optional</span>
+<span class="sd">        Time span in seconds that sets the linear grid spacing ``1 / T``. Defaults to</span>
+<span class="sd">        the span of ``psr``'s TOAs.</span>
+<span class="sd">    logmode : int, optional</span>
+<span class="sd">        Index of the lowest linear mode, which sits at ``(1 + logmode) / T``; the</span>
+<span class="sd">        log-spaced modes fill in below ``(logmode + 0.5) / T``. Default 0 gives the</span>
+<span class="sd">        standard ``k / T`` grid. Must be &gt;= 0.</span>
+<span class="sd">    f_min : float, optional</span>
+<span class="sd">        Lowest frequency covered by the log-spaced modes, in Hz. Required if</span>
+<span class="sd">        ``nlog &gt; 0``, ignored otherwise.</span>
+<span class="sd">    nlog : int, optional</span>
+<span class="sd">        Number of log-spaced modes, between 0 and ``components``. Default 0 gives a</span>
+<span class="sd">        purely linear basis.</span>
+<span class="sd">    fref : float, optional</span>
+<span class="sd">        Reference radio frequency in MHz. Default 800.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    f : np.ndarray</span>
+<span class="sd">        Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and</span>
+<span class="sd">        cosine columns (length ``2 * components``).</span>
+<span class="sd">    df : np.ndarray</span>
+<span class="sd">        Bin widths in Hz, repeated like ``f``; see :func:`linBinning`.</span>
+<span class="sd">    fmatfunc : callable</span>
+<span class="sd">        ``fmatfunc(alpha)`` returns the :math:`N_\\mathrm{TOA} \\times</span>
+<span class="sd">        2\\,\\mathrm{components}` design matrix scaled by ``(fref / psr.freqs)**alpha``.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    ``components`` is the total number of modes, unlike enterprise_extensions where</span>
+<span class="sd">    the log-spaced modes are added on top; see :func:`log_fourierbasis`.</span>
+<span class="sd">    """</span>
     <span class="n">f</span><span class="p">,</span> <span class="n">df</span> <span class="o">=</span> <span class="n">_log_frequencies</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">logmode</span><span class="p">,</span> <span class="n">f_min</span><span class="p">,</span> <span class="n">nlog</span><span class="p">)</span>
 
     <span class="n">fmat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">psr</span><span class="o">.</span><span class="n">toas</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">2</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
@@ -1138,6 +1285,52 @@
 <div class="viewcode-block" id="log_fourierbasis_chrom_fixed">
 <a class="viewcode-back" href="../../api/signals.html#discovery.signals.log_fourierbasis_chrom_fixed">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">log_fourierbasis_chrom_fixed</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span> <span class="n">logmode</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">f_min</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nlog</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">fref</span><span class="o">=</span><span class="mi">800</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Chromatic version of :func:`log_fourierbasis` with a fixed chromatic index.</span>
+
+<span class="sd">    The columns of :func:`log_fourierbasis` are scaled by ``(fref / psr.freqs)**alpha``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    psr : :class:`pulsar.Pulsar`</span>
+<span class="sd">        Discovery Pulsar object containing TOAs and radio frequencies.</span>
+<span class="sd">    components : int</span>
+<span class="sd">        Total number of frequency modes, log-spaced plus linear, as for</span>
+<span class="sd">        :func:`fourierbasis`. ``nlog`` of them are log-spaced and the remaining</span>
+<span class="sd">        ``components - nlog`` are linear. Must be an int.</span>
+<span class="sd">    T : float, optional</span>
+<span class="sd">        Time span in seconds that sets the linear grid spacing ``1 / T``. Defaults to</span>
+<span class="sd">        the span of ``psr``'s TOAs.</span>
+<span class="sd">    alpha : float, optional</span>
+<span class="sd">        Chromatic index. Default 4.</span>
+<span class="sd">    logmode : int, optional</span>
+<span class="sd">        Index of the lowest linear mode, which sits at ``(1 + logmode) / T``; the</span>
+<span class="sd">        log-spaced modes fill in below ``(logmode + 0.5) / T``. Default 0 gives the</span>
+<span class="sd">        standard ``k / T`` grid. Must be &gt;= 0.</span>
+<span class="sd">    f_min : float, optional</span>
+<span class="sd">        Lowest frequency covered by the log-spaced modes, in Hz. Required if</span>
+<span class="sd">        ``nlog &gt; 0``, ignored otherwise.</span>
+<span class="sd">    nlog : int, optional</span>
+<span class="sd">        Number of log-spaced modes, between 0 and ``components``. Default 0 gives a</span>
+<span class="sd">        purely linear basis.</span>
+<span class="sd">    fref : float, optional</span>
+<span class="sd">        Reference radio frequency in MHz. Default 800.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    f : np.ndarray</span>
+<span class="sd">        Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and</span>
+<span class="sd">        cosine columns (length ``2 * components``).</span>
+<span class="sd">    df : np.ndarray</span>
+<span class="sd">        Bin widths in Hz, repeated like ``f``; see :func:`linBinning`.</span>
+<span class="sd">    fmat : np.ndarray</span>
+<span class="sd">        :math:`N_\\mathrm{TOA} \\times 2\\,\\mathrm{components}` design matrix of</span>
+<span class="sd">        alternating sine and cosine columns, scaled by ``(fref / psr.freqs)**alpha``.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    ``components`` is the total number of modes, unlike enterprise_extensions where</span>
+<span class="sd">    the log-spaced modes are added on top; see :func:`log_fourierbasis`.</span>
+<span class="sd">    """</span>
     <span class="n">f</span><span class="p">,</span> <span class="n">df</span> <span class="o">=</span> <span class="n">_log_frequencies</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">components</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">logmode</span><span class="p">,</span> <span class="n">f_min</span><span class="p">,</span> <span class="n">nlog</span><span class="p">)</span>
 
     <span class="n">fmat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">psr</span><span class="o">.</span><span class="n">toas</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">2</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
@@ -2560,7 +2753,7 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'powerlaw_cutoff: tau must be &gt; 0.'</span><span class="p">)</span>
     <span class="n">mode_index</span> <span class="o">=</span> <span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1.0</span>
     <span class="n">gate</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">((</span><span class="n">Nfreq_cutoff</span> <span class="o">-</span> <span class="n">mode_index</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">tau</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">powerlaw</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">log10_A</span><span class="p">,</span> <span class="n">gamma</span><span class="p">)</span> <span class="o">*</span> <span class="n">gate</span> <span class="o">+</span> <span class="mf">1e-15</span> <span class="c1"># regularization</span></div>
+    <span class="k">return</span> <span class="n">powerlaw</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">log10_A</span><span class="p">,</span> <span class="n">gamma</span><span class="p">)</span> <span class="o">*</span> <span class="n">gate</span> <span class="o">+</span> <span class="mf">1e-30</span> <span class="c1"># regularization (power, s^2)</span></div>
 
 
 <div class="viewcode-block" id="brokenpowerlaw">

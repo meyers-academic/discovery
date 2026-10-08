@@ -574,9 +574,9 @@ in <code class="docutils literal notranslate"><span class="pre">noisedict</span>
 <span class="sig-prename descclassname"><span class="pre">discovery.signals.</span></span><span class="sig-name descname"><span class="pre">makenoise_measurement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisedict={}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale=1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tnequad=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ecorr=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromequad=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromequad_idx_per_backend=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">selection=&lt;function</span> <span class="pre">selection_backend_flags&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vectorize=True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enterprise=False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fref=1400</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/signals.html#makenoise_measurement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.signals.makenoise_measurement" title="Link to this definition">#</a></dt>
 <dd><p>Build a measurement noise matrix for a pulsar.</p>
 <dl class="simple">
-<dt>The noise variance per TOA is (tnequad=True):</dt><dd><p>efac^2 * (scale * toaerr)^2 + EQUAD^2 [+ CHROMEQUAD^2 * (fref/freq)^chrom_idx]</p>
+<dt>The noise variance per TOA is (tnequad=True):</dt><dd><p>efac^2 * (scale * toaerr)^2 + (scale * EQUAD)^2 [+ (scale * CHROMEQUAD)^2 * (fref/freq)^chrom_idx]</p>
 </dd>
-<dt>or (tnequad=False, t2equad convention):</dt><dd><p>efac^2 * ((scale * toaerr)^2 + EQUAD^2) [+ CHROMEQUAD^2 * (fref/freq)^chrom_idx]</p>
+<dt>or (tnequad=False, t2equad convention):</dt><dd><p>efac^2 * ((scale * toaerr)^2 + (scale * EQUAD)^2) [+ (scale * CHROMEQUAD)^2 * (fref/freq)^chrom_idx]</p>
 </dd>
 </dl>
 <dl class="field-list simple">
@@ -664,22 +664,178 @@ giving the column count). Otherwise the evaluated basis matrix.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="discovery.signals.log_fourierbasis">
 <span class="sig-prename descclassname"><span class="pre">discovery.signals.</span></span><span class="sig-name descname"><span class="pre">log_fourierbasis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logmode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlog</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/signals.html#log_fourierbasis"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.signals.log_fourierbasis" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
+<dd><p>Fourier basis with optional log-spaced modes below the lowest linear mode.</p>
+<p>Drop-in replacement for <a class="reference internal" href="#discovery.signals.fourierbasis" title="discovery.signals.fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">fourierbasis()</span></code></a> that can place <code class="docutils literal notranslate"><span class="pre">nlog</span></code> of the
+<code class="docutils literal notranslate"><span class="pre">components</span></code> modes on a logarithmic grid between <code class="docutils literal notranslate"><span class="pre">f_min</span></code> and the linear
+grid, to resolve low-frequency power with few extra modes. The binning is
+<a class="reference internal" href="#discovery.signals.linBinning" title="discovery.signals.linBinning"><code class="xref py py-func docutils literal notranslate"><span class="pre">linBinning()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psr</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">pulsar.Pulsar</span></code>) – Discovery Pulsar object containing TOAs.</p></li>
+<li><p><strong>components</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Total number of frequency modes, log-spaced plus linear, as for
+<a class="reference internal" href="#discovery.signals.fourierbasis" title="discovery.signals.fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">fourierbasis()</span></code></a>. <code class="docutils literal notranslate"><span class="pre">nlog</span></code> of them are log-spaced and the remaining
+<code class="docutils literal notranslate"><span class="pre">components</span> <span class="pre">-</span> <span class="pre">nlog</span></code> are linear. Must be an int.</p></li>
+<li><p><strong>T</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Time span in seconds that sets the linear grid spacing <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">T</span></code>. Defaults to
+the span of <code class="docutils literal notranslate"><span class="pre">psr</span></code>’s TOAs.</p></li>
+<li><p><strong>logmode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Index of the lowest linear mode, which sits at <code class="docutils literal notranslate"><span class="pre">(1</span> <span class="pre">+</span> <span class="pre">logmode)</span> <span class="pre">/</span> <span class="pre">T</span></code>; the
+log-spaced modes fill in below <code class="docutils literal notranslate"><span class="pre">(logmode</span> <span class="pre">+</span> <span class="pre">0.5)</span> <span class="pre">/</span> <span class="pre">T</span></code>. Default 0 gives the
+standard <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">/</span> <span class="pre">T</span></code> grid. Must be &gt;= 0.</p></li>
+<li><p><strong>f_min</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Lowest frequency covered by the log-spaced modes, in Hz. Required if
+<code class="docutils literal notranslate"><span class="pre">nlog</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>, ignored otherwise.</p></li>
+<li><p><strong>nlog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of log-spaced modes, between 0 and <code class="docutils literal notranslate"><span class="pre">components</span></code>. Default 0 gives a
+purely linear basis.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>f</strong> (<em>np.ndarray</em>) – Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and
+cosine columns (length <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">components</span></code>).</p></li>
+<li><p><strong>df</strong> (<em>np.ndarray</em>) – Bin widths in Hz, repeated like <code class="docutils literal notranslate"><span class="pre">f</span></code>; see <a class="reference internal" href="#discovery.signals.linBinning" title="discovery.signals.linBinning"><code class="xref py py-func docutils literal notranslate"><span class="pre">linBinning()</span></code></a>.</p></li>
+<li><p><strong>fmat</strong> (<em>np.ndarray</em>) – <span class="math notranslate nohighlight">\(N_\mathrm{TOA} \times 2\,\mathrm{components}\)</span> design matrix of
+alternating sine and cosine columns.</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#TypeError" title="(in Python v3.14)"><strong>TypeError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">components</span></code> is not an int.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">nlog</span></code> is outside <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">components]</span></code>, <code class="docutils literal notranslate"><span class="pre">logmode</span> <span class="pre">&lt;</span> <span class="pre">0</span></code>, or <code class="docutils literal notranslate"><span class="pre">nlog</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>
+and <code class="docutils literal notranslate"><span class="pre">f_min</span></code> is None.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>This differs from enterprise_extensions, where <code class="docutils literal notranslate"><span class="pre">components</span></code> counts only the
+linear modes and the <code class="docutils literal notranslate"><span class="pre">nlog</span></code> log-spaced modes are added on top. Here
+<code class="docutils literal notranslate"><span class="pre">components</span></code> is the total, so the basis can be passed as <code class="docutils literal notranslate"><span class="pre">fourierbasis</span></code> to
+the GP builders (e.g. <a class="reference internal" href="#discovery.signals.makegp_fourier" title="discovery.signals.makegp_fourier"><code class="xref py py-func docutils literal notranslate"><span class="pre">makegp_fourier()</span></code></a>) unchanged. To reproduce
+enterprise_extensions’ <code class="docutils literal notranslate"><span class="pre">model_general(logfreq=True,</span> <span class="pre">nmodes_log=m,</span>
+<span class="pre">common_components=n)</span></code>, use <code class="docutils literal notranslate"><span class="pre">components=n</span> <span class="pre">+</span> <span class="pre">m</span></code>, <code class="docutils literal notranslate"><span class="pre">nlog=m</span></code>, <code class="docutils literal notranslate"><span class="pre">logmode=m</span></code>
+and <code class="docutils literal notranslate"><span class="pre">f_min=1</span> <span class="pre">/</span> <span class="pre">(10</span> <span class="pre">*</span> <span class="pre">T)</span></code>.</p>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="discovery.signals.log_fourierbasis_dm">
 <span class="sig-prename descclassname"><span class="pre">discovery.signals.</span></span><span class="sig-name descname"><span class="pre">log_fourierbasis_dm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logmode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlog</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1400</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/signals.html#log_fourierbasis_dm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.signals.log_fourierbasis_dm" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
+<dd><p>DM (radio-frequency index 2) version of <a class="reference internal" href="#discovery.signals.log_fourierbasis" title="discovery.signals.log_fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">log_fourierbasis()</span></code></a>.</p>
+<p>The columns of <a class="reference internal" href="#discovery.signals.log_fourierbasis" title="discovery.signals.log_fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">log_fourierbasis()</span></code></a> are scaled by <code class="docutils literal notranslate"><span class="pre">(fref</span> <span class="pre">/</span> <span class="pre">psr.freqs)**2</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psr</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">pulsar.Pulsar</span></code>) – Discovery Pulsar object containing TOAs and radio frequencies.</p></li>
+<li><p><strong>components</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Total number of frequency modes, log-spaced plus linear, as for
+<a class="reference internal" href="#discovery.signals.fourierbasis" title="discovery.signals.fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">fourierbasis()</span></code></a>. <code class="docutils literal notranslate"><span class="pre">nlog</span></code> of them are log-spaced and the remaining
+<code class="docutils literal notranslate"><span class="pre">components</span> <span class="pre">-</span> <span class="pre">nlog</span></code> are linear. Must be an int.</p></li>
+<li><p><strong>T</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Time span in seconds that sets the linear grid spacing <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">T</span></code>. Defaults to
+the span of <code class="docutils literal notranslate"><span class="pre">psr</span></code>’s TOAs.</p></li>
+<li><p><strong>logmode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Index of the lowest linear mode, which sits at <code class="docutils literal notranslate"><span class="pre">(1</span> <span class="pre">+</span> <span class="pre">logmode)</span> <span class="pre">/</span> <span class="pre">T</span></code>; the
+log-spaced modes fill in below <code class="docutils literal notranslate"><span class="pre">(logmode</span> <span class="pre">+</span> <span class="pre">0.5)</span> <span class="pre">/</span> <span class="pre">T</span></code>. Default 0 gives the
+standard <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">/</span> <span class="pre">T</span></code> grid. Must be &gt;= 0.</p></li>
+<li><p><strong>f_min</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Lowest frequency covered by the log-spaced modes, in Hz. Required if
+<code class="docutils literal notranslate"><span class="pre">nlog</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>, ignored otherwise.</p></li>
+<li><p><strong>nlog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of log-spaced modes, between 0 and <code class="docutils literal notranslate"><span class="pre">components</span></code>. Default 0 gives a
+purely linear basis.</p></li>
+<li><p><strong>fref</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Reference radio frequency in MHz. Default 1400.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>f</strong> (<em>np.ndarray</em>) – Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and
+cosine columns (length <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">components</span></code>).</p></li>
+<li><p><strong>df</strong> (<em>np.ndarray</em>) – Bin widths in Hz, repeated like <code class="docutils literal notranslate"><span class="pre">f</span></code>; see <a class="reference internal" href="#discovery.signals.linBinning" title="discovery.signals.linBinning"><code class="xref py py-func docutils literal notranslate"><span class="pre">linBinning()</span></code></a>.</p></li>
+<li><p><strong>fmat</strong> (<em>np.ndarray</em>) – <span class="math notranslate nohighlight">\(N_\mathrm{TOA} \times 2\,\mathrm{components}\)</span> design matrix of
+alternating sine and cosine columns, scaled by <code class="docutils literal notranslate"><span class="pre">(fref</span> <span class="pre">/</span> <span class="pre">psr.freqs)**2</span></code>.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p><code class="docutils literal notranslate"><span class="pre">components</span></code> is the total number of modes, unlike enterprise_extensions where
+the log-spaced modes are added on top; see <a class="reference internal" href="#discovery.signals.log_fourierbasis" title="discovery.signals.log_fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">log_fourierbasis()</span></code></a>.</p>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="discovery.signals.log_fourierbasis_chrom">
 <span class="sig-prename descclassname"><span class="pre">discovery.signals.</span></span><span class="sig-name descname"><span class="pre">log_fourierbasis_chrom</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logmode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlog</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">800</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/signals.html#log_fourierbasis_chrom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.signals.log_fourierbasis_chrom" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
+<dd><p>Chromatic version of <a class="reference internal" href="#discovery.signals.log_fourierbasis" title="discovery.signals.log_fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">log_fourierbasis()</span></code></a> with a free chromatic index.</p>
+<p>Returns the basis as a function of the chromatic index <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, which scales
+the columns of <a class="reference internal" href="#discovery.signals.log_fourierbasis" title="discovery.signals.log_fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">log_fourierbasis()</span></code></a> by <code class="docutils literal notranslate"><span class="pre">(fref</span> <span class="pre">/</span> <span class="pre">psr.freqs)**alpha</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psr</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">pulsar.Pulsar</span></code>) – Discovery Pulsar object containing TOAs and radio frequencies.</p></li>
+<li><p><strong>components</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Total number of frequency modes, log-spaced plus linear, as for
+<a class="reference internal" href="#discovery.signals.fourierbasis" title="discovery.signals.fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">fourierbasis()</span></code></a>. <code class="docutils literal notranslate"><span class="pre">nlog</span></code> of them are log-spaced and the remaining
+<code class="docutils literal notranslate"><span class="pre">components</span> <span class="pre">-</span> <span class="pre">nlog</span></code> are linear. Must be an int.</p></li>
+<li><p><strong>T</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Time span in seconds that sets the linear grid spacing <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">T</span></code>. Defaults to
+the span of <code class="docutils literal notranslate"><span class="pre">psr</span></code>’s TOAs.</p></li>
+<li><p><strong>logmode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Index of the lowest linear mode, which sits at <code class="docutils literal notranslate"><span class="pre">(1</span> <span class="pre">+</span> <span class="pre">logmode)</span> <span class="pre">/</span> <span class="pre">T</span></code>; the
+log-spaced modes fill in below <code class="docutils literal notranslate"><span class="pre">(logmode</span> <span class="pre">+</span> <span class="pre">0.5)</span> <span class="pre">/</span> <span class="pre">T</span></code>. Default 0 gives the
+standard <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">/</span> <span class="pre">T</span></code> grid. Must be &gt;= 0.</p></li>
+<li><p><strong>f_min</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Lowest frequency covered by the log-spaced modes, in Hz. Required if
+<code class="docutils literal notranslate"><span class="pre">nlog</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>, ignored otherwise.</p></li>
+<li><p><strong>nlog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of log-spaced modes, between 0 and <code class="docutils literal notranslate"><span class="pre">components</span></code>. Default 0 gives a
+purely linear basis.</p></li>
+<li><p><strong>fref</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Reference radio frequency in MHz. Default 800.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>f</strong> (<em>np.ndarray</em>) – Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and
+cosine columns (length <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">components</span></code>).</p></li>
+<li><p><strong>df</strong> (<em>np.ndarray</em>) – Bin widths in Hz, repeated like <code class="docutils literal notranslate"><span class="pre">f</span></code>; see <a class="reference internal" href="#discovery.signals.linBinning" title="discovery.signals.linBinning"><code class="xref py py-func docutils literal notranslate"><span class="pre">linBinning()</span></code></a>.</p></li>
+<li><p><strong>fmatfunc</strong> (<em>callable</em>) – <code class="docutils literal notranslate"><span class="pre">fmatfunc(alpha)</span></code> returns the <span class="math notranslate nohighlight">\(N_\mathrm{TOA} \times
+2\,\mathrm{components}\)</span> design matrix scaled by <code class="docutils literal notranslate"><span class="pre">(fref</span> <span class="pre">/</span> <span class="pre">psr.freqs)**alpha</span></code>.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p><code class="docutils literal notranslate"><span class="pre">components</span></code> is the total number of modes, unlike enterprise_extensions where
+the log-spaced modes are added on top; see <a class="reference internal" href="#discovery.signals.log_fourierbasis" title="discovery.signals.log_fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">log_fourierbasis()</span></code></a>.</p>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="discovery.signals.log_fourierbasis_chrom_fixed">
 <span class="sig-prename descclassname"><span class="pre">discovery.signals.</span></span><span class="sig-name descname"><span class="pre">log_fourierbasis_chrom_fixed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logmode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlog</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">800</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/signals.html#log_fourierbasis_chrom_fixed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.signals.log_fourierbasis_chrom_fixed" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
+<dd><p>Chromatic version of <a class="reference internal" href="#discovery.signals.log_fourierbasis" title="discovery.signals.log_fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">log_fourierbasis()</span></code></a> with a fixed chromatic index.</p>
+<p>The columns of <a class="reference internal" href="#discovery.signals.log_fourierbasis" title="discovery.signals.log_fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">log_fourierbasis()</span></code></a> are scaled by <code class="docutils literal notranslate"><span class="pre">(fref</span> <span class="pre">/</span> <span class="pre">psr.freqs)**alpha</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>psr</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">pulsar.Pulsar</span></code>) – Discovery Pulsar object containing TOAs and radio frequencies.</p></li>
+<li><p><strong>components</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Total number of frequency modes, log-spaced plus linear, as for
+<a class="reference internal" href="#discovery.signals.fourierbasis" title="discovery.signals.fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">fourierbasis()</span></code></a>. <code class="docutils literal notranslate"><span class="pre">nlog</span></code> of them are log-spaced and the remaining
+<code class="docutils literal notranslate"><span class="pre">components</span> <span class="pre">-</span> <span class="pre">nlog</span></code> are linear. Must be an int.</p></li>
+<li><p><strong>T</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Time span in seconds that sets the linear grid spacing <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">T</span></code>. Defaults to
+the span of <code class="docutils literal notranslate"><span class="pre">psr</span></code>’s TOAs.</p></li>
+<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Chromatic index. Default 4.</p></li>
+<li><p><strong>logmode</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Index of the lowest linear mode, which sits at <code class="docutils literal notranslate"><span class="pre">(1</span> <span class="pre">+</span> <span class="pre">logmode)</span> <span class="pre">/</span> <span class="pre">T</span></code>; the
+log-spaced modes fill in below <code class="docutils literal notranslate"><span class="pre">(logmode</span> <span class="pre">+</span> <span class="pre">0.5)</span> <span class="pre">/</span> <span class="pre">T</span></code>. Default 0 gives the
+standard <code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">/</span> <span class="pre">T</span></code> grid. Must be &gt;= 0.</p></li>
+<li><p><strong>f_min</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Lowest frequency covered by the log-spaced modes, in Hz. Required if
+<code class="docutils literal notranslate"><span class="pre">nlog</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>, ignored otherwise.</p></li>
+<li><p><strong>nlog</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of log-spaced modes, between 0 and <code class="docutils literal notranslate"><span class="pre">components</span></code>. Default 0 gives a
+purely linear basis.</p></li>
+<li><p><strong>fref</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Reference radio frequency in MHz. Default 800.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>f</strong> (<em>np.ndarray</em>) – Mode frequencies in Hz, log-spaced modes first, each repeated for the sine and
+cosine columns (length <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">components</span></code>).</p></li>
+<li><p><strong>df</strong> (<em>np.ndarray</em>) – Bin widths in Hz, repeated like <code class="docutils literal notranslate"><span class="pre">f</span></code>; see <a class="reference internal" href="#discovery.signals.linBinning" title="discovery.signals.linBinning"><code class="xref py py-func docutils literal notranslate"><span class="pre">linBinning()</span></code></a>.</p></li>
+<li><p><strong>fmat</strong> (<em>np.ndarray</em>) – <span class="math notranslate nohighlight">\(N_\mathrm{TOA} \times 2\,\mathrm{components}\)</span> design matrix of
+alternating sine and cosine columns, scaled by <code class="docutils literal notranslate"><span class="pre">(fref</span> <span class="pre">/</span> <span class="pre">psr.freqs)**alpha</span></code>.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p><code class="docutils literal notranslate"><span class="pre">components</span></code> is the total number of modes, unlike enterprise_extensions where
+the log-spaced modes are added on top; see <a class="reference internal" href="#discovery.signals.log_fourierbasis" title="discovery.signals.log_fourierbasis"><code class="xref py py-func docutils literal notranslate"><span class="pre">log_fourierbasis()</span></code></a>.</p>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="discovery.signals.linBinning">

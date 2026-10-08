@@ -79,10 +79,10 @@ def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=Fal
     """Build a measurement noise matrix for a pulsar.
 
     The noise variance per TOA is (tnequad=True):
-        efac^2 * (scale * toaerr)^2 + EQUAD^2 [+ CHROMEQUAD^2 * (fref/freq)^chrom_idx]
+        efac^2 * (scale * toaerr)^2 + (scale * EQUAD)^2 [+ (scale * CHROMEQUAD)^2 * (fref/freq)^chrom_idx]
 
     or (tnequad=False, t2equad convention):
-        efac^2 * ((scale * toaerr)^2 + EQUAD^2) [+ CHROMEQUAD^2 * (fref/freq)^chrom_idx]
+        efac^2 * ((scale * toaerr)^2 + (scale * EQUAD)^2) [+ (scale * CHROMEQUAD)^2 * (fref/freq)^chrom_idx]
 
     Parameters
     ----------
@@ -127,7 +127,7 @@ def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=Fal
             idx = noisedict[chromequad_idxs[backend_idx]]
         else:
             idx = noisedict[chromequad_idxs[0]]
-        cq2 = 10.0**(2 * noisedict[log10_chromequads[backend_idx]])
+        cq2 = 10.0**(2 * (logscale + noisedict[log10_chromequads[backend_idx]]))
         return cq2 * (fref / psr.freqs)**idx
 
     if all(par in noisedict for par in params):
@@ -180,7 +180,7 @@ def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=Fal
                             idxs = jnp.array([params[ci] for ci in chromequad_idxs])
                         else:
                             idxs = jnp.full(len(backends), params[chromequad_idxs[0]])
-                        cq2 = jnp.array([10.0**(2 * params[lc]) for lc in log10_chromequads])
+                        cq2 = jnp.array([10.0**(2 * (logscale + params[lc])) for lc in log10_chromequads])
                         freq_scale = (fref / freqs_jnp[jnp.newaxis, :])**idxs[:, jnp.newaxis]
                         base = base + (masks_jnp * cq2[:, jnp.newaxis] * freq_scale).sum(axis=0)
                     return base
@@ -197,7 +197,7 @@ def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=Fal
                             idxs = jnp.array([params[ci] for ci in chromequad_idxs])
                         else:
                             idxs = jnp.full(len(backends), params[chromequad_idxs[0]])
-                        cq2 = jnp.array([10.0**(2 * params[lc]) for lc in log10_chromequads])
+                        cq2 = jnp.array([10.0**(2 * (logscale + params[lc])) for lc in log10_chromequads])
                         freq_scale = (fref / freqs_jnp[jnp.newaxis, :])**idxs[:, jnp.newaxis]
                         base = base + (masks_jnp * cq2[:, jnp.newaxis] * freq_scale).sum(axis=0)
                     return base
@@ -217,7 +217,7 @@ def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=Fal
                     if chromequad:
                         for i, (mask, lc) in enumerate(zip(masks_list, log10_chromequads)):
                             ci = chromequad_idxs[i] if chromequad_idx_per_backend else chromequad_idxs[0]
-                            base = base + mask * 10.0**(2 * params[lc]) * (fref / freqs_jnp)**params[ci]
+                            base = base + mask * 10.0**(2 * (logscale + params[lc])) * (fref / freqs_jnp)**params[ci]
                     return base
             else:
                 def getnoise(params):
@@ -228,7 +228,7 @@ def makenoise_measurement(psr, noisedict={}, scale=1.0, tnequad=False, ecorr=Fal
                     if chromequad:
                         for i, (mask, lc) in enumerate(zip(masks_list, log10_chromequads)):
                             ci = chromequad_idxs[i] if chromequad_idx_per_backend else chromequad_idxs[0]
-                            base = base + mask * 10.0**(2 * params[lc]) * (fref / freqs_jnp)**params[ci]
+                            base = base + mask * 10.0**(2 * (logscale + params[lc])) * (fref / freqs_jnp)**params[ci]
                     return base
 
         getnoise.params = params

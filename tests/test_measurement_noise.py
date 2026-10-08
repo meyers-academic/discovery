@@ -735,10 +735,10 @@ def _chrom_noisedict(psr, tnequad=False, per_backend=False, ecorr=False):
 def _expected_noise(psr, nd, tnequad=False, per_backend=False, scale=1.0, fref=1400, chromequad=True):
     """Independent per-TOA reference implementation of the measurement-noise variance.
 
-    tnequad=True:  efac^2 (scale sigma)^2 + scale^2 EQUAD^2           [+ CQ^2 (fref/f)^idx]
-    tnequad=False: efac^2 ((scale sigma)^2 + scale^2 EQUAD^2)         [+ CQ^2 (fref/f)^idx]
+    tnequad=True:  efac^2 (scale sigma)^2 + scale^2 EQUAD^2           [+ scale^2 CQ^2 (fref/f)^idx]
+    tnequad=False: efac^2 ((scale sigma)^2 + scale^2 EQUAD^2)         [+ scale^2 CQ^2 (fref/f)^idx]
 
-    The chromatic term sits outside the EFAC and is not multiplied by ``scale``.
+    The chromatic term sits outside the EFAC and is multiplied by ``scale**2`` like EQUAD.
     """
     equad = 'log10_tnequad' if tnequad else 'log10_t2equad'
     sigma2 = (scale * psr.toaerrs)**2
@@ -756,7 +756,7 @@ def _expected_noise(psr, nd, tnequad=False, per_backend=False, scale=1.0, fref=1
 
         if chromequad:
             idx = nd[f'{psr.name}_{b}_chromequad_idx'] if per_backend else nd[f'{psr.name}_chromequad_idx']
-            val = val + 10.0**(2 * nd[f'{psr.name}_{b}_log10_chromequad']) * (fref / psr.freqs)**idx
+            val = val + scale**2 * 10.0**(2 * nd[f'{psr.name}_{b}_log10_chromequad']) * (fref / psr.freqs)**idx
 
         N[m] = val[m]
 
@@ -898,8 +898,8 @@ def test_chromequad_at_reference_frequency(fref):
 
 @pytest.mark.unit
 @pytest.mark.parametrize('tnequad', [False, True])
-def test_chromequad_not_scaled_by_scale(tnequad):
-    """``scale`` rescales TOA errors and EQUAD but leaves the chromatic term untouched."""
+def test_chromequad_scaled_like_equad(tnequad):
+    """``scale`` rescales TOA errors, EQUAD and the chromatic term alike."""
     psr = ChromMockPulsar()
     nd = _chrom_noisedict(psr, tnequad=tnequad)
     plain_nd = {k: v for k, v in nd.items() if 'chromequad' not in k}
@@ -917,7 +917,7 @@ def test_chromequad_not_scaled_by_scale(tnequad):
     expected = _expected_noise(psr, nd, tnequad=tnequad, scale=scale)
     for N in (fixed, vec, loop):
         np.testing.assert_allclose(N, expected, rtol=1e-12)
-        np.testing.assert_allclose(N - plain, unscaled_chrom, rtol=1e-8)
+        np.testing.assert_allclose(N - plain, scale**2 * unscaled_chrom, rtol=1e-8)
 
 
 @pytest.mark.unit
@@ -986,9 +986,10 @@ _MEASUREMENT_NOISE_SNAPSHOTS = {
     'chrom_tn_perbe': ((True, True, True, 1.0, 820),
                        [9.6248820319546216e-13, 7.7014564234916369e-13, 1.7357070357876545e-12,
                         1.7096909373884335e-12, 1.3202106698374043e-12, 3.2256385407288269e-13]),
+    # chromatic term scaled by scale**2 like EQUAD: the 89273c1 values with that term x 2.5**2
     'chrom_t2_scaled': ((False, True, True, 2.5, 1400),
-                        [4.1344209812997153e-12, 4.4211964583093146e-12, 1.1021343213646171e-11,
-                         1.1240929745459674e-11, 7.5984171660382750e-12, 2.1908305385471906e-12]),
+                        [1.4279032035520334e-11, 7.7337225168303326e-12, 1.1222641416078636e-11,
+                         6.3057400989912977e-11, 1.2107133190136329e-11, 2.6125621967100034e-12]),
 }
 
 

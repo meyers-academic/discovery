@@ -1831,7 +1831,7 @@ def powerlaw_cutoff(f, df, log10_A, gamma, Nfreq_cutoff, *, tau=1.0):
         raise ValueError('powerlaw_cutoff: tau must be > 0.')
     mode_index = (jnp.arange(f.shape[0], dtype=jnp.float64) // 2) + 1.0
     gate = jax.nn.sigmoid((Nfreq_cutoff - mode_index + 0.5) / tau)
-    return powerlaw(f, df, log10_A, gamma) * gate + 1e-15 # regularization
+    return powerlaw(f, df, log10_A, gamma) * gate + 1e-30 # regularization (power, s^2)
 
 def brokenpowerlaw(f, df, log10_A, gamma, log10_fb):
     kappa = 0.1 # smoothness of transition

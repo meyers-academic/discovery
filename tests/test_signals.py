@@ -199,6 +199,25 @@ class TestMakeCombinedCrnValues:
         assert np.all(phi[:2 * n_crn] > irn[:2 * n_crn])
 
 
+class TestPowerlawCutoff:
+
+    def test_gated_modes_stay_below_powerlaw(self):
+        """The regularization floor is a power (s^2), so it must not lift gated modes above the power law."""
+        f, df = _make_freqs()
+        pl = ds.powerlaw(f, df, -14.5, 13 / 3)
+        phi = ds.signals.powerlaw_cutoff(f, df, -14.5, 13 / 3, 10)
+
+        assert np.all(phi <= pl)
+
+    def test_modes_below_cutoff_match_powerlaw(self):
+        f, df = _make_freqs()
+        pl = ds.powerlaw(f, df, -14.5, 13 / 3)
+        phi = ds.signals.powerlaw_cutoff(f, df, -14.5, 13 / 3, 10)
+
+        # sigmoid gate is within 1e-3 of 1 for modes 1-3 when the cutoff is at 10
+        np.testing.assert_allclose(phi[:6], pl[:6], rtol=1e-3)
+
+
 # ---------------------------------------------------------------------------
 # fourierbasis tests: int components (grid) vs. array components (explicit modes)
 # ---------------------------------------------------------------------------

@@ -52,6 +52,7 @@ from . import _kernels as kernels
 from . import signals
 from . import utils
 
+import jax.random as jrand
 
 @dataclasses.dataclass
 class FourierSummary:
@@ -281,7 +282,7 @@ class FourierSummary:
         densities ``density`` are defined."""
         return np.linalg.cholesky(self.Sigma0)
 
-    def mixture(self, K=None):
+    def mixture(self, K=None, indexes=None, random_draw=False):
         r"""The Gaussian-mixture generalization of the summary (draft Eq. 19, A8),
 
         .. math::
@@ -293,22 +294,34 @@ class FourierSummary:
         :class:`GaussianMixture` in the whitened coordinates :math:`\mathbf y` (see ``L0``).
         With ``K``, use ``K`` samples spaced evenly through the step-1 samples; the
         non-Gaussian tails are carried by rare components, so ``K`` needs checking."""
-        ahat, Sigma = self._components(K)
+        ahat, Sigma = self._components(K=K, indexes=indexes, random_draw=random_draw)
         Linv0 = np.linalg.inv(self.L0)
 
         mu = (ahat - self.ahat0) @ Linv0.T
         C = Linv0 @ Sigma @ Linv0.T
         return GaussianMixture(mu, np.linalg.cholesky(0.5 * (C + np.swapaxes(C, 1, 2))))
 
-    def _components(self, K=None):
+    def _components(self, K=None, indexes=None, random_draw=False):
         """The per-sample conditionals (ahat_k, Sigma_k): all of them, or K spaced evenly
         through the step-1 samples."""
         if self.ahat_samples is None:
             raise ValueError(f"{self.name}: no per-sample conditionals; summarize over noise samples first.")
 
-        idx = np.arange(len(self.ahat_samples)) if K is None else \
-              np.linspace(0, len(self.ahat_samples) - 1, K).astype(int)
-        return self.ahat_samples[idx], self.Sigma_samples[idx]
+
+        if indexes is None and not random_draw:
+            idx = np.arange(len(self.ahat_samples)) if K is None else \
+                  np.linspace(0, len(self.ahat_samples) - 1, K).astype(int)
+            return self.ahat_samples[idx], self.Sigma_samples[idx]
+        elif indexes is None and random_draw:
+            if K is None:
+                idx = np.random.randint(0, len(self.ahat_samples), size=len(self.ahat_samples))
+            else:
+                idx = np.random.randint(0, len(self.ahat_samples), size=K)
+            return self.ahat_samples[idx], self.Sigma_samples[idx]
+        elif indexes is not None:
+            return self.ahat_samples[indexes], self.Sigma_samples[indexes]
+
+
 
     @property
     def _standin(self):

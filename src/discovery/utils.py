@@ -330,11 +330,19 @@ def make_uind(U):
     shifted by +1 so that 0 acts as a sentinel (used together with a
     zero-prepended y / +inf-prepended N).
     """
-    Uind = np.zeros((U.shape[1], jnp.max(jnp.sum(U, axis=0)) + 1), 'i')
+    U = np.asarray(U)
 
-    for i in range(U.shape[1]):
-        ind = np.where(U[:, i])[0]
-        Uind[i, 0:len(ind)] = ind + 1
+    # No epochs (e.g. an ECORR selection that matches no TOAs): return an
+    # empty index table instead of taking the max of an empty array.
+    if U.shape[1] == 0:
+        return np.zeros((0, 1), 'i')
+
+    max_per_epoch = int(np.max(np.sum(U, axis=0)))
+    Uind = np.zeros((U.shape[1], max_per_epoch + 1), 'i')
+
+    for epoch_index in range(U.shape[1]):
+        toa_indices = np.where(U[:, epoch_index])[0]
+        Uind[epoch_index, 0:len(toa_indices)] = toa_indices + 1
 
     return Uind
 

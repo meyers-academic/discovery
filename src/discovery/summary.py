@@ -96,8 +96,12 @@ def _kernel_params(Phi):
 
 
 def _prior_params(gp):
-    """Free parameter names a GP contributes (prior + optional mean)."""
+    """Free parameter names a GP contributes (prior + basis, e.g. a sampled
+    chromatic index + optional mean)."""
     pars = list(_kernel_params(getattr(gp, 'Phi', None)))
+    basis = getattr(gp, 'F', None)
+    if callable(basis):
+        pars += list(getattr(basis, 'params', []) or [])
     for mattr in ('mean', 'means'):
         mfn = getattr(gp, mattr, None)
         if mfn is not None:

@@ -38,6 +38,12 @@ LOGL_ROWS = [
     pytest.param(R.fftcov_2d,             id="fftcov_2d"),
     pytest.param(R.delay,                 id="delay"),
     pytest.param(R.fourier_variance_fixed, id="fourier_variance_fixed"),
+    pytest.param(R.chromatic_gp,          id="chromatic_gp"),
+    pytest.param(R.chromatic_gp_shared_alpha, id="chromatic_gp_shared_alpha"),
+    pytest.param(R.fixed_chromatic_gp,    id="fixed_chromatic_gp"),
+    pytest.param(R.timedomain_dm,         id="timedomain_dm"),
+    pytest.param(R.timedomain_solar_wind, id="timedomain_solar_wind"),
+    pytest.param(R.chromatic_delays,      id="chromatic_delays"),
 ]
 
 
@@ -79,6 +85,16 @@ def test_logL(psr, build):
 CONDITIONAL_ROWS = [
     pytest.param(R.full_rn, id="full_rn"),
     pytest.param(R.multi_vgp, id="multi_vgp"),
+    pytest.param(R.chromatic_gp, id="chromatic_gp"),
+    pytest.param(R.chromatic_gp_shared_alpha, id="chromatic_gp_shared_alpha"),
+    pytest.param(R.fixed_chromatic_gp, id="fixed_chromatic_gp"),
+]
+
+# matrix.py has no clogL when a GP basis depends on parameters (sampled alpha)
+CLOGL_ROWS = [
+    pytest.param(R.full_rn, id="full_rn"),
+    pytest.param(R.multi_vgp, id="multi_vgp"),
+    pytest.param(R.fixed_chromatic_gp, id="fixed_chromatic_gp"),
 ]
 
 
@@ -99,7 +115,7 @@ def test_conditional(psr, build):
                      name=f"{build.__name__}[{route}].cf")
 
 
-@pytest.mark.parametrize("build", CONDITIONAL_ROWS)
+@pytest.mark.parametrize("build", CLOGL_ROWS)
 def test_clogL(psr, build):
     r = _routes(build, psr)
     ref = r["matrix"]
@@ -126,6 +142,7 @@ def test_clogL(psr, build):
 SAMPLE_ROWS = [
     pytest.param(R.full_rn, id="full_rn"),
     pytest.param(R.multi_vgp, id="multi_vgp"),
+    pytest.param(R.fixed_chromatic_gp, id="fixed_chromatic_gp"),
 ]
 
 

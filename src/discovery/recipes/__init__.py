@@ -158,6 +158,93 @@ def fourier_variance_fixed(psr):
     ])
 
 
+def chromatic_gp(psr):
+    """Red noise plus a chromatic GP whose chromatic index alpha is sampled (parameter-dependent basis)."""
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr, psr.noisedict),
+        ds.makegp_ecorr(psr, psr.noisedict),
+        ds.makegp_timing(psr, svd=True),
+        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
+        ds.makegp_fourier(psr, ds.powerlaw, components=14, name="chrom_gp",
+                          fourierbasis=ds.fourierbasis_chrom),
+    ])
+
+
+def chromatic_gp_shared_alpha(psr):
+    """A chromatic Fourier GP and a chromatic quadratic (makegp_chrom_poly_svd) sharing one alpha."""
+    # same name -> both GPs use the parameter {psr.name}_chrom_gp_alpha
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr, psr.noisedict),
+        ds.makegp_ecorr(psr, psr.noisedict),
+        ds.makegp_timing(psr, svd=True),
+        ds.makegp_fourier(psr, ds.powerlaw, components=14, name="chrom_gp",
+                          fourierbasis=ds.fourierbasis_chrom),
+        ds.makegp_chrom_poly_svd(psr, name="chrom_gp"),
+    ])
+
+
+def fixed_chromatic_gp(psr):
+    """Sampled red noise plus a chromatic GP with all hyperparameters (alpha included) fixed by noisedict."""
+    noisedict = {f"{psr.name}_chrom_gp_log10_A": -14.0,
+                 f"{psr.name}_chrom_gp_gamma": 3.0,
+                 f"{psr.name}_chrom_gp_alpha": 4.0}
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr, psr.noisedict),
+        ds.makegp_ecorr(psr, psr.noisedict),
+        ds.makegp_timing(psr, svd=True),
+        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
+        ds.makegp_fourier(psr, ds.powerlaw, components=14, name="chrom_gp",
+                          fourierbasis=ds.fourierbasis_chrom, noisedict=noisedict),
+    ])
+
+
+def timedomain_dm(psr):
+    """Red noise plus a time-domain (squared-exponential) DM GP with fixed hyperparameters."""
+    noisedict = {f"{psr.name}_dm_gp_log10_sigma_sq_exp": -6.5,
+                 f"{psr.name}_dm_gp_log10_ell": 0.0}
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr, psr.noisedict),
+        ds.makegp_ecorr(psr, psr.noisedict),
+        ds.makegp_timing(psr, svd=True),
+        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
+        ds.makegp_timedomain_dm(psr, ds.square_exponential_kernel(), dt=86400.0,
+                                noisedict=noisedict),
+    ])
+
+
+def timedomain_solar_wind(psr):
+    """Red noise plus a time-domain (squared-exponential) solar-wind GP with fixed hyperparameters."""
+    noisedict = {f"{psr.name}_timedomain_sw_gp_log10_sigma_sq_exp": -6.5,
+                 f"{psr.name}_timedomain_sw_gp_log10_ell": 0.0}
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr, psr.noisedict),
+        ds.makegp_ecorr(psr, psr.noisedict),
+        ds.makegp_timing(psr, svd=True),
+        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
+        ds.solar.makegp_timedomain_solar_dm(psr, ds.square_exponential_kernel(),
+                                            dt=86400.0, noisedict=noisedict),
+    ])
+
+
+def chromatic_delays(psr):
+    """Red noise plus chromatic exponential, annual and Gaussian-bump delays."""
+    return ds.PulsarLikelihood([
+        psr.residuals,
+        ds.makenoise_measurement(psr, psr.noisedict),
+        ds.makegp_ecorr(psr, psr.noisedict),
+        ds.makegp_timing(psr, svd=True),
+        ds.makegp_fourier(psr, ds.powerlaw, components=30, name="rednoise"),
+        ds.makedelay(psr, ds.deterministic.chromatic_exponential(psr), name="chrom_exp"),
+        ds.makedelay(psr, ds.deterministic.chromatic_annual(psr), name="chrom_1yr"),
+        ds.makedelay(psr, ds.deterministic.chromatic_gaussian(psr), name="chrom_gauss"),
+    ])
+
+
 # ---------------------------------------------------------------------------
 # Multi-pulsar: GlobalLikelihood — per-pulsar models + optional correlated GP
 # ---------------------------------------------------------------------------
@@ -338,6 +425,8 @@ SINGLE_PULSAR = [
     measurement_simple, measurement_white, ecorr_gp, ecorr_sm, meas_timing,
     full_rn, full_rn_concat_false, multi_vgp, variable_timing,
     fftcov_2d, delay, fourier_variance_fixed,
+    chromatic_gp, chromatic_gp_shared_alpha, fixed_chromatic_gp,
+    timedomain_dm, timedomain_solar_wind, chromatic_delays,
 ]
 
 GLOBAL = [no_global, global_hd, global_monopole, global_compound]

@@ -1,8 +1,13 @@
 import numpy as np
+import jax.numpy as jnp
 
-from .. import matrix
+import discovery
 from .. import signals
-from .. import likelihood
+from .. import utils
+from .. import _kernels as kernels
+
+# Likelihood classes are looked up on `discovery` at call time, so they follow
+# ds.config(kernels=...).
 
 priordict_standard = {
     "(.*_)?efac": [0.9, 1.1],
@@ -30,27 +35,30 @@ priordict_standard = {
     "(.*_)?1_t0": [57490, 57530]
 }
 
-# merge multiple GPs into a single CommonGP
+# merge per-pulsar GPs into a single CommonGP; takes one list of GPs per pulsar,
+# stacked along the coefficient axis (padded to the widest pulsar)
 # experimental, will be moved to signals.py
-def gps2commongp(gps):
-    priors = [gp.Phi.getN for gp in gps]
-    pmax = len(gps)
-    
-    ns = [gp.F.shape[1] for gp in gps]
-    nmax = max(ns)    
-    
-    def prior(params):
-        yp = matrix.jnp.full((pmax, nmax), 1e-40)
+def gps2commongp(gplists):
+    priors = [[gp.Phi.getN for gp in gplist] for gplist in gplists]
+    n_psr = len(gplists)
 
-        for i,p in enumerate(priors):
-            yp = yp.at[i, :ns[i]].set(p(params))
+    Fs = [np.hstack([gp.F for gp in gplist]) for gplist in gplists]
+    n_coeffs = [F.shape[1] for F in Fs]
+    n_coeff_max = max(n_coeffs)
+
+    def prior(params):
+        yp = jnp.full((n_psr, n_coeff_max), 1e-40)
+
+        for psr_index, psr_priors in enumerate(priors):
+            phi = jnp.concatenate([getN(params) for getN in psr_priors])
+            yp = yp.at[psr_index, :n_coeffs[psr_index]].set(phi)
 
         return yp
-    prior.params = sorted(set([par for p in priors for par in p.params])) 
-    
-    Fs = [np.pad(gp.F, [(0,0), (0,nmax - gp.F.shape[1])]) for gp in gps]
+    prior.params = sorted(set(par for psr_priors in priors for getN in psr_priors for par in getN.params))
 
-    return matrix.VariableGP(matrix.VectorNoiseMatrix1D_var(prior), Fs)
+    Fs = [np.pad(F, [(0, 0), (0, n_coeff_max - F.shape[1])]) for F in Fs]
+
+    return utils.VariableGP(kernels.VectorNoiseMatrix1D_var(prior), Fs)
 
 # standard EPTA single-pulsar GPs
 def _makegps(psr, Tred):
@@ -68,7 +76,7 @@ def _makegps(psr, Tred):
 
 # single-pulsar noise analysis for EPTA DR2new+. No exponential dips
 def makemodel_singlepulsar(psr):
-    return likelihood.PulsarLikelihood([psr.residuals,
+    return discovery.PulsarLikelihood([psr.residuals,
                                         signals.makenoise_measurement(psr, psr.noisedict),
                                         signals.makegp_timing(psr)] + _makegps(psr, Tred=signals.getspan(psr)))
 
@@ -77,48 +85,48 @@ def makemodel_curn(psrs, crn_components=30, array=False):
     tspan = signals.getspan(psrs)
 
     if array:
-        pslmodels = [likelihood.PulsarLikelihood([psr.residuals,
+        pslmodels = [discovery.PulsarLikelihood([psr.residuals,
                                                   signals.makenoise_measurement(psr, psr.noisedict),
                                                   signals.makegp_timing(psr)])
                      for psr in psrs]
 
-        cgp = gps2commongp([matrix.CompoundGP(_makegps(psr, tspan) +
-                                              [signals.makegp_fourier(psr, signals.powerlaw, crn_components, tspan,
-                                                                      common=['gw_crn_log10_A', 'gw_crn_gamma'], name='gw_crn')])
+        cgp = gps2commongp([_makegps(psr, tspan) +
+                            [signals.makegp_fourier(psr, signals.powerlaw, crn_components, tspan,
+                                                    common=['gw_crn_log10_A', 'gw_crn_gamma'], name='gw_crn')]
                             for psr in psrs])
 
-        return likelihood.ArrayLikelihood(pslmodels, commongp=cgp)
+        return discovery.ArrayLikelihood(pslmodels, commongp=cgp)
     else:
-        psls = [likelihood.PulsarLikelihood([psr.residuals,
+        psls = [discovery.PulsarLikelihood([psr.residuals,
                                              signals.makenoise_measurement(psr, psr.noisedict),
                                              signals.makegp_timing(psr)] + _makegps(psr, tspan) +
                                             [signals.makegp_fourier(psr, signals.powerlaw, crn_components, tspan,
                                                                     common=['gw_crn_log10_A', 'gw_crn_gamma'], name='gw_crn')])
                 for psr in psrs]
 
-        return likelihood.GlobalLikelihood(psls)
+        return discovery.GlobalLikelihood(psls)
 
 # HD model for EPTA DR2new+. No exponential dips
 def makemodel_hd(psrs, gw_components=30, array=False):
     tspan = signals.getspan(psrs)
 
     if array:
-        psls = [likelihood.PulsarLikelihood([psr.residuals,
+        psls = [discovery.PulsarLikelihood([psr.residuals,
                                             signals.makenoise_measurement(psr, psr.noisedict),
                                             signals.makegp_timing(psr)])
                 for psr in psrs]
 
-        cgp = gps2commongp([matrix.CompoundGP(_makegps(psr, tspan)) for psr in psrs])
+        cgp = gps2commongp([_makegps(psr, tspan) for psr in psrs])
         ggp = signals.makeglobalgp_fourier(psrs, signals.powerlaw, signals.hd_orf, components=gw_components, T=tspan, name='gw_hd')
 
-        return likelihood.ArrayLikelihood(psls, commongp=cgp, globalgp=ggp)        
+        return discovery.ArrayLikelihood(psls, commongp=cgp, globalgp=ggp)        
     else:
-        psls = [likelihood.PulsarLikelihood([psr.residuals,
+        psls = [discovery.PulsarLikelihood([psr.residuals,
                                             signals.makenoise_measurement(psr, psr.noisedict),
                                             signals.makegp_timing(psr)] + _makegps(psr, tspan))
                 for psr in psrs]
 
         ggp = signals.makeglobalgp_fourier(psrs, signals.powerlaw, signals.hd_orf, components=gw_components, T=tspan, name='gw_hd')
 
-        return likelihood.GlobalLikelihood(psls, globalgp=ggp)
+        return discovery.GlobalLikelihood(psls, globalgp=ggp)
 

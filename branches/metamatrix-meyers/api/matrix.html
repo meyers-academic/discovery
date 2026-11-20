@@ -31,6 +31,7 @@
 <link href="../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
   
   <!-- So that users can add custom icons -->
@@ -219,6 +220,13 @@
 <li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="../components/noise_signals.html">
     Noise and Signal Components
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../components/chromatic_noise.html">
+    Chromatic noise analyses
   </a>
 </li>
 
@@ -453,6 +461,13 @@
 
 
 <li class="nav-item ">
+  <a class="nav-link nav-internal" href="../components/chromatic_noise.html">
+    Chromatic noise analyses
+  </a>
+</li>
+
+
+<li class="nav-item ">
   <a class="nav-link nav-internal" href="../components/priors_spectra.html">
     GP Priors and Spectra
   </a>
@@ -623,6 +638,11 @@
 <dl class="py function">
 <dt class="sig sig-object py" id="discovery.matrix.NoiseMatrix12D_var">
 <span class="sig-prename descclassname"><span class="pre">discovery.matrix.</span></span><span class="sig-name descname"><span class="pre">NoiseMatrix12D_var</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">getN</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/matrix.html#NoiseMatrix12D_var"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.matrix.NoiseMatrix12D_var" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.matrix.NoiseMatrix12D_novar">
+<span class="sig-prename descclassname"><span class="pre">discovery.matrix.</span></span><span class="sig-name descname"><span class="pre">NoiseMatrix12D_novar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">N</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/matrix.html#NoiseMatrix12D_novar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.matrix.NoiseMatrix12D_novar" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
 
 <dl class="py class">
@@ -1006,6 +1026,11 @@
 <dd></dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="discovery.matrix.WoodburyKernel_varP.make_kernelsolve_simple">
+<span class="sig-name descname"><span class="pre">make_kernelsolve_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/matrix.html#WoodburyKernel_varP.make_kernelsolve_simple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.matrix.WoodburyKernel_varP.make_kernelsolve_simple" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="discovery.matrix.WoodburyKernel_varP.make_kernelproduct_vary">
 <span class="sig-name descname"><span class="pre">make_kernelproduct_vary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/matrix.html#WoodburyKernel_varP.make_kernelproduct_vary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.matrix.WoodburyKernel_varP.make_kernelproduct_vary" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
@@ -1178,6 +1203,7 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.CompoundGP"><code class="docutils literal notranslate"><span class="pre">CompoundGP()</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.CompoundDelay"><code class="docutils literal notranslate"><span class="pre">CompoundDelay()</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.NoiseMatrix12D_var"><code class="docutils literal notranslate"><span class="pre">NoiseMatrix12D_var()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.NoiseMatrix12D_novar"><code class="docutils literal notranslate"><span class="pre">NoiseMatrix12D_novar()</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.NoiseMatrix1D_novar"><code class="docutils literal notranslate"><span class="pre">NoiseMatrix1D_novar</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.NoiseMatrix1D_novar.make_kernelproduct"><code class="docutils literal notranslate"><span class="pre">NoiseMatrix1D_novar.make_kernelproduct()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.NoiseMatrix1D_novar.inv"><code class="docutils literal notranslate"><span class="pre">NoiseMatrix1D_novar.inv()</span></code></a></li>
@@ -1274,6 +1300,7 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.WoodburyKernel_varP.make_solve_2d_vary"><code class="docutils literal notranslate"><span class="pre">WoodburyKernel_varP.make_solve_2d_vary()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.WoodburyKernel_varP.make_kernelsolve_vary"><code class="docutils literal notranslate"><span class="pre">WoodburyKernel_varP.make_kernelsolve_vary()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.WoodburyKernel_varP.make_kernelsolve"><code class="docutils literal notranslate"><span class="pre">WoodburyKernel_varP.make_kernelsolve()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.WoodburyKernel_varP.make_kernelsolve_simple"><code class="docutils literal notranslate"><span class="pre">WoodburyKernel_varP.make_kernelsolve_simple()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.WoodburyKernel_varP.make_kernelproduct_vary"><code class="docutils literal notranslate"><span class="pre">WoodburyKernel_varP.make_kernelproduct_vary()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.WoodburyKernel_varP.make_kernelproduct"><code class="docutils literal notranslate"><span class="pre">WoodburyKernel_varP.make_kernelproduct()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.matrix.WoodburyKernel_varP.make_kernelproduct_gpcomponent"><code class="docutils literal notranslate"><span class="pre">WoodburyKernel_varP.make_kernelproduct_gpcomponent()</span></code></a></li>

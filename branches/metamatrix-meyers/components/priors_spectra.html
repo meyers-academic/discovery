@@ -31,6 +31,7 @@
 <link href="../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
   
   <!-- So that users can add custom icons -->
@@ -49,7 +50,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Deterministic Delays" href="delays.html" />
-    <link rel="prev" title="Noise and Signal Components" href="noise_signals.html" />
+    <link rel="prev" title="Chromatic noise analyses" href="chromatic_noise.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -221,6 +222,13 @@
 <li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="noise_signals.html">
     Noise and Signal Components
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="chromatic_noise.html">
+    Chromatic noise analyses
   </a>
 </li>
 
@@ -450,6 +458,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="noise_signals.html">
     Noise and Signal Components
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="chromatic_noise.html">
+    Chromatic noise analyses
   </a>
 </li>
 
@@ -819,7 +834,7 @@ with default uniform (or log-uniform) prior ranges for common parameter names:</
 <h3>DM Variations<a class="headerlink" href="#dm-variations" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># DM with power law</span>
 <span class="n">dm_gp</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">makegp_fourier</span><span class="p">(</span><span class="n">psr</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">powerlaw</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
-                          <span class="n">fourierbasis</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">dmfourierbasis</span><span class="p">,</span>
+                          <span class="n">fourierbasis</span><span class="o">=</span><span class="n">ds</span><span class="o">.</span><span class="n">fourierbasis_dm</span><span class="p">,</span>
                           <span class="n">name</span><span class="o">=</span><span class="s1">'dm'</span><span class="p">)</span>
 
 <span class="c1"># Parameters: dm_log10_A, dm_gamma</span>
@@ -860,12 +875,12 @@ with default uniform (or log-uniform) prior ranges for common parameter names:</
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="noise_signals.html"
+       href="chromatic_noise.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Noise and Signal Components</p>
+        <p class="prev-next-title">Chromatic noise analyses</p>
       </div>
     </a>
     <a class="right-next"

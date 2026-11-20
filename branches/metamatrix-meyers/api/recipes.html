@@ -31,6 +31,7 @@
 <link href="../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
   
   <!-- So that users can add custom icons -->
@@ -219,6 +220,13 @@
 <li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="../components/noise_signals.html">
     Noise and Signal Components
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../components/chromatic_noise.html">
+    Chromatic noise analyses
   </a>
 </li>
 
@@ -448,6 +456,13 @@
 <li class="nav-item ">
   <a class="nav-link nav-internal" href="../components/noise_signals.html">
     Noise and Signal Components
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../components/chromatic_noise.html">
+    Chromatic noise analyses
   </a>
 </li>
 
@@ -693,6 +708,42 @@ cookbook’s table of contents.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.chromatic_gp">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">chromatic_gp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#chromatic_gp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.chromatic_gp" title="Link to this definition">#</a></dt>
+<dd><p>Red noise plus a chromatic GP whose chromatic index alpha is sampled (parameter-dependent basis).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.chromatic_gp_shared_alpha">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">chromatic_gp_shared_alpha</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#chromatic_gp_shared_alpha"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.chromatic_gp_shared_alpha" title="Link to this definition">#</a></dt>
+<dd><p>A chromatic Fourier GP and a chromatic quadratic (makegp_chrom_poly_svd) sharing one alpha.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.fixed_chromatic_gp">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">fixed_chromatic_gp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#fixed_chromatic_gp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.fixed_chromatic_gp" title="Link to this definition">#</a></dt>
+<dd><p>Sampled red noise plus a chromatic GP with all hyperparameters (alpha included) fixed by noisedict.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.timedomain_dm">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">timedomain_dm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#timedomain_dm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.timedomain_dm" title="Link to this definition">#</a></dt>
+<dd><p>Red noise plus a time-domain (squared-exponential) DM GP with fixed hyperparameters.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.timedomain_solar_wind">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">timedomain_solar_wind</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#timedomain_solar_wind"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.timedomain_solar_wind" title="Link to this definition">#</a></dt>
+<dd><p>Red noise plus a time-domain (squared-exponential) solar-wind GP with fixed hyperparameters.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.chromatic_delays">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">chromatic_delays</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#chromatic_delays"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.chromatic_delays" title="Link to this definition">#</a></dt>
+<dd><p>Red noise plus chromatic exponential, annual and Gaussian-bump delays.</p>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="discovery.recipes.no_global">
 <span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">no_global</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#no_global"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.no_global" title="Link to this definition">#</a></dt>
 <dd><p>Independent pulsars — GlobalLikelihood with no correlated GP (sum of per-psr logL).</p>
@@ -825,6 +876,12 @@ cookbook’s table of contents.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.fftcov_2d"><code class="docutils literal notranslate"><span class="pre">fftcov_2d()</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.delay"><code class="docutils literal notranslate"><span class="pre">delay()</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.fourier_variance_fixed"><code class="docutils literal notranslate"><span class="pre">fourier_variance_fixed()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.chromatic_gp"><code class="docutils literal notranslate"><span class="pre">chromatic_gp()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.chromatic_gp_shared_alpha"><code class="docutils literal notranslate"><span class="pre">chromatic_gp_shared_alpha()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.fixed_chromatic_gp"><code class="docutils literal notranslate"><span class="pre">fixed_chromatic_gp()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.timedomain_dm"><code class="docutils literal notranslate"><span class="pre">timedomain_dm()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.timedomain_solar_wind"><code class="docutils literal notranslate"><span class="pre">timedomain_solar_wind()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.chromatic_delays"><code class="docutils literal notranslate"><span class="pre">chromatic_delays()</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.no_global"><code class="docutils literal notranslate"><span class="pre">no_global()</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.global_hd"><code class="docutils literal notranslate"><span class="pre">global_hd()</span></code></a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.global_monopole"><code class="docutils literal notranslate"><span class="pre">global_monopole()</span></code></a></li>

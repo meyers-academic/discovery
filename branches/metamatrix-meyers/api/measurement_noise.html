@@ -31,6 +31,7 @@
 <link href="../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
   
   <!-- So that users can add custom icons -->
@@ -219,6 +220,13 @@
 <li class=" ">
   <a class="nav-link dropdown-item nav-internal" href="../components/noise_signals.html">
     Noise and Signal Components
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../components/chromatic_noise.html">
+    Chromatic noise analyses
   </a>
 </li>
 
@@ -453,6 +461,13 @@
 
 
 <li class="nav-item ">
+  <a class="nav-link nav-internal" href="../components/chromatic_noise.html">
+    Chromatic noise analyses
+  </a>
+</li>
+
+
+<li class="nav-item ">
   <a class="nav-link nav-internal" href="../components/priors_spectra.html">
     GP Priors and Spectra
   </a>
@@ -616,13 +631,38 @@ and in metamath mode (collapsed builds metamath kernels, compared to the matrix
 oracle). Once green, <cite>signals.py</cite> is repointed here and the originals deleted.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="discovery.measurement_noise.makenoise_measurement_simple">
-<span class="sig-prename descclassname"><span class="pre">discovery.measurement_noise.</span></span><span class="sig-name descname"><span class="pre">makenoise_measurement_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisedict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/measurement_noise.html#makenoise_measurement_simple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.measurement_noise.makenoise_measurement_simple" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">discovery.measurement_noise.</span></span><span class="sig-name descname"><span class="pre">makenoise_measurement_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisedict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_equad</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tnequad</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/measurement_noise.html#makenoise_measurement_simple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.measurement_noise.makenoise_measurement_simple" title="Link to this definition">#</a></dt>
+<dd><p>Single-EFAC (optionally single-EQUAD) white-noise model for a pulsar.</p>
+<p>Builds a diagonal measurement-noise matrix using one <code class="docutils literal notranslate"><span class="pre">efac</span></code> for the whole
+pulsar. When <code class="docutils literal notranslate"><span class="pre">add_equad</span></code> is True an EQUAD term is included: <code class="docutils literal notranslate"><span class="pre">tnequad=True</span></code>
+uses the TempoNest convention (EQUAD added outside the EFAC scaling), while the
+default (<code class="docutils literal notranslate"><span class="pre">tnequad=False</span></code>) uses the tempo2/<code class="docutils literal notranslate"><span class="pre">t2equad</span></code> convention (EQUAD added
+in quadrature with the TOA errors, inside the EFAC scaling). Set
+<code class="docutils literal notranslate"><span class="pre">add_equad=False</span></code> for an EFAC-only model. If all required parameters are present
+in <code class="docutils literal notranslate"><span class="pre">noisedict</span></code> a constant matrix is returned, otherwise a variable one.</p>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="discovery.measurement_noise.makenoise_measurement">
-<span class="sig-prename descclassname"><span class="pre">discovery.measurement_noise.</span></span><span class="sig-name descname"><span class="pre">makenoise_measurement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisedict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tnequad</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ecorr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">selection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vectorize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enterprise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/measurement_noise.html#makenoise_measurement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.measurement_noise.makenoise_measurement" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">discovery.measurement_noise.</span></span><span class="sig-name descname"><span class="pre">makenoise_measurement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">noisedict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tnequad</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ecorr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromequad</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chromequad_idx_per_backend</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">selection</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vectorize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outliers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enterprise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1400</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/measurement_noise.html#makenoise_measurement"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.measurement_noise.makenoise_measurement" title="Link to this definition">#</a></dt>
+<dd><p>Build a measurement noise matrix for a pulsar.</p>
+<dl class="simple">
+<dt>The noise variance per TOA is (tnequad=True):</dt><dd><p>efac^2 * (scale * toaerr)^2 + (scale * EQUAD)^2 [+ (scale * CHROMEQUAD)^2 * (fref/freq)^chrom_idx]</p>
+</dd>
+<dt>or (tnequad=False, t2equad convention):</dt><dd><p>efac^2 * ((scale * toaerr)^2 + (scale * EQUAD)^2) [+ (scale * CHROMEQUAD)^2 * (fref/freq)^chrom_idx]</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>chromequad</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – If True, add a per-backend frequency-dependent noise floor term.</p></li>
+<li><p><strong>chromequad_idx_per_backend</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><em>bool</em></a>) – If True, float a separate chrom_idx for each backend.
+Default False uses a single per-pulsar chrom_idx (better constrained).</p></li>
+<li><p><strong>fref</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><em>float</em></a>) – Reference frequency in MHz for the chromatic scaling.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 </section>
 

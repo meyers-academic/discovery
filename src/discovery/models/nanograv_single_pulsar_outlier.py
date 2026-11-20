@@ -3,6 +3,9 @@
 
 See `nanograv_single_pulsar_outlier.md` for design notes and the
 statistical model.
+
+Matrix backend only: the Gibbs step reads `psrl.N.N_var` and `psrl.N.F`,
+which metamath does not expose, so this always builds `likelihood.PulsarLikelihood`.
 """
 
 import dataclasses
@@ -68,6 +71,7 @@ def make_outlier_likelihood(psr, *,
     if noisedict is None:
         noisedict = {}
 
+    # matrix backend on purpose (see module docstring), not ds.PulsarLikelihood
     return likelihood.PulsarLikelihood([
         psr.residuals,
         signals.makenoise_measurement(psr, noisedict=noisedict, outliers=True),

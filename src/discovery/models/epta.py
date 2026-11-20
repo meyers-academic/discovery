@@ -1,13 +1,17 @@
 import numpy as np
-import jax.numpy as jnp
 
-import discovery
 from .. import signals
 from .. import utils
 from .. import _kernels as kernels
 
-# Likelihood classes are looked up on `discovery` at call time, so they follow
-# ds.config(kernels=...).
+
+def _likelihood():
+    # likelihood module for the active ds.config(kernels=...), looked up at call time
+    if kernels.get_mode() == "metamath":
+        from .. import likelihood_metamath
+        return likelihood_metamath
+    from .. import likelihood
+    return likelihood
 
 priordict_standard = {
     "(.*_)?efac": [0.9, 1.1],
@@ -47,10 +51,10 @@ def gps2commongp(gplists):
     n_coeff_max = max(n_coeffs)
 
     def prior(params):
-        yp = jnp.full((n_psr, n_coeff_max), 1e-40)
+        yp = utils.jnp.full((n_psr, n_coeff_max), 1e-40)
 
         for psr_index, psr_priors in enumerate(priors):
-            phi = jnp.concatenate([getN(params) for getN in psr_priors])
+            phi = utils.jnp.concatenate([getN(params) for getN in psr_priors])
             yp = yp.at[psr_index, :n_coeffs[psr_index]].set(phi)
 
         return yp
@@ -76,7 +80,7 @@ def _makegps(psr, Tred):
 
 # single-pulsar noise analysis for EPTA DR2new+. No exponential dips
 def makemodel_singlepulsar(psr):
-    return discovery.PulsarLikelihood([psr.residuals,
+    return _likelihood().PulsarLikelihood([psr.residuals,
                                         signals.makenoise_measurement(psr, psr.noisedict),
                                         signals.makegp_timing(psr)] + _makegps(psr, Tred=signals.getspan(psr)))
 
@@ -85,7 +89,7 @@ def makemodel_curn(psrs, crn_components=30, array=False):
     tspan = signals.getspan(psrs)
 
     if array:
-        pslmodels = [discovery.PulsarLikelihood([psr.residuals,
+        pslmodels = [_likelihood().PulsarLikelihood([psr.residuals,
                                                   signals.makenoise_measurement(psr, psr.noisedict),
                                                   signals.makegp_timing(psr)])
                      for psr in psrs]
@@ -95,23 +99,23 @@ def makemodel_curn(psrs, crn_components=30, array=False):
                                                     common=['gw_crn_log10_A', 'gw_crn_gamma'], name='gw_crn')]
                             for psr in psrs])
 
-        return discovery.ArrayLikelihood(pslmodels, commongp=cgp)
+        return _likelihood().ArrayLikelihood(pslmodels, commongp=cgp)
     else:
-        psls = [discovery.PulsarLikelihood([psr.residuals,
+        psls = [_likelihood().PulsarLikelihood([psr.residuals,
                                              signals.makenoise_measurement(psr, psr.noisedict),
                                              signals.makegp_timing(psr)] + _makegps(psr, tspan) +
                                             [signals.makegp_fourier(psr, signals.powerlaw, crn_components, tspan,
                                                                     common=['gw_crn_log10_A', 'gw_crn_gamma'], name='gw_crn')])
                 for psr in psrs]
 
-        return discovery.GlobalLikelihood(psls)
+        return _likelihood().GlobalLikelihood(psls)
 
 # HD model for EPTA DR2new+. No exponential dips
 def makemodel_hd(psrs, gw_components=30, array=False):
     tspan = signals.getspan(psrs)
 
     if array:
-        psls = [discovery.PulsarLikelihood([psr.residuals,
+        psls = [_likelihood().PulsarLikelihood([psr.residuals,
                                             signals.makenoise_measurement(psr, psr.noisedict),
                                             signals.makegp_timing(psr)])
                 for psr in psrs]
@@ -119,14 +123,14 @@ def makemodel_hd(psrs, gw_components=30, array=False):
         cgp = gps2commongp([_makegps(psr, tspan) for psr in psrs])
         ggp = signals.makeglobalgp_fourier(psrs, signals.powerlaw, signals.hd_orf, components=gw_components, T=tspan, name='gw_hd')
 
-        return discovery.ArrayLikelihood(psls, commongp=cgp, globalgp=ggp)        
+        return _likelihood().ArrayLikelihood(psls, commongp=cgp, globalgp=ggp)        
     else:
-        psls = [discovery.PulsarLikelihood([psr.residuals,
+        psls = [_likelihood().PulsarLikelihood([psr.residuals,
                                             signals.makenoise_measurement(psr, psr.noisedict),
                                             signals.makegp_timing(psr)] + _makegps(psr, tspan))
                 for psr in psrs]
 
         ggp = signals.makeglobalgp_fourier(psrs, signals.powerlaw, signals.hd_orf, components=gw_components, T=tspan, name='gw_hd')
 
-        return discovery.GlobalLikelihood(psls, globalgp=ggp)
+        return _likelihood().GlobalLikelihood(psls, globalgp=ggp)
 

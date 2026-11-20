@@ -1,0 +1,966 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>recipes &#8212; Discovery 0.5 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=a95f357e85573c9b56d5"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
+
+    <script src="../_static/documentation_options.js?v=db78e746"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/recipes';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="summary" href="summary.html" />
+    <link rel="prev" title="const" href="const.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Discovery 0.5 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials/curn_example.html">
+    How best to run a CURN model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../guide/overview.html">
+    Overview
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../guide/model_summary.html">
+    Inspecting a model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../installation.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../quickstart.html">
+    Quick Start
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false"
+                aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../tutorials/basic_likelihood.html">
+    Basic Likelihood
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../tutorials/params_example.html">
+    Fast likelihood evaluation with Params
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../tutorials/optimal_statistic.html">
+    Optimal Statistic
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../tutorials/simulations.html">
+    Simulations
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../tutorials/cookbook_models.html">
+    Model cookbook
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../tutorials/cw_extsignal_example.html">
+    Sampling a continuous-wave signal on its own Fourier basis
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../components/noise_signals.html">
+    Noise and Signal Components
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../components/chromatic_noise.html">
+    Chromatic noise analyses
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../components/priors_spectra.html">
+    GP Priors and Spectra
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../components/delays.html">
+    Deterministic Delays
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../guide/data_model.html">
+    Data Model
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../guide/pulsar_data.html">
+    Pulsar Data
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../advanced/conditional_sampling.html">
+    Conditional Sampling of GP Coefficients
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../advanced/single_precision.html">
+    Single-precision likelihoods (and the reference–delta trick)
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../metamatrix.html">
+    Metamatrix: graph-based kernels
+  </a>
+</li>
+
+
+<li class=" current active">
+  <a class="nav-link dropdown-item nav-internal" href="index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="../examples.html">
+    Examples
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials/curn_example.html">
+    How best to run a CURN model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../guide/overview.html">
+    Overview
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../guide/model_summary.html">
+    Inspecting a model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../installation.html">
+    Installation
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../quickstart.html">
+    Quick Start
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials/basic_likelihood.html">
+    Basic Likelihood
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials/params_example.html">
+    Fast likelihood evaluation with Params
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials/optimal_statistic.html">
+    Optimal Statistic
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials/simulations.html">
+    Simulations
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials/cookbook_models.html">
+    Model cookbook
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../tutorials/cw_extsignal_example.html">
+    Sampling a continuous-wave signal on its own Fourier basis
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../components/noise_signals.html">
+    Noise and Signal Components
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../components/chromatic_noise.html">
+    Chromatic noise analyses
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../components/priors_spectra.html">
+    GP Priors and Spectra
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../components/delays.html">
+    Deterministic Delays
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../guide/data_model.html">
+    Data Model
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../guide/pulsar_data.html">
+    Pulsar Data
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../advanced/conditional_sampling.html">
+    Conditional Sampling of GP Coefficients
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../advanced/single_precision.html">
+    Single-precision likelihoods (and the reference–delta trick)
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../metamatrix.html">
+    Metamatrix: graph-based kernels
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="index.html">
+    API Reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../examples.html">
+    Examples
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="index.html" class="nav-link">API Reference</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">recipes</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="module-discovery.recipes">
+<span id="recipes"></span><h1>recipes<a class="headerlink" href="#module-discovery.recipes" title="Link to this heading">#</a></h1>
+<p>Ready-made model-building recipes (a small “model zoo”).</p>
+<p>Import it explicitly (it is not pulled into the top-level <code class="docutils literal notranslate"><span class="pre">discovery</span></code>
+namespace). Each function assembles a Discovery likelihood from the public API
+and returns it, e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">discovery</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ds</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">discovery.recipes</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ds_recipes</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">ds_recipes</span><span class="o">.</span><span class="n">full_rn</span><span class="p">(</span><span class="n">psr</span><span class="p">)</span>
+<span class="n">logL</span>  <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">logL</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">sample_uniform</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">logL</span><span class="o">.</span><span class="n">params</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>This module is also the <strong>single source of truth</strong> for the parity test-suite
+(<code class="docutils literal notranslate"><span class="pre">tests/metamatrix/test_{pulsar,global,array}.py</span></code>) and the docs cookbook
+(<code class="docutils literal notranslate"><span class="pre">docs/tutorials/cookbook_models.ipynb</span></code>) — both import these same builders, so
+every recipe is exercised by a test that asserts the <code class="docutils literal notranslate"><span class="pre">matrix</span></code> and <code class="docutils literal notranslate"><span class="pre">metamath</span></code>
+kernel backends agree. Every recipe works unchanged under either backend
+(<code class="docutils literal notranslate"><span class="pre">ds.config(kernels='matrix'|'metamath')</span></code>).</p>
+<p>Each function’s one-line docstring is the cookbook caption; keep it to a single
+sentence. The ordered <code class="docutils literal notranslate"><span class="pre">SINGLE_PULSAR</span></code> / <code class="docutils literal notranslate"><span class="pre">GLOBAL</span></code> / <code class="docutils literal notranslate"><span class="pre">ARRAY</span></code> lists drive the
+cookbook’s table of contents.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.measurement_simple">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">measurement_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#measurement_simple"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.measurement_simple" title="Link to this definition">#</a></dt>
+<dd><p>White noise only, single-backend (efac + t2equad), no selection.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.measurement_white">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">measurement_white</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#measurement_white"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.measurement_white" title="Link to this definition">#</a></dt>
+<dd><p>White noise with per-backend efac/equad selection.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.ecorr_gp">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">ecorr_gp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#ecorr_gp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.ecorr_gp" title="Link to this definition">#</a></dt>
+<dd><p>White noise plus ECORR modelled as a separate Gaussian-process component.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.ecorr_sm">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">ecorr_sm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#ecorr_sm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.ecorr_sm" title="Link to this definition">#</a></dt>
+<dd><p>ECORR folded into the noise matrix via Sherman-Morrison (+ timing GP wrapper).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.meas_timing">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">meas_timing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#meas_timing"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.meas_timing" title="Link to this definition">#</a></dt>
+<dd><p>White noise plus an (SVD-stabilised) marginalised timing-model GP.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.full_rn">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">full_rn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#full_rn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.full_rn" title="Link to this definition">#</a></dt>
+<dd><p>Realistic single-pulsar model: white + ECORR-GP + timing + power-law red noise.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.full_rn_concat_false">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">full_rn_concat_false</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#full_rn_concat_false"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.full_rn_concat_false" title="Link to this definition">#</a></dt>
+<dd><p>Same as full_rn but with concat=False → chained (nested) Woodbury kernels.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.multi_vgp">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">multi_vgp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#multi_vgp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.multi_vgp" title="Link to this definition">#</a></dt>
+<dd><p>Two variable GPs: achromatic red noise + a chromatic DM GP (on the DM Fourier basis).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.variable_timing">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">variable_timing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#variable_timing"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.variable_timing" title="Link to this definition">#</a></dt>
+<dd><p>Timing model as a <em>variable</em> GP (coefficients sampled, not marginalised) + RN.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.fftcov_2d">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">fftcov_2d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#fftcov_2d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.fftcov_2d" title="Link to this definition">#</a></dt>
+<dd><p>Red noise via an FFT-derived dense (2D) covariance basis (makegp_fftcov).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.delay">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">delay</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#delay"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.delay" title="Link to this definition">#</a></dt>
+<dd><p>A deterministic delay subtracted from the residuals (makedelay → CompoundDelay).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.fourier_variance_fixed">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">fourier_variance_fixed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#fourier_variance_fixed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.fourier_variance_fixed" title="Link to this definition">#</a></dt>
+<dd><p>A Fourier GP whose prior covariance is supplied directly as a fixed matrix.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.chromatic_gp">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">chromatic_gp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#chromatic_gp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.chromatic_gp" title="Link to this definition">#</a></dt>
+<dd><p>Red noise plus a chromatic GP whose chromatic index alpha is sampled (parameter-dependent basis).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.chromatic_gp_shared_alpha">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">chromatic_gp_shared_alpha</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#chromatic_gp_shared_alpha"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.chromatic_gp_shared_alpha" title="Link to this definition">#</a></dt>
+<dd><p>A chromatic Fourier GP and a chromatic quadratic (makegp_chrom_poly_svd) sharing one alpha.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.fixed_chromatic_gp">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">fixed_chromatic_gp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#fixed_chromatic_gp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.fixed_chromatic_gp" title="Link to this definition">#</a></dt>
+<dd><p>Sampled red noise plus a chromatic GP with all hyperparameters (alpha included) fixed by noisedict.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.timedomain_dm">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">timedomain_dm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#timedomain_dm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.timedomain_dm" title="Link to this definition">#</a></dt>
+<dd><p>Red noise plus a time-domain (squared-exponential) DM GP with fixed hyperparameters.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.timedomain_solar_wind">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">timedomain_solar_wind</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#timedomain_solar_wind"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.timedomain_solar_wind" title="Link to this definition">#</a></dt>
+<dd><p>Red noise plus a time-domain (squared-exponential) solar-wind GP with fixed hyperparameters.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.chromatic_delays">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">chromatic_delays</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psr</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#chromatic_delays"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.chromatic_delays" title="Link to this definition">#</a></dt>
+<dd><p>Red noise plus chromatic exponential, annual and Gaussian-bump delays.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.no_global">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">no_global</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#no_global"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.no_global" title="Link to this definition">#</a></dt>
+<dd><p>Independent pulsars — GlobalLikelihood with no correlated GP (sum of per-psr logL).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.global_hd">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">global_hd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#global_hd"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.global_hd" title="Link to this definition">#</a></dt>
+<dd><p>A Hellings-Downs-correlated common GW signal across pulsars (dense 2D prior).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.global_monopole">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">global_monopole</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#global_monopole"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.global_monopole" title="Link to this definition">#</a></dt>
+<dd><p>A monopole-correlated common signal across pulsars.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.global_compound">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">global_compound</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#global_compound"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.global_compound" title="Link to this definition">#</a></dt>
+<dd><p>Two correlated global GPs at once (HD + monopole) via a globalgp list (CompoundGlobalGP).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.no_common">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">no_common</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#no_common"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.no_common" title="Link to this definition">#</a></dt>
+<dd><p>ArrayLikelihood with per-pulsar red noise inline, no shared/correlated GP.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.intrinsic_rn">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">intrinsic_rn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#intrinsic_rn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.intrinsic_rn" title="Link to this definition">#</a></dt>
+<dd><p>Per-pulsar intrinsic red noise on a shared Fourier basis (vectorised; independent amplitudes per pulsar).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.intrinsic_plus_crn">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">intrinsic_plus_crn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#intrinsic_plus_crn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.intrinsic_plus_crn" title="Link to this definition">#</a></dt>
+<dd><p>Per-pulsar intrinsic red noise + a common-spectrum (CRN) process on one shared basis, via make_combined_crn.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.intrinsic_rn_plus_global_hd">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">intrinsic_rn_plus_global_hd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#intrinsic_rn_plus_global_hd"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.intrinsic_rn_plus_global_hd" title="Link to this definition">#</a></dt>
+<dd><p>Per-pulsar intrinsic red noise plus an HD-correlated global GW signal (the canonical PTA model).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.decenter_intrinsic_rn">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">decenter_intrinsic_rn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#decenter_intrinsic_rn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.decenter_intrinsic_rn" title="Link to this definition">#</a></dt>
+<dd><p>intrinsic_rn built in a decentered (whitened-coefficient) parameterisation.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.decenter_intrinsic_rn_global_hd">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">decenter_intrinsic_rn_global_hd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#decenter_intrinsic_rn_global_hd"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.decenter_intrinsic_rn_global_hd" title="Link to this definition">#</a></dt>
+<dd><p>Decentered intrinsic red noise + HD global GP (decentered sampling of the full model).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.means_on_commongp">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">means_on_commongp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#means_on_commongp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.means_on_commongp" title="Link to this definition">#</a></dt>
+<dd><p>An (intrinsic-RN) common GP with a non-zero prior mean supplied by a <cite>means</cite> callable.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="discovery.recipes.extsignal_cw">
+<span class="sig-prename descclassname"><span class="pre">discovery.recipes.</span></span><span class="sig-name descname"><span class="pre">extsignal_cw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">psrs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/discovery/recipes.html#extsignal_cw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#discovery.recipes.extsignal_cw" title="Link to this definition">#</a></dt>
+<dd><p>Intrinsic red noise plus a continuous-wave deterministic signal on its own basis.</p>
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="const.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">const</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="summary.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">summary</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.measurement_simple"><code class="docutils literal notranslate"><span class="pre">measurement_simple()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.measurement_white"><code class="docutils literal notranslate"><span class="pre">measurement_white()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.ecorr_gp"><code class="docutils literal notranslate"><span class="pre">ecorr_gp()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.ecorr_sm"><code class="docutils literal notranslate"><span class="pre">ecorr_sm()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.meas_timing"><code class="docutils literal notranslate"><span class="pre">meas_timing()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.full_rn"><code class="docutils literal notranslate"><span class="pre">full_rn()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.full_rn_concat_false"><code class="docutils literal notranslate"><span class="pre">full_rn_concat_false()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.multi_vgp"><code class="docutils literal notranslate"><span class="pre">multi_vgp()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.variable_timing"><code class="docutils literal notranslate"><span class="pre">variable_timing()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.fftcov_2d"><code class="docutils literal notranslate"><span class="pre">fftcov_2d()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.delay"><code class="docutils literal notranslate"><span class="pre">delay()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.fourier_variance_fixed"><code class="docutils literal notranslate"><span class="pre">fourier_variance_fixed()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.chromatic_gp"><code class="docutils literal notranslate"><span class="pre">chromatic_gp()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.chromatic_gp_shared_alpha"><code class="docutils literal notranslate"><span class="pre">chromatic_gp_shared_alpha()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.fixed_chromatic_gp"><code class="docutils literal notranslate"><span class="pre">fixed_chromatic_gp()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.timedomain_dm"><code class="docutils literal notranslate"><span class="pre">timedomain_dm()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.timedomain_solar_wind"><code class="docutils literal notranslate"><span class="pre">timedomain_solar_wind()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.chromatic_delays"><code class="docutils literal notranslate"><span class="pre">chromatic_delays()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.no_global"><code class="docutils literal notranslate"><span class="pre">no_global()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.global_hd"><code class="docutils literal notranslate"><span class="pre">global_hd()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.global_monopole"><code class="docutils literal notranslate"><span class="pre">global_monopole()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.global_compound"><code class="docutils literal notranslate"><span class="pre">global_compound()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.no_common"><code class="docutils literal notranslate"><span class="pre">no_common()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.intrinsic_rn"><code class="docutils literal notranslate"><span class="pre">intrinsic_rn()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.intrinsic_plus_crn"><code class="docutils literal notranslate"><span class="pre">intrinsic_plus_crn()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.intrinsic_rn_plus_global_hd"><code class="docutils literal notranslate"><span class="pre">intrinsic_rn_plus_global_hd()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.decenter_intrinsic_rn"><code class="docutils literal notranslate"><span class="pre">decenter_intrinsic_rn()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.decenter_intrinsic_rn_global_hd"><code class="docutils literal notranslate"><span class="pre">decenter_intrinsic_rn_global_hd()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.means_on_commongp"><code class="docutils literal notranslate"><span class="pre">means_on_commongp()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#discovery.recipes.extsignal_cw"><code class="docutils literal notranslate"><span class="pre">extsignal_cw()</span></code></a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../_sources/api/recipes.rst.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2026, Michele Vallisneri.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.19.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
